@@ -309,11 +309,13 @@ export function activate(mide) {
     return NOT_FOUND;
   }
 
+  // Unconfigured sections answer {} rather than null: several servers (the vscode-*
+  // family in particular) crash on null and silently stop reporting diagnostics.
   function getSection(settings, section) {
-    if (!section) return settings ?? null;
+    if (!section) return settings ?? {};
     let cur = settings;
     for (const part of section.split('.')) cur = cur?.[part];
-    return cur ?? null;
+    return cur ?? {};
   }
 
   // ---------------------------------------------------------------------------
