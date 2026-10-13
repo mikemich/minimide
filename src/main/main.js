@@ -399,6 +399,47 @@ function registerIpc() {
     child.on('close', (code, signal) => { procs.delete(key); send('proc:exit', code, signal); });
     return child.pid;
   });
+  // JSON-RPC over stdio with Content-Length framing (LSP, DAP). Framing works on raw bytes,
+  // so multi-byte characters split across chunks are handled correctly.
+  handle('proc:spawnRpc', (event, id, argv, opts = {}) => {
+    const sender = event.sender;
+    const key = `${sender.id}:${id}`;
+    const quote = (a) => `'${String(a).replace(/'/g, `'\\''`)}'`;
+    const shellPath = process.env.SHELL || '/bin/sh';
+    // A login shell gives servers the user's PATH (npm globals, Homebrew, cargo, …).
+    const child = process.platform === 'win32'
+      ? spawn(argv[0], argv.slice(1), { cwd: opts.cwd, env: { ...process.env, ...opts.env }, shell: true })
+      : spawn(shellPath, ['-lc', `exec ${argv.map(quote).join(' ')}`], { cwd: opts.cwd || os.homedir(), env: { ...process.env, ...opts.env } });
+    procs.set(key, child);
+    const send = (ch, ...a) => { if (!sender.isDestroyed()) sender.send(ch, id, ...a); };
+    let buffer = Buffer.alloc(0);
+    child.stdout.on('data', (chunk) => {
+      buffer = Buffer.concat([buffer, chunk]);
+      for (;;) {
+        const headerEnd = buffer.indexOf('\r\n\r\n');
+        if (headerEnd < 0) return;
+        const header = buffer.subarray(0, headerEnd).toString('ascii');
+        const m = /Content-Length:\s*(\d+)/i.exec(header);
+        if (!m) { buffer = buffer.subarray(headerEnd + 4); continue; }
+        const length = Number(m[1]);
+        if (buffer.length < headerEnd + 4 + length) return;
+        const body = buffer.subarray(headerEnd + 4, headerEnd + 4 + length).toString('utf8');
+        buffer = buffer.subarray(headerEnd + 4 + length);
+        send('proc:message', body);
+      }
+    });
+    child.stderr.on('data', (d) => send('proc:data', d.toString(), 'stderr'));
+    child.on('error', (err) => send('proc:data', `${err.message}\n`, 'stderr'));
+    child.stdin.on('error', () => {});
+    child.on('close', (code, signal) => { procs.delete(key); send('proc:exit', code, signal); });
+    return child.pid;
+  });
+  handle('proc:send', (event, id, json) => {
+    const child = procs.get(`${event.sender.id}:${id}`);
+    if (!child || !child.stdin.writable) return false;
+    child.stdin.write(`Content-Length: ${Buffer.byteLength(json, 'utf8')}\r\n\r\n${json}`);
+    return true;
+  });
   handle('proc:write', (event, id, data) => procs.get(`${event.sender.id}:${id}`)?.stdin.write(data));
   handle('proc:kill', (event, id) => {
     const child = procs.get(`${event.sender.id}:${id}`);
@@ -407,7 +448,7 @@ function registerIpc() {
   });
 
   // user dir, packages & state
-  handle('user:info', () => ({ appRoot: ROOT, dir: USER_DIR, packagesDir: USER_PACKAGES, platform: process.platform, home: os.homedir(), version: app.getVersion() }));
+  handle('user:info', () => ({ appRoot: ROOT, dir: USER_DIR, packagesDir: USER_PACKAGES, platform: process.platform, home: os.homedir(), shell: process.env.SHELL || '/bin/sh', version: app.getVersion() }));
   handle('packages:list', () => listPackages());
   handle('state:load', async () => {
     try { return JSON.parse(await fs.readFile(path.join(USER_DIR, 'state.json'), 'utf8')); } catch { return {}; }

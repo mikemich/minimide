@@ -322,6 +322,35 @@ body.compact-tabs { --tab-height: 30px; }
 .cm-tooltip.cm-tooltip-autocomplete > ul > li { padding: 3px 8px !important; border-radius: 4px; }
 .cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected] { background: var(--bg-selected-focus); color: var(--fg-strong); }
 .cm-completionMatchedText { text-decoration: none; color: var(--accent); font-weight: 600; }
+.cm-tooltip.cm-tooltip-autocomplete > ul > li { display: flex; align-items: center; }
+.cm-completionIcon {
+  flex: none; width: 18px; height: 18px; margin-right: 8px; padding: 0 !important; opacity: 1 !important;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 4px; font-family: var(--ui-font); font-size: 10px; font-weight: 700;
+  color: var(--fg-muted); background: var(--bg-selected);
+}
+.cm-completionIcon::after { content: 'ab' !important; }
+.cm-completionIcon-function::after, .cm-completionIcon-method::after { content: 'ƒ' !important; font-size: 12px; font-style: italic; }
+.cm-completionIcon-function, .cm-completionIcon-method { color: var(--c-blue); background: color-mix(in srgb, var(--c-blue) 16%, transparent); }
+.cm-completionIcon-class::after { content: 'C' !important; }
+.cm-completionIcon-class, .cm-completionIcon-type, .cm-completionIcon-interface, .cm-completionIcon-enum { color: var(--c-yellow); background: color-mix(in srgb, var(--c-yellow) 16%, transparent); }
+.cm-completionIcon-interface::after { content: 'I' !important; }
+.cm-completionIcon-type::after { content: 'T' !important; }
+.cm-completionIcon-enum::after { content: 'E' !important; }
+.cm-completionIcon-variable::after { content: 'x' !important; font-style: italic; }
+.cm-completionIcon-variable { color: var(--c-cyan); background: color-mix(in srgb, var(--c-cyan) 16%, transparent); }
+.cm-completionIcon-constant::after { content: 'π' !important; }
+.cm-completionIcon-constant { color: var(--c-orange); background: color-mix(in srgb, var(--c-orange) 16%, transparent); }
+.cm-completionIcon-property::after { content: '·' !important; font-size: 16px; }
+.cm-completionIcon-property { color: var(--c-red); background: color-mix(in srgb, var(--c-red) 14%, transparent); }
+.cm-completionIcon-keyword::after { content: 'k' !important; }
+.cm-completionIcon-keyword { color: var(--c-magenta); background: color-mix(in srgb, var(--c-magenta) 16%, transparent); }
+.cm-completionIcon-namespace::after { content: '{}' !important; }
+.cm-completionIcon-namespace { color: var(--c-green); background: color-mix(in srgb, var(--c-green) 16%, transparent); }
+.cm-completionIcon-text::after { content: 'ab' !important; }
+.cm-completionLabel { flex: 1; }
+.cm-completionIcon-deprecated ~ .cm-completionLabel { text-decoration: line-through; opacity: 0.7; }
+.cm-completionInfo { padding: 8px 12px !important; max-width: 480px; max-height: 320px; overflow: auto; }
 .cm-completionDetail { color: var(--fg-subtle); font-style: normal; margin-left: 1em; }
 .cm-tooltip-lint { padding: 0; }
 .cm-diagnostic { padding: 6px 10px; border-left: 3px solid; }

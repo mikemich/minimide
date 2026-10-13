@@ -1,0 +1,27 @@
+{
+  "name": "lsp",
+  "displayName": "Language Servers",
+  "description": "Completions, diagnostics, hover, go to definition, rename, formatting and more via the Language Server Protocol.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"],
+  "keymap": {
+    "F12": "lsp:go-to-definition",
+    "Shift-F12": "lsp:find-references",
+    "F2": "lsp:rename",
+    "Shift-Alt-f": "lsp:format-document",
+    "Mod-r": "lsp:go-to-symbol",
+    "Mod-.": "lsp:code-actions",
+    "Mod-Shift-Space": "lsp:signature-help",
+    "Mod-k Mod-p": "lsp:toggle-problems"
+  },
+  "configSchema": {
+    "servers": { "type": "object", "default": {}, "title": "Servers", "description": "Add or override language servers: { \"name\": { \"command\": [\"bin\", \"--stdio\"], \"extensions\": [\"ext\"], \"settings\": {}, \"disabled\": false } }. Built-in names: typescript, python, rust, go, c, css, html, json, bash, yaml, lua, ruby, php, zig, svelte." },
+    "formatOnSave": { "type": "boolean", "default": false, "title": "Format on Save", "description": "Ask the language server to format a file before saving it." },
+    "modClickGoesToDefinition": { "type": "boolean", "default": true, "title": "⌘/Ctrl-Click Goes to Definition", "description": "When on, Alt-click adds cursors instead." },
+    "hover": { "type": "boolean", "default": true, "title": "Hover Info" },
+    "signatureHelp": { "type": "boolean", "default": true, "title": "Signature Help", "description": "Show parameter hints while typing a call." },
+    "promptToInstall": { "type": "boolean", "default": true, "title": "Suggest Installing Servers", "description": "Show install instructions when a file has a known server that isn't installed." },
+    "trace": { "type": "boolean", "default": false, "title": "Trace Protocol", "description": "Log every JSON-RPC message to the Language Servers panel." }
+  }
+}

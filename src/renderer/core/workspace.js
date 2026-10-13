@@ -378,7 +378,7 @@ export class Workspace extends Emitter {
   }
 
   relativePath(p) {
-    if (!p) return '';
+    if (!p || p === this.project) return '';
     if (this.project && p.startsWith(this.project + '/')) return p.slice(this.project.length + 1);
     return p;
   }

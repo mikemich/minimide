@@ -78,6 +78,11 @@ export function activate(mide) {
       const commit = (e) => { const n = parseFloat(e.target.value); if (!Number.isNaN(n)) set(n); };
       return h('input.input.settings-number', { type: 'number', value: String(value ?? ''), step: def.key.includes('lineHeight') ? 0.1 : 1, onchange: commit });
     }
+    if (def.type === 'object') {
+      const count = Object.keys(value || {}).length;
+      return h('div.setting-object', h('span', count ? `${count} entr${count === 1 ? 'y' : 'ies'}` : 'Default'),
+        h('button.btn.small', { onclick: () => mide.commands.run('settings:open-config-file') }, 'Edit in config.json'));
+    }
     if (def.type === 'array') {
       return h('input.input', { type: 'text', value: (value || []).join(', '), onchange: (e) => set(e.target.value.split(',').map((s) => s.trim()).filter(Boolean)) });
     }

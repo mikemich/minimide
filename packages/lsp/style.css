@@ -1,0 +1,63 @@
+/* Hover, completion docs and signature help */
+.lsp-hover, .lsp-doc, .lsp-signature { max-width: 560px; max-height: 360px; overflow: auto; padding: 8px 12px; line-height: 1.5; user-select: text; }
+.lsp-hover p, .lsp-doc p, .lsp-signature-doc p { margin: 6px 0; }
+.lsp-hover p:first-child, .lsp-doc p:first-child { margin-top: 0; }
+.lsp-hover p:last-child, .lsp-doc p:last-child { margin-bottom: 0; }
+.lsp-code {
+  margin: 0 0 6px; padding: 6px 8px; border-radius: 4px; background: var(--bg-hover);
+  font-family: var(--editor-font); font-size: calc(var(--editor-font-size) - 1.5px); white-space: pre-wrap; color: var(--fg-strong);
+}
+.lsp-hover code, .lsp-doc code, .lsp-signature-doc code { font-family: var(--editor-font); font-size: 0.92em; padding: 0 3px; border-radius: 3px; background: var(--bg-hover); }
+.lsp-signature { display: flex; flex-direction: column; gap: 4px; }
+.lsp-signature-label { font-family: var(--editor-font); font-size: calc(var(--editor-font-size) - 1px); color: var(--fg); white-space: pre-wrap; }
+.lsp-param-active { color: var(--accent); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.lsp-signature-doc { color: var(--fg-muted); font-size: 0.95em; border-top: 1px solid var(--border); padding-top: 4px; }
+.lsp-signature-count { color: var(--fg-subtle); font-size: 0.85em; }
+
+/* Lint gutter */
+.cm-gutter-lint { width: 14px; }
+.cm-gutter-lint .cm-gutterElement { padding: 0 2px; display: flex; align-items: center; justify-content: center; }
+.cm-lint-marker { width: 8px !important; height: 8px !important; border-radius: 50%; content: none !important; }
+.cm-lint-marker-error { background: var(--error); }
+.cm-lint-marker-warning { background: var(--warn); }
+.cm-lint-marker-info, .cm-lint-marker-hint { background: var(--info); }
+.cm-lintRange-info { background-image: none; text-decoration: underline wavy var(--info); text-underline-offset: 3px; }
+.cm-lintRange-hint { background-image: none; text-decoration: underline dotted var(--fg-subtle); text-underline-offset: 3px; }
+.cm-diagnostic-hint { border-color: var(--fg-subtle); }
+.cm-diagnosticSource { color: var(--fg-subtle); font-size: 0.88em; margin-left: 6px; }
+
+/* Status bar */
+.lsp-counts { display: inline-flex; gap: 10px; }
+.lsp-count { display: inline-flex; align-items: center; gap: 5px; }
+.lsp-sev { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--info); }
+.lsp-sev.error { background: var(--error); }
+.lsp-sev.warning { background: var(--warn); }
+.lsp-sev.hint { background: var(--fg-subtle); }
+.lsp-status { display: inline-flex; align-items: center; gap: 6px; max-width: 320px; }
+.lsp-status-text { overflow: hidden; text-overflow: ellipsis; }
+.lsp-status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-subtle); flex: none; }
+.lsp-status[data-state="ready"] .lsp-status-dot { background: var(--success); }
+.lsp-status[data-state="starting"] .lsp-status-dot, .lsp-status[data-state="busy"] .lsp-status-dot { background: var(--accent); animation: lsp-pulse 1s ease-in-out infinite; }
+.lsp-status[data-state="missing"] { opacity: 0.6; }
+@keyframes lsp-pulse { 50% { opacity: 0.3; } }
+
+/* Problems panel */
+.lsp-problems-wrap { height: 100%; overflow: auto; }
+.lsp-problems { padding: 4px 0 12px; }
+.lsp-problems-empty { padding: 16px; color: var(--fg-subtle); }
+.lsp-problem-file-header { display: flex; align-items: center; gap: 6px; padding: 4px 14px; color: var(--fg-strong); }
+.lsp-problem-file-dir { color: var(--fg-subtle); font-size: 0.88em; }
+.lsp-problem-count { margin-left: 4px; padding: 0 6px; border-radius: 9px; background: var(--bg-selected); color: var(--fg-muted); font-size: 0.82em; }
+.lsp-problem { display: flex; align-items: center; gap: 8px; padding: 3px 14px 3px 36px; outline: none; }
+.lsp-problem:hover { background: var(--bg-hover); }
+.lsp-problem:focus { background: var(--bg-selected-focus); }
+.lsp-problem-msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lsp-problem-src { color: var(--fg-subtle); font-size: 0.9em; white-space: nowrap; }
+.lsp-problem-pos { margin-left: auto; color: var(--fg-subtle); font-size: 0.9em; font-variant-numeric: tabular-nums; }
+
+/* Server log */
+.lsp-log-wrap { height: 100%; display: flex; }
+.lsp-log { flex: 1; overflow: auto; padding: 8px 14px; outline: none; user-select: text; font-family: var(--editor-font); font-size: calc(var(--editor-font-size) - 2px); line-height: 1.5; white-space: pre-wrap; word-break: break-all; color: var(--fg-muted); }
+.lsp-log-server { color: var(--accent); margin-right: 8px; }
+.lsp-log-line.stderr { color: color-mix(in srgb, var(--c-red) 70%, var(--fg)); }
+.lsp-log-line.trace { color: var(--fg-subtle); }

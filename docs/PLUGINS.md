@@ -116,6 +116,9 @@ mide.workspace.onDidChangeProject((root) => …);
 mide.workspace.onDidChangeFiles((paths) => …); // debounced fs events in the project
 mide.workspace.onDidOpenItem((item, pane) => …);
 mide.workspace.onDidCloseItem((item, pane) => …);
+mide.workspace.onDidOpenDocument((doc) => …);   // a file is loaded (once, however many tabs show it)
+mide.workspace.onDidCloseDocument((doc) => …);  // its last tab closed
+mide.workspace.getDocuments();                   // open Documents: { path, getText(), primaryView(), views, on('path') }
 mide.workspace.addOpener((path) => customItemOrNull);  // e.g. an image viewer
 ```
 
@@ -164,7 +167,9 @@ mide.editor.registerLanguage({
 ```
 
 Available: `mide.cm.state`, `.view`, `.language`, `.commands`, `.autocomplete`,
-`.search`, `.lint`, `.highlight`. `packages/git` uses a gutter built this way.
+`.search`, `.lint`, `.highlight`. `packages/git` uses a gutter built this way, and
+`packages/lsp` is a full example of completions, hover tooltips, diagnostics and
+tooltip state fields.
 
 ### ui
 
@@ -217,6 +222,11 @@ await mide.project.search('TODO', { regex: false, caseSensitive: false });
 const { code, stdout, stderr } = await mide.process.exec('git', ['status'], { cwd });
 const proc = mide.process.spawn('npm test', { onData: (chunk, stream) => …, onExit: (code) => … });
 proc.write('input\n'); proc.kill(); await proc.done;
+
+// JSON-RPC over stdio with Content-Length framing (language servers, debug adapters).
+// Runs through your login shell so PATH matches your terminal.
+const server = mide.process.spawnRpc(['clangd'], { onMessage: (msg) => …, onStderr: (text) => …, onExit: (code) => … });
+server.send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { … } });
 
 mide.shell.openExternal(url); mide.shell.reveal(path); mide.clipboard.write(text);
 ```

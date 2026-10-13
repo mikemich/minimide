@@ -144,6 +144,36 @@ class App {
     return handle;
   }
 
+  /** JSON-RPC (Content-Length framed) child process, e.g. a language server. */
+  spawnRpc(argv, { cwd, env, onMessage, onStderr, onExit } = {}, track = (d) => d) {
+    const id = `rpc${++this.procSeq}`;
+    let resolveDone;
+    const done = new Promise((r) => { resolveDone = r; });
+    const offMsg = window.native.proc.onMessage((pid, body) => {
+      if (pid !== id) return;
+      let msg;
+      try { msg = JSON.parse(body); } catch { return; }
+      onMessage?.(msg);
+    });
+    const offData = window.native.proc.onData((pid, data) => { if (pid === id) onStderr?.(data); });
+    const offExit = window.native.proc.onExit((pid, code, signal) => {
+      if (pid !== id) return;
+      offMsg(); offData(); offExit();
+      onExit?.(code, signal);
+      resolveDone({ code, signal });
+    });
+    window.native.proc.spawnRpc(id, argv, { cwd, env });
+    const handle = {
+      id,
+      done,
+      send: (msg) => window.native.proc.send(id, JSON.stringify(msg)),
+      kill: () => window.native.proc.kill(id),
+      dispose: () => window.native.proc.kill(id),
+    };
+    track({ dispose: () => window.native.proc.kill(id) });
+    return handle;
+  }
+
   // --- user files ----------------------------------------------------------
   async loadUserKeymap() {
     try {

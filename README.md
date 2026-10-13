@@ -36,6 +36,14 @@ npm run dev                # same, with DevTools open
 | `Ctrl-G` | Go to line |
 | `⌘,` | Settings |
 | `Ctrl-⇧M` | Markdown preview |
+| `F12` / `⌘`-click | Go to definition (LSP) |
+| `⇧F12` | Find references (LSP) |
+| `F2` | Rename symbol (LSP) |
+| `⌘.` | Code actions / quick fix (LSP) |
+| `⌘R` | Go to symbol in file (LSP) |
+| `⇧⌥F` | Format document (LSP) |
+| `F8` / `⇧F8` | Next / previous problem |
+| `⌘K ⌘P` | Problems panel |
 
 On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `keymap.json`.
 
@@ -47,6 +55,7 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `command-palette` | Fuzzy-search every command, most recently used first |
 | `fuzzy-finder` | Open files and tabs by fuzzy name |
 | `find-in-project` | Regex / case-sensitive search and replace across the project |
+| `lsp` | Language servers: completions (with auto-import), diagnostics, hover, signature help, definition, references, rename, code actions, formatting, symbols, Problems panel |
 | `git` | Branch switcher, tree status, change markers in the editor gutter |
 | `run-panel` | Run builds, tests and scripts; ANSI colors; click `file:line` to jump there |
 | `markdown-preview` | Live, sanitized preview in a split pane |
@@ -59,6 +68,37 @@ that stay in sync, session restore, auto-save, Zen mode, line sort / unique / jo
 case transforms, trim-whitespace-on-save, reopen closed tab, live reload of every config file.
 
 ![Settings with the Daylight theme](docs/screenshots/light.png)
+
+## Language servers
+
+The `lsp` package starts a server the first time you open a matching file. It only
+needs the server to be on your `PATH`; if it's missing, Minimide shows the install command.
+
+| Server | Languages | Install |
+| --- | --- | --- |
+| `typescript-language-server` | TS / JS / JSX / TSX | `npm i -g typescript typescript-language-server` |
+| `pyright-langserver` (or `pylsp`) | Python | `npm i -g pyright` |
+| `rust-analyzer` | Rust | `rustup component add rust-analyzer` |
+| `gopls` | Go | `go install golang.org/x/tools/gopls@latest` |
+| `clangd` | C / C++ / Obj-C | `xcode-select --install` |
+| `vscode-{css,html,json}-language-server` | CSS / HTML / JSON | `npm i -g vscode-langservers-extracted` |
+| plus | Bash, YAML, Lua, Ruby, PHP, Zig, Svelte | see `packages/lsp/servers.js` |
+
+Add or override servers in `config.json`:
+
+```jsonc
+"lsp": {
+  "formatOnSave": true,
+  "servers": {
+    "elixir": { "command": ["elixir-ls"], "extensions": ["ex", "exs"] },
+    "python": { "command": ["pylsp"], "settings": { "pylsp": { "plugins": { "ruff": { "enabled": true } } } } },
+    "typescript": { "initializationOptions": { "tsserver": { "path": "/path/to/typescript/lib" } } }
+  }
+}
+```
+
+Server status and restarts live in the status bar; server output is in the
+**Language Servers** panel (turn on `lsp.trace` to log every message).
 
 ## Make it yours
 
@@ -93,5 +133,5 @@ package registers, so it can be disabled, enabled or reloaded at runtime without
 
 ## Roadmap ideas
 
-LSP client package · real PTY terminal (node-pty) · minimap · packaged builds with
+Debug adapter (DAP) package · real PTY terminal (node-pty) · minimap · packaged builds with
 electron-builder · package installation from git URLs.

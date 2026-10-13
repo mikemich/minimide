@@ -68,7 +68,12 @@ export function selectList(opts) {
     if (opts.render) return opts.render(item, indices);
     const row = h('div.select-row');
     if (item.icon) row.append(item.icon.cloneNode ? item.icon.cloneNode(true) : item.icon);
-    const text = h('div.select-text', h('div.select-label', highlightMatches(filterKey(item), indices)));
+    // Highlight matches inside the label even when filtering on a longer key (e.g. "detail label").
+    const label = item.label ?? filterKey(item);
+    const key = filterKey(item);
+    const offset = key === label ? 0 : key.lastIndexOf(label);
+    const labelIndices = offset < 0 ? [] : indices.filter((i) => i >= offset && i < offset + label.length).map((i) => i - offset);
+    const text = h('div.select-text', h('div.select-label', highlightMatches(label, labelIndices)));
     if (item.detail) text.append(h('div.select-detail', item.detail));
     row.append(text);
     if (item.hint) row.append(h('kbd.select-hint', item.hint));

@@ -77,3 +77,4 @@
 .hack-card { padding: 16px; border-radius: var(--radius-lg); border: 1px solid var(--border-strong); background: var(--bg-sidebar); display: flex; flex-direction: column; align-items: flex-start; }
 .hack-title { color: var(--fg-strong); font-weight: 600; }
 .hack-card p { color: var(--fg-muted); font-size: 0.93em; line-height: 1.45; flex: 1; margin: 6px 0 14px; }
+.setting-object { display: flex; align-items: center; gap: 10px; color: var(--fg-muted); }

@@ -297,7 +297,7 @@ function baseExtensions(ws) {
     syntaxHighlighting(richHighlighter),
     bracketMatching(),
     closeBrackets(),
-    autocompletion({ icons: false }),
+    autocompletion(),
     rectangularSelection(),
     crosshairCursor(),
     highlightSelectionMatches(),

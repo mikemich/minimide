@@ -194,6 +194,9 @@ export class PackageManager extends Emitter {
         onDidUpdateEditor: (fn) => track(ws.on('editor-updated', fn)),
         onDidOpenItem: (fn) => track(ws.on('item-added', fn)),
         onDidCloseItem: (fn) => track(ws.on('item-removed', fn)),
+        onDidOpenDocument: (fn) => track(ws.on('document-opened', fn)),
+        onDidCloseDocument: (fn) => track(ws.on('document-closed', fn)),
+        getDocuments: () => [...ws.documents.values()],
       },
       editor: {
         addExtension: (ext) => track(ws.addEditorExtension(ext)),
@@ -247,6 +250,7 @@ export class PackageManager extends Emitter {
       process: {
         exec: (cmd, args, opts) => window.native.proc.exec(cmd, args, { cwd: ws.project || undefined, ...opts }),
         spawn: (command, { cwd, env, onData, onExit } = {}) => app.spawn(command, { cwd: cwd || ws.project, env, onData, onExit }, track),
+        spawnRpc: (argv, opts = {}) => app.spawnRpc(argv, { ...opts, cwd: opts.cwd || ws.project || undefined }, track),
       },
       shell: {
         openExternal: (u) => window.native.shell.openExternal(u),
