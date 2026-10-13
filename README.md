@@ -9,8 +9,6 @@ you save. Make it yours.
 
 ![Minimide with the Nightfall theme](docs/screenshots/dark.png)
 
-<!-- TODO(author): add one honest sentence about why you built this. -->
-
 ## Why
 
 Remember when your editor felt like *yours*? Atom made hacking your tools feel fun:
@@ -33,7 +31,7 @@ Minimide picks up Atom's idea, small enough to own:
 
 ## Getting started
 
-Download the latest build from the Releases page, or run from source:
+Run from source (downloadable builds are coming to the [Releases page](https://github.com/mikemich/minimide/releases)):
 
 ```bash
 npm install
@@ -193,3 +191,7 @@ package registers, so it can be disabled, enabled or reloaded at runtime without
 ## Roadmap ideas
 
 Debug adapter (DAP) package · minimap · package installation from git URLs · auto-update.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

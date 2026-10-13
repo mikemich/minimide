@@ -3,6 +3,16 @@
   "productName": "Minimide",
   "version": "0.1.0",
   "description": "A small, beautiful, hackable editor.",
+  "author": "mikemich",
+  "license": "MIT",
+  "homepage": "https://github.com/mikemich/minimide",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mikemich/minimide.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mikemich/minimide/issues"
+  },
   "type": "module",
   "main": "src/main/main.js",
   "scripts": {
@@ -15,7 +25,9 @@
     "dist:dir": "node build.mjs && electron-builder --dir",
     "icon": "electron scripts/make-icon.mjs"
   },
-  "license": "MIT",
+  "dependencies": {
+    "node-pty": "^1.1.0"
+  },
   "devDependencies": {
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.11.1",
@@ -35,11 +47,10 @@
     "esbuild": "^0.28.2",
     "marked": "^18.1.0"
   },
-  "author": "Minimide contributors",
   "build": {
     "appId": "dev.minimide.app",
     "productName": "Minimide",
-    "copyright": "Copyright \u00a9 2026 Minimide contributors",
+    "copyright": "Copyright \u00a9 2026 mikemich",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -159,8 +170,5 @@
       "node_modules/node-pty/**"
     ],
     "npmRebuild": false
-  },
-  "dependencies": {
-    "node-pty": "^1.1.0"
   }
 }
