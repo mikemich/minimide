@@ -5,5 +5,14 @@
   "version": "0.1.0",
   "theme": "ui",
   "main": false,
-  "styles": ["theme.css"]
+  "styles": [
+    "theme.css"
+  ],
+  "swatches": [
+    "#2b303b",
+    "#88c0d0",
+    "#b48ead",
+    "#a3be8c",
+    "#ebcb8b"
+  ]
 }

@@ -1,0 +1,11 @@
+{
+  "name": "todos",
+  "displayName": "Todos",
+  "description": "Highlights TODO, FIXME and friends in comments, and lists every one in the project.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "keymap": { "Mod-k Mod-t": "todos:show" },
+  "configSchema": {
+    "keywords": { "type": "array", "default": ["TODO", "FIXME", "HACK", "BUG", "XXX", "NOTE"], "title": "Keywords" }
+  }
+}

@@ -87,7 +87,8 @@ export function activate(mide) {
   function renderStatus() {
     if (!repoRoot) { label.replaceChildren(); return; }
     const changed = [...statuses.values()].length;
-    label.replaceChildren(icon('branch', 13), h('span', branch || 'detached'), changed ? h('span.git-changes', `${changed}`) : null);
+    // replaceChildren() would print a null argument as the text "null", so only pass real nodes.
+    label.replaceChildren(icon('branch', 13), h('span', branch || 'detached'), ...(changed ? [h('span.git-changes', `${changed}`)] : []));
   }
 
   // --- commands ------------------------------------------------------------

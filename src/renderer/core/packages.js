@@ -15,9 +15,18 @@ import { fuzzyFilter, fuzzyMatch, highlightMatches } from './fuzzy.js';
 import { registerLanguage } from './editor.js';
 import { prettyBinding } from './keymap.js';
 
+// Popular CodeMirror add-ons, bundled against the editor's own CodeMirror (two copies
+// don't mix) and loaded only when a package asks for them.
+const extras = Object.freeze({
+  vim: () => import('@replit/codemirror-vim'),
+  minimap: () => import('@replit/codemirror-minimap'),
+  indentationMarkers: () => import('@replit/codemirror-indentation-markers'),
+});
+
 const cm = Object.freeze({
   state: cmState, view: cmView, language: cmLanguage, commands: cmCommands,
   autocomplete: cmAutocomplete, search: cmSearch, lint: cmLint, highlight: lezerHighlight,
+  extras,
 });
 
 export class Services extends Emitter {
@@ -53,7 +62,14 @@ export class PackageManager extends Emitter {
   }
 
   isTheme(pkg) { return !!pkg.meta.manifest.theme; }
-  isDisabled(name) { return (this.app.config.get('core.disabledPackages') || []).includes(name); }
+  /** Packages with "enabledByDefault": false stay off until the user turns them on. */
+  isDisabled(name) {
+    if ((this.app.config.get('core.disabledPackages') || []).includes(name)) return true;
+    if (this.packages.get(name)?.meta.manifest.enabledByDefault === false) {
+      return !(this.app.config.get('core.enabledPackages') || []).includes(name);
+    }
+    return false;
+  }
 
   async activateAll() {
     const theme = this.app.config.get('core.theme');
@@ -114,9 +130,13 @@ export class PackageManager extends Emitter {
   }
 
   async setEnabled(name, enabled) {
-    const list = new Set(this.app.config.get('core.disabledPackages') || []);
-    if (enabled) list.delete(name); else list.add(name);
-    await this.app.config.set('core.disabledPackages', [...list]);
+    const disabled = new Set(this.app.config.get('core.disabledPackages') || []);
+    const optIn = new Set(this.app.config.get('core.enabledPackages') || []);
+    const offByDefault = this.packages.get(name)?.meta.manifest.enabledByDefault === false;
+    if (enabled) { disabled.delete(name); if (offByDefault) optIn.add(name); }
+    else { disabled.add(name); optIn.delete(name); }
+    await this.app.config.set('core.disabledPackages', [...disabled]);
+    await this.app.config.set('core.enabledPackages', [...optIn]);
     if (enabled) await this.activate(name); else await this.deactivate(name);
   }
 

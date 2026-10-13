@@ -1,0 +1,13 @@
+{
+  "name": "minimap",
+  "displayName": "Minimap",
+  "description": "A zoomed-out overview of the file along the right edge. Click or drag to scroll.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "enabledByDefault": false,
+  "keymap": { "Mod-k Mod-m": "minimap:toggle" },
+  "configSchema": {
+    "display": { "type": "string", "default": "characters", "enum": ["characters", "blocks"], "title": "Display", "description": "Draw real characters or simplified blocks." },
+    "showOverlay": { "type": "string", "default": "always", "enum": ["always", "mouse-over"], "title": "Viewport Overlay" }
+  }
+}

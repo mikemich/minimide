@@ -7,6 +7,7 @@ export const CORE_SCHEMA = {
   'core.ignoredNames': { type: 'array', default: ['.git', 'node_modules', '.DS_Store', '.hg', '.svn', '__pycache__', '.venv', '.next', 'dist', 'build', 'target'], title: 'Ignored Names', description: 'Hidden from the tree view, file finder and project search.' },
   'core.hotReloadPackages': { type: 'boolean', default: true, title: 'Hot Reload Packages', description: 'Reload a package in ~/.minimide/packages when its files change.' },
   'core.disabledPackages': { type: 'array', default: [], title: 'Disabled Packages', hidden: true },
+  'core.enabledPackages': { type: 'array', default: [], title: 'Enabled Optional Packages', hidden: true },
   'ui.fontSize': { type: 'number', default: 13, title: 'UI Font Size' },
   'ui.compactTabs': { type: 'boolean', default: false, title: 'Compact Tabs' },
   'editor.fontFamily': { type: 'string', default: '"JetBrains Mono", "SF Mono", "Fira Code", Menlo, Consolas, monospace', title: 'Font Family' },

@@ -118,7 +118,17 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `markdown-preview` | Live, sanitized preview in a split pane |
 | `settings-view` | Settings, themes, packages and keybindings, generated from schemas |
 | `status-bar` | Cursor, selection, language, indentation, line endings |
-| `nightfall`, `daylight`, `fjord` | Themes (`Theme: Select Theme…` previews them live) |
+| `editor-guides` | Scope-aware indent guides; optional rainbow brackets |
+| `color-preview` | Inline swatches for `#hex`, `rgb()` and `hsl()`; click a hex swatch to pick a new color |
+| `git-blame` | Who changed the current line, and when, shown at its end (like GitLens) |
+| `todos` | Highlights TODO / FIXME / HACK / NOTE in comments, plus a sidebar listing them all (`⌘K ⌘T`) |
+| `vim-mode` | Full Vim emulation with `:w`, `:q`, `:wq`, `gt`, `jj` escape and relative numbers. *Off by default* |
+| `minimap` | A zoomed-out map of the file (`⌘K ⌘M`). *Off by default* |
+| `focus-mode` | Typewriter scrolling and paragraph dimming for writing. *Off by default* |
+| `nightfall`, `daylight`, `fjord`, `dune`, `midnight` | Themes (`Theme: Select Theme…` previews them live) |
+
+Packages marked *off by default* are installed but switched off to keep the default
+editor simple. Turn them on in **Settings → Packages**.
 
 Power-user extras: multi-cursor and rectangular selection, chord keybindings, split panes
 that stay in sync, session restore, auto-save, Zen mode, line sort / unique / join /

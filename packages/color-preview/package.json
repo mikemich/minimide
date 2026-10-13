@@ -1,0 +1,10 @@
+{
+  "name": "color-preview",
+  "displayName": "Color Preview",
+  "description": "Inline swatches for hex, rgb() and hsl() colors. Click a hex swatch to pick a new color.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "configSchema": {
+    "languages": { "type": "string", "default": "all", "enum": ["all", "styles"], "title": "Show In", "description": "Every file, or only CSS / SCSS / Less / HTML." }
+  }
+}

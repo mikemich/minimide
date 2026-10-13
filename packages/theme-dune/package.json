@@ -1,0 +1,10 @@
+{
+  "name": "dune",
+  "displayName": "Dune",
+  "description": "Warm sand and ink. A soft, low-glare light theme for long sessions.",
+  "version": "0.1.0",
+  "theme": "ui",
+  "main": false,
+  "styles": ["theme.css"],
+  "swatches": ["#f4ecdf", "#b5532f", "#7a4f9c", "#5f7a2c", "#a86a12"]
+}

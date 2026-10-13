@@ -125,7 +125,9 @@ export function activate(mide) {
     return h('section', header('Themes', 'Themes are packages with a stylesheet of CSS variables — write your own in minutes.'),
       h('div.theme-grid', mide.packages.list().filter((p) => p.theme).map((p) =>
         h('button.theme-card', { class: p.name === current ? 'active' : '', onclick: () => mide.packages.setTheme(p.name) },
-          h('div.theme-swatch', { dataset: { theme: p.name } }, ...['bg', 'accent', 'c1', 'c2', 'c3'].map((k) => h(`span.sw-${k}`))),
+          // Themes describe themselves with "swatches": [bg, accent, color, color, color] in package.json.
+          h('div.theme-swatch', { dataset: { theme: p.name } }, ...['bg', 'accent', 'c1', 'c2', 'c3'].map((k, i) =>
+            h(`span.sw-${k}`, { style: p.manifest.swatches?.[i] ? { background: p.manifest.swatches[i] } : null }))),
           h('div.theme-name', p.manifest.displayName || p.name),
           h('div.theme-desc', p.manifest.description || '')))),
       h('p.settings-note', 'Tip: ', h('a', { href: '#', onclick: (e) => { e.preventDefault(); mide.commands.run('theme:select'); } }, 'Select Theme'), ' previews themes live as you move through the list.'));

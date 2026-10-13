@@ -40,6 +40,8 @@ any file in it hot-reloads the package.
 | `configSchema` | Settings. Short keys are prefixed with the package name (`word-count.includeSelection`). They appear automatically in the Settings UI. |
 | `theme`        | `"ui"` marks a theme. Only the selected theme is active. |
 | `priority`     | Activation order among packages (lower first, default 100). |
+| `enabledByDefault` | Set to `false` to ship a package switched off until the user enables it. |
+| `swatches`     | For themes: five colors (background, accent, three highlights) shown in Settings → Themes. |
 
 ```js
 // index.js
@@ -164,6 +166,14 @@ mide.editor.registerLanguage({
   name: 'Brainfuck', extensions: ['bf'],
   load: async () => myLanguageSupport,
 });
+```
+
+Popular add-ons are bundled against the same CodeMirror and load on demand:
+
+```js
+const { vim, Vim } = await mide.cm.extras.vim();                         // @replit/codemirror-vim
+const { showMinimap } = await mide.cm.extras.minimap();                  // @replit/codemirror-minimap
+const { indentationMarkers } = await mide.cm.extras.indentationMarkers(); // @replit/codemirror-indentation-markers
 ```
 
 Available: `mide.cm.state`, `.view`, `.language`, `.commands`, `.autocomplete`,

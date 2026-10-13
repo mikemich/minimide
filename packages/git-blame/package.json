@@ -1,0 +1,11 @@
+{
+  "name": "git-blame",
+  "displayName": "Git Blame",
+  "description": "Shows who last changed the current line, and when, right at the end of it.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "configSchema": {
+    "inline": { "type": "boolean", "default": true, "title": "Inline Blame", "description": "Show blame for the current line at its end." },
+    "showSummary": { "type": "boolean", "default": true, "title": "Show Commit Message" }
+  }
+}
