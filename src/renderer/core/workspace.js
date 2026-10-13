@@ -14,8 +14,9 @@ export class Pane extends Emitter {
     this.flex = 1;
     this.tabBar = h('div.tab-bar', { ondragover: (e) => this.onDragOver(e), ondrop: (e) => this.onDrop(e), ondblclick: (e) => { if (e.target === this.tabBar || e.target === this.tabsEl) ws.commands.run('file:new'); } });
     this.tabsEl = h('div.tabs');
-    this.tabBar.append(this.tabsEl, h('div.tab-actions',
-      h('button.icon-btn', { title: 'Split Right', onclick: () => ws.splitRight(this) }, icon('split', 15))));
+    this.customActions = h('div.tab-actions-custom');
+    this.tabBar.append(this.tabsEl, h('div.tab-actions', this.customActions,
+      h('button.icon-btn.split-action', { title: 'Split Right', onclick: () => ws.splitRight(this) }, icon('split', 15))));
     this.content = h('div.pane-content');
     this.element = h('div.pane', { onmousedown: () => ws.setActivePane(this, false) }, this.tabBar, this.content);
     this.tabEls = new Map();
@@ -107,6 +108,18 @@ export class Pane extends Emitter {
     } else hint?.remove();
   }
 
+  /** Render package-provided buttons (ws.addPaneAction) for the active item. */
+  renderActions() {
+    const item = this.active;
+    this.customActions.replaceChildren(...this.ws.paneActions
+      .filter((a) => { try { return !a.when || a.when(item, this); } catch { return false; } })
+      .map((a) => h('button.icon-btn.pane-action', {
+        title: typeof a.title === 'function' ? a.title(item) : a.title,
+        class: a.className || '',
+        onclick: (e) => { e.stopPropagation(); a.run(item, this); },
+      }, icon(typeof a.icon === 'function' ? a.icon(item) : a.icon, 15))));
+  }
+
   activate(item) {
     if (!this.items.includes(item)) return;
     const prev = this.active;
@@ -116,6 +129,7 @@ export class Pane extends Emitter {
     this.tabEls.get(item)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     if (item.view) item.view.requestMeasure();
     this.ws.setActivePane(this, false);
+    this.renderActions();
     if (prev !== item) this.ws.emit('pane-active-item-changed', this, item);
     this.ws.notifyActiveItem();
   }
@@ -136,6 +150,7 @@ export class Pane extends Emitter {
       if (next) this.activate(next);
     }
     for (const i of this.items) this.updateTab(i);
+    this.renderActions();
     this.ws.emit('item-removed', item, this);
     if (destroy) {
       item.destroy();
@@ -228,6 +243,7 @@ export class Workspace extends Emitter {
     this.panes = [];
     this.activePane = null;
     this.openers = [];
+    this.paneActions = [];
     this.saveHooks = [];
     this.extensions = new Set();
     this.dragging = null;
@@ -382,6 +398,15 @@ export class Workspace extends Emitter {
     if (this.project && p.startsWith(this.project + '/')) return p.slice(this.project.length + 1);
     return p;
   }
+
+  /** addPaneAction({ id, icon, title, when(item, pane), run(item, pane), className }) */
+  addPaneAction(action) {
+    this.paneActions.push(action);
+    this.refreshPaneActions();
+    return new Disposable(() => { this.paneActions = this.paneActions.filter((a) => a !== action); this.refreshPaneActions(); });
+  }
+
+  refreshPaneActions() { for (const p of this.panes) p.renderActions(); }
 
   // --- opening -------------------------------------------------------------
   /** Register a custom opener: (path, opts) => item | null | Promise */

@@ -213,6 +213,8 @@ body.workspace-empty .tab-bar { display: none; }
 .tabs::-webkit-scrollbar { display: none; }
 .tab-actions { display: flex; align-items: center; padding: 0 6px; gap: 2px; }
 .tab-actions .icon-btn { opacity: 0; transition: opacity 0.15s; }
+.tab-actions-custom { display: flex; gap: 2px; }
+.tab-actions .icon-btn.pane-action { opacity: 1; }
 .pane:hover .tab-actions .icon-btn { opacity: 1; }
 
 .tab {

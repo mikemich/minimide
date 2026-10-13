@@ -1,4 +1,6 @@
 node_modules/
 dist/
 packages/markdown-preview/vendor/
+packages/terminal/vendor/
 .DS_Store
+release/

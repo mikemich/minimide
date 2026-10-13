@@ -1,7 +1,7 @@
 # Writing Minimide packages
 
 Everything in Minimide is a package: the tree view, fuzzy finder, command palette,
-search, status bar, git integration, run panel, settings screen and every theme.
+search, status bar, git integration, terminal, code runner, settings screen and every theme.
 They all use the API documented here, so anything they do, your package can do.
 
 The fastest way to start is **Packages: Create New Package…** in the command palette.

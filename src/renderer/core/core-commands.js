@@ -22,7 +22,8 @@ export const CORE_KEYMAP = {
   'Mod-k Mod-ArrowRight': 'pane:focus-next',
   'Mod-k Mod-ArrowLeft': 'pane:focus-previous',
   'Mod-k Mod-w': 'pane:close',
-  'Mod-k Mod-s': 'file:save-all',
+  'Mod-k Mod-s': 'help:keybindings',
+  'Mod-k Mod-Shift-s': 'settings:open-keybindings',
   'Mod-b': 'sidebar:toggle',
   'Ctrl-`': 'panel:toggle',
   'Mod-Shift-n': 'window:new',
@@ -147,7 +148,7 @@ export function registerCoreCommands(app) {
     'core:cancel': {
       title: 'Cancel', hidden: true,
       // Escape closes the bottom panel when focus is inside it; otherwise it falls through to the editor.
-      when: () => app.panel.visible && document.getElementById('panel').contains(document.activeElement),
+      when: () => app.panel.visible && document.getElementById('panel').contains(document.activeElement) && !document.activeElement.closest('[data-keymap-passthrough]'),
       run: () => { app.panel.hide(); ws.getActiveItem()?.focus(); },
     },
     'window:new': { title: 'New Window', run: () => window.native.window.newWindow() },

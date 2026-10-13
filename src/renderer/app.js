@@ -58,6 +58,7 @@ class App {
     window.native.fs.onChange((paths, key) => { if (key === 'user') this.onUserFilesChanged(paths); });
     window.native.window.onCommand((id) => this.commands.run(id));
     window.native.window.onRequestClose(() => this.requestClose());
+    window.native.window.onOpenPath((p) => this.workspace.open(p));
     this.workspace.on('files-changed', (paths) => this.invalidateFileCache(paths));
     this.trackClosedItems();
     this.bindAutoSave();
@@ -171,6 +172,34 @@ class App {
       dispose: () => window.native.proc.kill(id),
     };
     track({ dispose: () => window.native.proc.kill(id) });
+    return handle;
+  }
+
+  /** A pseudo-terminal: an interactive shell, or `command` run through a login shell. */
+  spawnPty({ command, cwd, cols, rows, env, shell } = {}, track = (d) => d) {
+    const id = `pty${++this.procSeq}`;
+    const dataFns = new Set();
+    const exitFns = new Set();
+    const offData = window.native.term.onData((pid, data) => { if (pid === id) for (const fn of dataFns) fn(data); });
+    const offExit = window.native.term.onExit((pid, code, signal) => {
+      if (pid !== id) return;
+      offData(); offExit();
+      handle.exited = { code, signal };
+      for (const fn of exitFns) fn(code, signal);
+    });
+    const handle = {
+      id,
+      exited: null,
+      ready: window.native.term.create(id, { command, cwd, cols, rows, env, shell }),
+      write: (data) => window.native.term.write(id, data),
+      resize: (c, r) => window.native.term.resize(id, c, r),
+      kill: (signal) => window.native.term.kill(id, signal),
+      onData: (fn) => { dataFns.add(fn); return { dispose: () => dataFns.delete(fn) }; },
+      onExit: (fn) => { exitFns.add(fn); return { dispose: () => exitFns.delete(fn) }; },
+      dispose: () => { if (!handle.exited) window.native.term.kill(id); },
+    };
+    handle.ready.catch(() => { offData(); offExit(); });
+    track({ dispose: () => handle.dispose() });
     return handle;
   }
 
@@ -318,11 +347,11 @@ class App {
         buttons: [dirty.length === 1 ? 'Save' : 'Save All', "Don't Save", 'Cancel'],
         cancelId: 2,
       });
-      if (choice === 2) return;
+      if (choice === 2) { window.native.window.cancelClose(); return; }
       if (choice === 0) {
         for (const doc of dirty) {
           const item = [...doc.views][0];
-          if (!await this.workspace.save(item)) return;
+          if (!await this.workspace.save(item)) { window.native.window.cancelClose(); return; }
         }
       }
     }

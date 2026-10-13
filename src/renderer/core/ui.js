@@ -45,6 +45,7 @@ export function isModalOpen(id) { return !!activeModal && (!id || activeModal.id
  *   onSelect: (item, query) => void,
  *   onQuery?: (query) => Item[] | null,     // dynamic items (overrides fuzzy filter when non-null)
  *   transformQuery?: (query) => string,     // rewrite the query before fuzzy filtering
+ *   onEnterWithoutMatch?: (query) => void,  // Enter when nothing matches (e.g. run a typed command)
  *   onHighlight?: (item) => void,
  *   placeholder?, initialQuery?, emptyMessage?, id?, maxItems?
  * })
@@ -109,7 +110,11 @@ export function selectList(opts) {
 
   const choose = (i) => {
     const entry = filtered[i];
-    if (!entry) return;
+    if (!entry) {
+      const q = input.value.trim();
+      if (q && opts.onEnterWithoutMatch) { modal.close(!opts.keepFocus); opts.onEnterWithoutMatch(q); }
+      return;
+    }
     const q = input.value;
     modal.close(!opts.keepFocus);
     opts.onSelect?.(entry.item, q);

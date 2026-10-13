@@ -1,23 +1,78 @@
 # Minimide
 
-A small, beautiful, hackable editor, in the spirit of Atom.
+**The editor you can read in an afternoon.**
+
+Minimide is a small, beautiful code editor in the spirit of Atom. The whole thing is
+about 6,000 lines of plain JavaScript. Every feature, from the file tree to language
+servers, is a package built on the same API you get, and packages reload the moment
+you save. Make it yours.
 
 ![Minimide with the Nightfall theme](docs/screenshots/dark.png)
 
-- **Simple by default.** A file tree, tabs, a command palette and a fuzzy finder. Nothing
-  else until you ask for it.
-- **Fast and modern.** Built on CodeMirror 6 with lazy-loaded syntax highlighting for
-  100+ languages.
-- **Hackable to the core.** Every feature is a package that uses the same public API
-  yours will. Packages hot-reload as you edit them.
+<!-- TODO(author): add one honest sentence about why you built this. -->
+
+## Why
+
+Remember when your editor felt like *yours*? Atom made hacking your tools feel fun:
+open a file, change how the editor works, see it happen. GitHub shut Atom down in
+2022, and editors have since grown into platforms nobody fully understands. You can
+configure them, but you can't really change them.
+
+Minimide picks up Atom's idea, small enough to own:
+
+- **Readable.** The core is about 3,500 lines; the rest is packages. No framework and no
+  build magic. You can read every line that runs.
+- **Everything is a package.** The tree view, search, git, the language-server client,
+  the settings screen and every theme use the same public API yours will. There's no
+  private back door.
+- **Change it while it runs.** Save a package and it reloads instantly. `init.js`,
+  `styles.css`, `keymap.json` and `config.json` in `~/.minimide` do the same.
+- **Simple by default.** A file tree, tabs, a command palette and a fuzzy finder, built
+  on CodeMirror 6 with syntax highlighting for 100+ languages. Power tools such as LSP,
+  split panes, multi-cursor and project-wide replace are there when you reach for them.
 
 ## Getting started
+
+Download the latest build from the Releases page, or run from source:
 
 ```bash
 npm install
 npm start                  # or: npm start -- /path/to/project
 npm run dev                # same, with DevTools open
 ```
+
+### Building the app
+
+```bash
+npm run dist:mac           # Minimide.app, .dmg and .zip (Apple Silicon + Intel) in release/
+npm run dist:dir           # just the unpacked app, for a quick local test
+npm run dist               # installers for the current platform
+```
+
+Local Mac builds are ad-hoc signed: they run on your machine, but other people's Macs
+will block them until they allow the app in **System Settings → Privacy & Security**.
+For a download anyone can open, you need a *Developer ID Application* certificate (Apple
+Developer Program) and notarization. Add them as secrets and the release workflow in
+`.github/workflows/release.yml` does the rest. Push a tag like `v0.1.0` to build
+macOS, Windows and Linux installers into a draft GitHub release. Regenerate the icon
+with `npm run icon`.
+
+## Your first package, in one minute
+
+Run **Packages: Create New Package…** from the command palette (`⌘⇧P`), or drop
+this into `~/.minimide/packages/hello/index.js`:
+
+```js
+export function activate(mide) {
+  mide.commands.add('hello:greet', 'Say Hello', () => mide.notify.success('Hello from my editor!'));
+  mide.statusBar.addItem({ element: mide.ui.h('span', '👋 mine'), align: 'right' });
+}
+```
+
+with a one-line `package.json`: `{ "name": "hello", "main": "index.js" }`.
+
+Save it and the status bar changes immediately. Edit it, save again, and it reloads.
+That's the whole loop. The full API is in [docs/PLUGINS.md](docs/PLUGINS.md).
 
 ## Everyday keys
 
@@ -29,12 +84,15 @@ npm run dev                # same, with DevTools open
 | `⌘⇧F` / `⌘⇧H` | Find / replace in project |
 | `⌘F` / `⌘D` / `⌘⇧L` | Find in file / add next match / select all matches |
 | `⌘B` | Toggle sidebar |
-| ``Ctrl-` `` | Toggle bottom panel |
-| `⌘⇧R` | Run a shell command in the project |
+| ``Ctrl-` `` | Toggle terminal (``Ctrl-⇧-` `` for a new one) |
+| `F5` / `⌘⇧R` | Run the current file (`⇧F5` stops, `⌘⌥R` runs it again) |
+| `⌘⇧B` | Run a task: npm scripts, Makefile targets, Cargo, Go, or any command |
+| `⌘⇧↩` | Send the selection (or current line) to the terminal |
 | `⌘\` | Split right |
 | `⌘K ⌘→` / `⌘K ⌘←` | Focus next / previous pane |
 | `Ctrl-G` | Go to line |
 | `⌘,` | Settings |
+| `⌘K ⌘S` | Search all keybindings (`⌘K ⌘⇧S` opens them in Settings) |
 | `Ctrl-⇧M` | Markdown preview |
 | `F12` / `⌘`-click | Go to definition (LSP) |
 | `⇧F12` | Find references (LSP) |
@@ -57,7 +115,8 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `find-in-project` | Regex / case-sensitive search and replace across the project |
 | `lsp` | Language servers: completions (with auto-import), diagnostics, hover, signature help, definition, references, rename, code actions, formatting, symbols, Problems panel |
 | `git` | Branch switcher, tree status, change markers in the editor gutter |
-| `run-panel` | Run builds, tests and scripts; ANSI colors; click `file:line` to jump there |
+| `terminal` | A real terminal (xterm.js + node-pty) in tabs; click `file:line` in output to jump there |
+| `runner` | Run the current file with `F5` (Python, JS/TS, Go, Rust, C/C++, Java, Ruby, shell and more) or a project task with `⌘⇧B` |
 | `markdown-preview` | Live, sanitized preview in a split pane |
 | `settings-view` | Settings, themes, packages and keybindings, generated from schemas |
 | `status-bar` | Cursor, selection, language, indentation, line endings |
@@ -133,5 +192,4 @@ package registers, so it can be disabled, enabled or reloaded at runtime without
 
 ## Roadmap ideas
 
-Debug adapter (DAP) package · real PTY terminal (node-pty) · minimap · packaged builds with
-electron-builder · package installation from git URLs.
+Debug adapter (DAP) package · minimap · package installation from git URLs · auto-update.

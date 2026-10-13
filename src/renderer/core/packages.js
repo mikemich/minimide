@@ -158,6 +158,7 @@ export class PackageManager extends Emitter {
         bindingsFor: (id) => app.keymap.bindingsFor(id),
         pretty: prettyBinding,
         onDidChangePending: (fn) => track(app.keymap.on('pending', fn)),
+        allowInPassthrough: (...ids) => track(app.keymap.allowInPassthrough(...ids)),
         list: () => [...app.keymap.resolved()].map(([binding, command]) => ({ binding, command })),
         onDidChange: (fn) => track(app.keymap.on('changed', fn)),
       },
@@ -183,6 +184,8 @@ export class PackageManager extends Emitter {
         getPanes: () => ws.panes,
         relativePath: (p) => ws.relativePath(p),
         setProject: (p) => app.openProject(p),
+        addPaneAction: (action) => track(ws.addPaneAction(action)),
+        refreshPaneActions: () => ws.refreshPaneActions(),
         splitRight: (opts = {}) => ws.splitRight(ws.activePane, opts.empty ? null : ws.activePane.active),
         addOpener: (fn) => track(ws.addOpener(fn)),
         onWillSave: (fn) => track(ws.onWillSave(fn)),
@@ -250,6 +253,8 @@ export class PackageManager extends Emitter {
       process: {
         exec: (cmd, args, opts) => window.native.proc.exec(cmd, args, { cwd: ws.project || undefined, ...opts }),
         spawn: (command, { cwd, env, onData, onExit } = {}) => app.spawn(command, { cwd: cwd || ws.project, env, onData, onExit }, track),
+        spawnPty: (opts = {}) => app.spawnPty({ ...opts, cwd: opts.cwd || ws.project || undefined }, track),
+        ptyAvailable: () => window.native.term.available(),
         spawnRpc: (argv, opts = {}) => app.spawnRpc(argv, { ...opts, cwd: opts.cwd || ws.project || undefined }, track),
       },
       shell: {

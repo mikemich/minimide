@@ -15,6 +15,16 @@ async function copyStatic() {
   await fs.mkdir(vendor, { recursive: true });
   await fs.copyFile('node_modules/marked/lib/marked.esm.js', path.join(vendor, 'marked.esm.js'));
   await fs.copyFile('node_modules/dompurify/dist/purify.es.mjs', path.join(vendor, 'purify.es.mjs'));
+  const term = 'packages/terminal/vendor';
+  await fs.mkdir(term, { recursive: true });
+  await fs.copyFile('node_modules/@xterm/xterm/lib/xterm.mjs', path.join(term, 'xterm.mjs'));
+  await fs.copyFile('node_modules/@xterm/xterm/css/xterm.css', path.join(term, 'xterm.css'));
+  await fs.copyFile('node_modules/@xterm/addon-fit/lib/addon-fit.mjs', path.join(term, 'addon-fit.mjs'));
+  await fs.copyFile('node_modules/@xterm/addon-web-links/lib/addon-web-links.mjs', path.join(term, 'addon-web-links.mjs'));
+  // npm may skip node-pty's install script, which is what makes its helper executable.
+  for (const arch of ['darwin-arm64', 'darwin-x64']) {
+    await fs.chmod(`node_modules/node-pty/prebuilds/${arch}/spawn-helper`, 0o755).catch(() => {});
+  }
 }
 
 const options = {

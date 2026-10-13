@@ -66,6 +66,7 @@ export class Keymap extends Emitter {
     this.userLayer = { bindings: new Map(), source: 'user' };
     this.pending = [];
     this.pendingTimer = null;
+    this.passthroughCommands = new Set();
     window.addEventListener('keydown', (e) => this.handle(e), true);
   }
 
@@ -98,11 +99,26 @@ export class Keymap extends Emitter {
     return out;
   }
 
+  /** Commands that still fire inside passthrough zones (e.g. terminal:toggle). */
+  allowInPassthrough(...ids) {
+    for (const id of ids) this.passthroughCommands.add(id);
+    return new Disposable(() => { for (const id of ids) this.passthroughCommands.delete(id); });
+  }
+
   handle(e) {
     if (e.isComposing) return;
     const stroke = keystrokeFromEvent(e);
     if (!stroke) return;
-    const resolved = this.resolved();
+    let resolved = this.resolved();
+    // Inside [data-keymap-passthrough] (terminals) the keyboard belongs to the program running
+    // there: only ⌘ shortcuts (Ctrl-Shift elsewhere), F-keys and allowed commands are handled.
+    if (e.target?.closest?.('[data-keymap-passthrough]')) {
+      const reserved = (binding) => {
+        const first = binding.split(' ')[0];
+        return isMac ? first.includes('Cmd-') : /^Ctrl-(Alt-)?Shift-/.test(first) || /^(Shift-)?F\d+$/.test(first);
+      };
+      resolved = new Map([...resolved].filter(([b, id]) => this.passthroughCommands.has(id) || reserved(b) || /^(Shift-)?F\d+$/.test(b.split(' ')[0])));
+    }
     const seq = [...this.pending, stroke].join(' ');
     const editable = isEditable(e.target);
     const bare = !/^(Ctrl|Alt|Cmd)-/.test(stroke) && !/^(Shift-)?(F\d+|Escape)$/.test(stroke);

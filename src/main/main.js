@@ -6,6 +6,11 @@ import fss from 'node:fs';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawn, execFile } from 'node:child_process';
+import { createRequire } from 'node:module';
+
+// node-pty is native and optional: without it the terminal falls back gracefully.
+let pty = null;
+try { pty = createRequire(import.meta.url)('node-pty'); } catch (err) { console.warn('[pty] unavailable:', err.message); }
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const RENDERER_DIR = path.join(ROOT, 'dist/renderer');
@@ -14,6 +19,12 @@ const USER_DIR = process.env.MINIMIDE_HOME || path.join(os.homedir(), '.minimide
 const USER_PACKAGES = path.join(USER_DIR, 'packages');
 const DEV = process.argv.includes('--dev');
 const SCREENSHOT = process.env.MINIMIDE_SCREENSHOT;
+// Apps launched from Finder/the Dock may not inherit $SHELL, so fall back to the user's login shell.
+const USER_SHELL = process.env.SHELL || safeUserShell() || (process.platform === 'win32' ? 'cmd.exe' : '/bin/sh');
+
+function safeUserShell() {
+  try { return os.userInfo().shell || null; } catch { return null; }
+}
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'mide', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
@@ -188,8 +199,11 @@ async function searchProject(root, query, { regex = false, caseSensitive = false
 // Windows
 
 const windows = new Set();
+// Set by ⌘Q / app.quit(): once every window has confirmed its unsaved changes, quit for real.
+let quitting = false;
 const watchers = new Map(); // `${webContents.id}:${key}` -> FSWatcher
 const procs = new Map(); // `${wcId}:${id}` -> ChildProcess
+const ptys = new Map(); // `${wcId}:${id}` -> IPty
 
 function createWindow(projectPath, { restore = false } = {}) {
   const win = new BrowserWindow({
@@ -244,6 +258,7 @@ function createWindow(projectPath, { restore = false } = {}) {
     windows.delete(win);
     for (const [key, w] of watchers) if (key.startsWith(`${wcId}:`)) { w.close(); watchers.delete(key); }
     for (const [key, child] of procs) if (key.startsWith(`${wcId}:`)) { child.kill(); procs.delete(key); }
+    for (const [key, term] of ptys) if (key.startsWith(`${wcId}:`)) { try { term.kill(); } catch {} ptys.delete(key); }
   });
 
   win.loadURL('mide://app/index.html');
@@ -384,7 +399,7 @@ function registerIpc() {
   handle('proc:spawn', (event, id, command, opts = {}) => {
     const sender = event.sender;
     const key = `${sender.id}:${id}`;
-    const shellPath = process.env.SHELL || (process.platform === 'win32' ? 'cmd.exe' : '/bin/sh');
+    const shellPath = USER_SHELL;
     const args = process.platform === 'win32' ? ['/d', '/s', '/c', command] : ['-lc', command];
     const child = spawn(shellPath, args, {
       cwd: opts.cwd || os.homedir(),
@@ -405,7 +420,7 @@ function registerIpc() {
     const sender = event.sender;
     const key = `${sender.id}:${id}`;
     const quote = (a) => `'${String(a).replace(/'/g, `'\\''`)}'`;
-    const shellPath = process.env.SHELL || '/bin/sh';
+    const shellPath = USER_SHELL;
     // A login shell gives servers the user's PATH (npm globals, Homebrew, cargo, …).
     const child = process.platform === 'win32'
       ? spawn(argv[0], argv.slice(1), { cwd: opts.cwd, env: { ...process.env, ...opts.env }, shell: true })
@@ -447,8 +462,55 @@ function registerIpc() {
     try { process.kill(-child.pid, 'SIGTERM'); } catch { child.kill('SIGTERM'); }
   });
 
+  // pseudo-terminals (integrated terminal, code runner)
+  handle('term:available', () => !!pty);
+  handle('term:create', (event, id, opts = {}) => {
+    if (!pty) throw new Error('Terminal support (node-pty) is not available in this build.');
+    const sender = event.sender;
+    const key = `${sender.id}:${id}`;
+    const isWin = process.platform === 'win32';
+    const shell = opts.shell || (isWin ? process.env.COMSPEC || 'powershell.exe' : USER_SHELL);
+    // Interactive sessions get a login shell; commands run through one so PATH and aliases match.
+    const args = opts.command
+      ? (isWin ? ['/d', '/s', '/c', opts.command] : ['-l', '-c', opts.command])
+      : (isWin ? [] : ['-l']);
+    const env = {
+      ...process.env,
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+      TERM_PROGRAM: 'Minimide',
+      TERM_PROGRAM_VERSION: app.getVersion(),
+      LANG: process.env.LANG || 'en_US.UTF-8',
+      ...opts.env,
+    };
+    delete env.ELECTRON_RUN_AS_NODE;
+    let cwd = opts.cwd && safeIsDir(opts.cwd) ? opts.cwd : os.homedir();
+    const term = pty.spawn(shell, args, { name: 'xterm-256color', cols: opts.cols || 80, rows: opts.rows || 24, cwd, env });
+    ptys.set(key, term);
+    // Coalesce output so a flood (e.g. `cat bigfile`) doesn't drown the IPC channel.
+    let buffer = '';
+    let timer = null;
+    const flush = () => { timer = null; if (buffer && !sender.isDestroyed()) sender.send('term:data', id, buffer); buffer = ''; };
+    term.onData((data) => { buffer += data; if (!timer) timer = setTimeout(flush, 4); });
+    term.onExit(({ exitCode, signal }) => {
+      flush();
+      ptys.delete(key);
+      if (!sender.isDestroyed()) sender.send('term:exit', id, exitCode, signal);
+    });
+    return { pid: term.pid, shell: path.basename(shell) };
+  });
+  handle('term:write', (event, id, data) => { ptys.get(`${event.sender.id}:${id}`)?.write(data); });
+  handle('term:resize', (event, id, cols, rows) => {
+    try { ptys.get(`${event.sender.id}:${id}`)?.resize(Math.max(2, cols), Math.max(1, rows)); } catch {}
+  });
+  handle('term:kill', (event, id, signal) => {
+    const term = ptys.get(`${event.sender.id}:${id}`);
+    if (!term) return;
+    try { process.platform === 'win32' ? term.kill() : term.kill(signal || 'SIGHUP'); } catch {}
+  });
+
   // user dir, packages & state
-  handle('user:info', () => ({ appRoot: ROOT, dir: USER_DIR, packagesDir: USER_PACKAGES, platform: process.platform, home: os.homedir(), shell: process.env.SHELL || '/bin/sh', version: app.getVersion() }));
+  handle('user:info', () => ({ appRoot: ROOT, dir: USER_DIR, packagesDir: USER_PACKAGES, platform: process.platform, home: os.homedir(), shell: USER_SHELL, version: app.getVersion() }));
   handle('packages:list', () => listPackages());
   handle('state:load', async () => {
     try { return JSON.parse(await fs.readFile(path.join(USER_DIR, 'state.json'), 'utf8')); } catch { return {}; }
@@ -463,6 +525,7 @@ function registerIpc() {
     const w = BrowserWindow.fromWebContents(event.sender);
     if (w) { w.__forceClose = true; w.close(); }
   });
+  handle('window:cancelClose', () => { quitting = false; });
   handle('window:toggleDevTools', (event) => event.sender.toggleDevTools());
   handle('window:reload', (event) => event.sender.reload());
 }
@@ -550,6 +613,20 @@ function projectFromArgv(argv) {
   return candidate && safeIsDir(path.resolve(candidate)) ? path.resolve(candidate) : null;
 }
 
+// Files and folders handed to us by Finder, the Dock or `open -a Minimide`.
+const pendingOpens = [];
+function openPath(p) {
+  if (safeIsDir(p)) return createWindow(p);
+  const win = focusedWin();
+  if (win) win.webContents.send('app:open-path', p);
+  else createWindow().webContents.once('did-finish-load', () => setTimeout(() => focusedWin()?.webContents.send('app:open-path', p), 800));
+}
+app.on('open-file', (e, p) => {
+  e.preventDefault();
+  if (app.isReady()) openPath(p);
+  else pendingOpens.push(p);
+});
+
 app.on('second-instance', (_e, argv) => {
   const p = projectFromArgv(argv);
   if (p) createWindow(p);
@@ -563,10 +640,16 @@ app.whenReady().then(async () => {
   protocol.handle('mide', handleProtocol);
   registerIpc();
   buildMenu();
-  createWindow(projectFromArgv(process.argv) || process.env.MINIMIDE_PROJECT || undefined, { restore: true });
+  app.setAboutPanelOptions({ applicationName: 'Minimide', applicationVersion: app.getVersion(), copyright: 'The editor you can read in an afternoon.' });
+  const initialDir = pendingOpens.find((p) => safeIsDir(p));
+  const win = createWindow(initialDir || projectFromArgv(process.argv) || process.env.MINIMIDE_PROJECT || undefined, { restore: !initialDir });
+  const files = pendingOpens.filter((p) => !safeIsDir(p));
+  if (files.length) win.webContents.once('did-finish-load', () => setTimeout(() => files.forEach((f) => win.webContents.send('app:open-path', f)), 800));
   app.on('activate', () => { if (windows.size === 0) createWindow(); });
 });
 
+app.on('before-quit', () => { quitting = true; });
+
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin' || SCREENSHOT) app.quit();
+  if (process.platform !== 'darwin' || SCREENSHOT || quitting) app.quit();
 });

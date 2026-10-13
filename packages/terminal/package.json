@@ -1,0 +1,20 @@
+{
+  "name": "terminal",
+  "displayName": "Terminal",
+  "description": "A real integrated terminal (xterm.js + node-pty) with tabs and clickable file paths.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["vendor/xterm.css", "style.css"],
+  "keymap": {
+    "Ctrl-`": "terminal:toggle",
+    "Ctrl-Shift-`": "terminal:new",
+    "Mod-Shift-Enter": "terminal:run-selection"
+  },
+  "configSchema": {
+    "scrollback": { "type": "number", "default": 5000, "title": "Scrollback Lines" },
+    "fontSize": { "type": "number", "default": 0, "title": "Font Size", "description": "0 uses the editor font size." },
+    "cursorStyle": { "type": "string", "default": "bar", "enum": ["bar", "block", "underline"], "title": "Cursor Style" },
+    "shell": { "type": "string", "default": "", "title": "Shell", "description": "Path to the shell. Empty uses your login shell." },
+    "copyOnSelect": { "type": "boolean", "default": false, "title": "Copy on Select" }
+  }
+}

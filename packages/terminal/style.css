@@ -1,0 +1,24 @@
+.term-view { display: flex; flex-direction: column; height: 100%; background: var(--bg); }
+.term-toolbar { flex: none; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 6px 0 8px; border-bottom: 1px solid var(--border); background: var(--bg-sidebar); }
+.term-tabs { flex: 1; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.term-tabs::-webkit-scrollbar { display: none; }
+.term-tab {
+  display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 4px 0 10px; max-width: 220px;
+  border-radius: var(--radius); color: var(--fg-muted); white-space: nowrap; cursor: pointer;
+}
+.term-tab:hover { background: var(--bg-hover); color: var(--fg); }
+.term-tab.active { background: var(--bg-selected); color: var(--fg-strong); }
+.term-tab-title { overflow: hidden; text-overflow: ellipsis; font-size: 0.92em; }
+.term-tab-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fg-subtle); flex: none; }
+.term-tab.running .term-tab-dot { background: var(--success); }
+.term-tab.failed .term-tab-dot { background: var(--error); }
+.term-tab-close { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--fg-subtle); opacity: 0; }
+.term-tab:hover .term-tab-close, .term-tab.active .term-tab-close { opacity: 1; }
+.term-tab-close:hover { background: var(--bg-selected); color: var(--fg); }
+.term-actions { display: flex; gap: 2px; }
+.term-body { flex: 1; position: relative; min-height: 0; }
+.term-instance { position: absolute; inset: 6px 4px 2px 12px; }
+.term-instance .xterm { height: 100%; }
+.term-instance .xterm-viewport { background: transparent !important; }
+.term-instance .xterm-viewport::-webkit-scrollbar-thumb { background: transparent; }
+.term-instance:hover .xterm-viewport::-webkit-scrollbar-thumb { background: var(--scrollbar); background-clip: content-box; }

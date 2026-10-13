@@ -1,0 +1,20 @@
+{
+  "name": "runner",
+  "displayName": "Code Runner",
+  "description": "Run the current file or a project task in the terminal with one key.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "keymap": {
+    "F5": "runner:run-file",
+    "Mod-Shift-r": "runner:run-file",
+    "Shift-F5": "runner:stop",
+    "Mod-Alt-r": "runner:rerun",
+    "Mod-Shift-b": "runner:run-task"
+  },
+  "configSchema": {
+    "commands": { "type": "object", "default": {}, "title": "Commands by File Type", "description": "Override how files run, by extension: { \"py\": \"python3 {file}\" }. Placeholders: {file} {dir} {name} {base} {root} (paths are quoted for you)." },
+    "tasks": { "type": "object", "default": {}, "title": "Custom Tasks", "description": "Extra entries for Run Task: { \"Deploy\": \"./scripts/deploy.sh\" }." },
+    "cwd": { "type": "string", "default": "file", "enum": ["file", "project"], "title": "Working Directory", "description": "Run files from their own folder, or from the project root." },
+    "saveBeforeRun": { "type": "boolean", "default": true, "title": "Save Before Running" }
+  }
+}

@@ -425,7 +425,7 @@ export function activate(mide) {
         { id: 'copy-rel', label: 'Copy Relative Path', enabled: !isRoot },
         { id: 'reveal', label: 'Reveal in Finder' },
         { id: 'search', label: 'Find in Folder…', enabled: node.isDir },
-        { id: 'run', label: 'Run Command Here…', enabled: node.isDir },
+        { id: 'run', label: 'Open Terminal Here', enabled: node.isDir },
       ]);
       switch (choice) {
         case 'new-file': return this.newEntry(false, node);
@@ -438,7 +438,7 @@ export function activate(mide) {
         case 'copy-rel': return mide.clipboard.write(mide.workspace.relativePath(node.path));
         case 'reveal': return mide.shell.reveal(node.path);
         case 'search': return mide.commands.run('find-in-project:show', { folder: mide.workspace.relativePath(node.path) });
-        case 'run': return mide.commands.run('run-panel:run', { cwd: node.path });
+        case 'run': return mide.commands.run('terminal:new', { cwd: node.path });
       }
     },
   });

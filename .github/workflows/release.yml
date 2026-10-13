@@ -1,0 +1,55 @@
+# Builds Minimide for macOS, Windows and Linux and attaches the installers to a
+# draft GitHub release. Trigger by pushing a tag like v0.1.0 (or run it manually).
+#
+# Optional repository secrets for signed, notarized macOS builds:
+#   MAC_CERT_P12_BASE64           base64 of your "Developer ID Application" .p12
+#   MAC_CERT_PASSWORD             password for that .p12
+#   APPLE_ID                      Apple ID email
+#   APPLE_APP_SPECIFIC_PASSWORD   app-specific password from appleid.apple.com
+#   APPLE_TEAM_ID                 your 10-character team id
+# Without them, macOS builds are ad-hoc signed (users must allow them in
+# System Settings → Privacy & Security on first launch).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Package and publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          node build.mjs
+          EXTRA=()
+          if [ "$RUNNER_OS" = "macOS" ] && [ -z "$CSC_LINK" ]; then
+            echo "No signing certificate configured: building ad-hoc signed macOS app."
+            EXTRA+=("-c.mac.identity=-")
+          fi
+          npx electron-builder --publish always -c.publish.provider=github -c.publish.releaseType=draft "${EXTRA[@]}"
