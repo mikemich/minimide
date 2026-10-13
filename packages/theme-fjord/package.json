@@ -1,0 +1,9 @@
+{
+  "name": "fjord",
+  "displayName": "Fjord",
+  "description": "Cool arctic blues, inspired by Nord.",
+  "version": "0.1.0",
+  "theme": "ui",
+  "main": false,
+  "styles": ["theme.css"]
+}

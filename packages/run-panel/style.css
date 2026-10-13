@@ -1,0 +1,33 @@
+.run-panel { display: flex; flex-direction: column; height: 100%; }
+.run-toolbar { flex: none; display: flex; align-items: center; gap: 10px; padding: 4px 8px 4px 14px; border-bottom: 1px solid var(--border); color: var(--fg-subtle); font-size: 0.9em; }
+.run-cwd { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.run-status.running { color: var(--accent); }
+.run-status.ok { color: var(--success); }
+.run-status.fail { color: var(--error); }
+.run-actions { margin-left: auto; display: flex; gap: 2px; }
+.run-actions .icon-btn[disabled] { opacity: 0.35; pointer-events: none; }
+.run-output {
+  flex: 1; overflow: auto; padding: 8px 14px; outline: none;
+  font-family: var(--editor-font); font-size: calc(var(--editor-font-size) - 1px); line-height: 1.5;
+  user-select: text; cursor: text; white-space: pre-wrap; word-break: break-all;
+}
+.run-line.stderr { color: color-mix(in srgb, var(--c-red) 75%, var(--fg)); }
+.run-line.stdin { color: var(--fg-subtle); }
+.run-line .bold { font-weight: 700; }
+.run-line .dim { opacity: 0.6; }
+.run-line [data-fg="red"] { color: var(--c-red); }
+.run-line [data-fg="green"] { color: var(--c-green); }
+.run-line [data-fg="yellow"] { color: var(--c-yellow); }
+.run-line [data-fg="blue"] { color: var(--c-blue); }
+.run-line [data-fg="magenta"] { color: var(--c-magenta); }
+.run-line [data-fg="cyan"] { color: var(--c-cyan); }
+.run-line [data-fg="black"] { color: var(--fg-subtle); }
+.run-line [data-fg="white"] { color: var(--fg-strong); }
+.run-command { margin-top: 6px; color: var(--fg-strong); font-weight: 600; }
+.run-command .run-prompt { color: var(--accent); }
+.run-separator { height: 1px; margin: 8px 0 4px; background: var(--border); }
+.run-link { color: inherit; text-decoration: underline; text-decoration-color: var(--fg-subtle); text-underline-offset: 2px; }
+.run-link:hover { color: var(--accent); text-decoration-color: var(--accent); }
+.run-input-row { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-top: 1px solid var(--border); background: var(--bg); }
+.run-prompt { color: var(--accent); font-family: var(--editor-font); }
+.run-input { flex: 1; border: 0; outline: none; background: transparent; font-family: var(--editor-font); font-size: calc(var(--editor-font-size) - 1px); color: var(--fg-strong); user-select: text; }

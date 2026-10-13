@@ -1,0 +1,4 @@
+node_modules/
+dist/
+packages/markdown-preview/vendor/
+.DS_Store

@@ -1,0 +1,34 @@
+.fip { display: flex; flex-direction: column; height: 100%; }
+.fip-form { flex: none; display: flex; flex-direction: column; gap: 6px; padding: 10px 10px 8px 4px; }
+.fip-row { display: flex; align-items: center; gap: 4px; padding-left: 22px; }
+.fip-row:first-child { padding-left: 0; }
+.fip-expand { width: 18px; height: 26px; flex: none; color: var(--fg-subtle); }
+.fip-expand .icon { transition: transform 0.12s; }
+.fip-expand.open .icon { transform: rotate(90deg); }
+.fip-query-wrap { position: relative; flex: 1; }
+.fip-query { padding-right: 62px; }
+.fip-toggles { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: flex; gap: 2px; }
+.fip-toggle {
+  height: 20px; min-width: 24px; padding: 0 4px; border: 0; border-radius: 4px;
+  background: transparent; color: var(--fg-subtle); font-family: var(--editor-font); font-size: 11px;
+}
+.fip-toggle:hover { background: var(--bg-hover); color: var(--fg); }
+.fip-toggle.on { background: color-mix(in srgb, var(--accent) 25%, transparent); color: var(--fg-strong); }
+.fip-replace-row .input { flex: 1; }
+.fip-folder { font-size: 0.92em; }
+.fip-summary { flex: none; padding: 2px 14px 8px; color: var(--fg-subtle); font-size: 0.9em; }
+.fip-summary.error { color: var(--error); }
+.fip-results { flex: 1; overflow: auto; padding-bottom: 20px; }
+.fip-file { display: flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px 0 8px; color: var(--fg); white-space: nowrap; }
+.fip-file:hover { background: var(--bg-hover); }
+.fip-file > .icon:first-child { color: var(--fg-subtle); transform: rotate(90deg); transition: transform 0.12s; }
+.fip-file.collapsed > .icon:first-child { transform: none; }
+.fip-file-name { color: var(--fg-strong); }
+.fip-file-dir { color: var(--fg-subtle); font-size: 0.88em; overflow: hidden; text-overflow: ellipsis; }
+.fip-count { margin-left: auto; padding: 0 6px; border-radius: 9px; background: var(--bg-selected); color: var(--fg-muted); font-size: 0.82em; }
+.fip-match { display: flex; gap: 8px; padding: 3px 10px 3px 30px; white-space: nowrap; overflow: hidden; outline: none; font-size: 0.95em; }
+.fip-match:hover { background: var(--bg-hover); }
+.fip-match:focus { background: var(--bg-selected-focus); }
+.fip-line { color: var(--fg-subtle); min-width: 22px; text-align: right; font-variant-numeric: tabular-nums; }
+.fip-text { overflow: hidden; text-overflow: ellipsis; color: var(--fg-muted); font-family: var(--editor-font); font-size: 0.92em; }
+.fip-text mark { background: var(--match); color: var(--fg-strong); border-radius: 2px; outline: 1px solid var(--match-border); }

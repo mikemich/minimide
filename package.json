@@ -1,0 +1,32 @@
+{
+  "name": "minimide",
+  "productName": "Minimide",
+  "version": "0.1.0",
+  "description": "A small, beautiful, hackable editor.",
+  "type": "module",
+  "main": "src/main/main.js",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "start": "node build.mjs && electron .",
+    "dev": "node build.mjs && electron . --dev"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "esbuild": "^0.28.2"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/language-data": "^6.5.2",
+    "@codemirror/lint": "^6.9.7",
+    "@codemirror/search": "^6.7.2",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.14",
+    "@lezer/highlight": "^1.2.5",
+    "dompurify": "^3.4.16",
+    "marked": "^18.1.0"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "git",
+  "displayName": "Git",
+  "description": "Branch in the status bar, file status in the tree, and change markers in the gutter.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"],
+  "configSchema": {
+    "gutter": { "type": "boolean", "default": true, "title": "Gutter Markers", "description": "Show added / modified / deleted lines next to line numbers." }
+  }
+}

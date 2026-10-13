@@ -1,0 +1,12 @@
+{
+  "name": "fuzzy-finder",
+  "displayName": "Fuzzy Finder",
+  "description": "Open project files, open tabs and recent files by fuzzy name.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "keymap": {
+    "Mod-p": "fuzzy-finder:toggle",
+    "Mod-t": "fuzzy-finder:toggle",
+    "Mod-e": "fuzzy-finder:toggle-open-tabs"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "settings-view",
+  "displayName": "Settings",
+  "description": "A friendly UI for settings, themes, packages and keybindings.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "status-bar",
+  "displayName": "Status Bar",
+  "description": "Cursor position, language, indentation and more.",
+  "version": "0.1.0",
+  "main": "index.js"
+}

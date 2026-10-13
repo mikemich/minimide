@@ -1,0 +1,41 @@
+/* Fjord — cool arctic blues, inspired by Nord. */
+:root {
+  color-scheme: dark;
+  --bg: #2b303b;
+  --bg-sidebar: #272b35;
+  --bg-tabbar: #272b35;
+  --bg-statusbar: #242832;
+  --bg-elevated: #333947;
+  --bg-input: #232731;
+  --bg-hover: rgba(236, 239, 244, 0.05);
+  --bg-selected: rgba(236, 239, 244, 0.08);
+  --bg-selected-focus: rgba(136, 192, 208, 0.18);
+  --fg: #d8dee9;
+  --fg-strong: #eceff4;
+  --fg-muted: #8f99ab;
+  --fg-subtle: #616e88;
+  --border: rgba(236, 239, 244, 0.06);
+  --border-strong: rgba(236, 239, 244, 0.1);
+  --accent: #88c0d0;
+  --accent-fg: #1d2129;
+  --selection: rgba(136, 192, 208, 0.2);
+  --cursor: #d8dee9;
+  --line-highlight: rgba(236, 239, 244, 0.03);
+  --gutter-fg: #4c566a;
+  --gutter-fg-active: #a3adbf;
+  --c-red: #bf616a;
+  --c-orange: #d08770;
+  --c-yellow: #ebcb8b;
+  --c-green: #a3be8c;
+  --c-cyan: #8fbcbb;
+  --c-blue: #81a1c1;
+  --c-magenta: #b48ead;
+}
+.tok-keyword, .tok-controlKeyword, .tok-modifier { color: #81a1c1; }
+.tok-function { color: #88c0d0; }
+.tok-typeName, .tok-className { color: #8fbcbb; }
+.tok-propertyName { color: #d8dee9; }
+.tok-operator { color: #81a1c1; }
+.tok-comment { color: #616e88; }
+.tok-tagName { color: #81a1c1; }
+.tok-attributeName { color: #8fbcbb; }

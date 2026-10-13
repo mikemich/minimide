@@ -1,0 +1,9 @@
+.git-branch { display: inline-flex; align-items: center; gap: 5px; }
+.git-changes { padding: 0 5px; border-radius: 8px; background: var(--bg-selected); font-size: 0.9em; }
+.cm-git-gutter { width: 4px; }
+.cm-git-gutter .cm-gutterElement { padding: 0 !important; }
+.git-marker { width: 3px; height: 100%; margin-left: 1px; border-radius: 1px; }
+.git-added { background: var(--c-green); }
+.git-modified { background: var(--c-blue); }
+.git-deleted { background: none; position: relative; overflow: visible; }
+.git-deleted::after { content: ''; position: absolute; left: 0; bottom: -4px; border-left: 5px solid var(--c-red); border-top: 4px solid transparent; border-bottom: 4px solid transparent; }

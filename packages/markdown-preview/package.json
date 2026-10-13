@@ -1,0 +1,9 @@
+{
+  "name": "markdown-preview",
+  "displayName": "Markdown Preview",
+  "description": "Live preview of Markdown files in a split pane.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"],
+  "keymap": { "Ctrl-Shift-m": "markdown-preview:toggle" }
+}

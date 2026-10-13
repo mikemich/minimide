@@ -1,0 +1,8 @@
+{
+  "name": "command-palette",
+  "displayName": "Command Palette",
+  "description": "Find and run any command by name.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "keymap": { "Mod-Shift-p": "command-palette:toggle", "F1": "command-palette:toggle" }
+}
