@@ -12,6 +12,7 @@ function on(channel, fn) {
 contextBridge.exposeInMainWorld('native', {
   fs: {
     read: call('fs:read'),
+    readDataUrl: call('fs:readDataUrl'),
     write: call('fs:write'),
     readdir: call('fs:readdir'),
     stat: call('fs:stat'),

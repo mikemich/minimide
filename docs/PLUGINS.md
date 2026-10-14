@@ -80,6 +80,8 @@ mide.commands.list();   // enabled, visible commands
 
 ```js
 mide.keymap.add({ 'Mod-k Mod-c': 'word-count:toggle' });
+// A key may map to several commands: the first one whose `when` passes runs, so a package can
+// claim ⌘= only while its own view is active and the editor keeps it otherwise.
 mide.keymap.bindingsFor('file:save');   // ['Cmd-s']
 mide.keymap.pretty('Shift-Cmd-p');      // '⇧⌘P'
 ```
@@ -162,6 +164,14 @@ const { StateField, StateEffect } = mide.cm.state;
 mide.editor.addExtension(EditorView.theme({ '.cm-content': { letterSpacing: '0.2px' } }));
 mide.editor.addExtension(myLinter);   // applied to every open and future editor
 
+const support = await mide.editor.languageFor('src/app.ts'); // LanguageSupport for a path, or null
+
+// Completions that run alongside the language's own and the language server's:
+mide.editor.addCompletionSource((ctx) => {
+  const word = ctx.matchBefore(/\w+$/);
+  return word && { from: word.from, options: [{ label: 'hello', type: 'snippet' }] };
+});
+
 mide.editor.registerLanguage({
   name: 'Brainfuck', extensions: ['bf'],
   load: async () => myLanguageSupport,
@@ -174,6 +184,7 @@ Popular add-ons are bundled against the same CodeMirror and load on demand:
 const { vim, Vim } = await mide.cm.extras.vim();                         // @replit/codemirror-vim
 const { showMinimap } = await mide.cm.extras.minimap();                  // @replit/codemirror-minimap
 const { indentationMarkers } = await mide.cm.extras.indentationMarkers(); // @replit/codemirror-indentation-markers
+const { MergeView, unifiedMergeView } = await mide.cm.extras.merge();     // @codemirror/merge (diff views)
 ```
 
 Available: `mide.cm.state`, `.view`, `.language`, `.commands`, `.autocomplete`,
@@ -222,6 +233,7 @@ mide.statusBar.addItem({ element, align: 'right', priority: 50, tooltip: '…', 
 
 ```js
 await mide.fs.read(path); await mide.fs.write(path, text);
+await mide.fs.readDataUrl(path);  // binary files (images…) as a data: URL
 await mide.fs.readdir(dir);   // [{ name, path, isDir }]
 await mide.fs.stat(path);     // { isDir, isFile, size, mtime } | null
 await mide.fs.mkdir(dir); await mide.fs.rename(a, b); await mide.fs.trash(path);

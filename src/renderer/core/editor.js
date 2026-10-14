@@ -302,6 +302,7 @@ function baseExtensions(ws) {
     crosshairCursor(),
     highlightSelectionMatches(),
     compartments.plugins.of(ws.editorExtensions()),
+    EditorState.languageData.of(() => [{ autocomplete: ws.extraCompletionSource }]),
     keymap.of([
       ...closeBracketsKeymap,
       ...defaultKeymap,

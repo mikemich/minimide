@@ -402,7 +402,9 @@ export function activate(mide) {
   }
 
   async function fallbackCompletions(ctx) {
+    // The shared extra source (snippets…) has its own override slot below, so skip it here.
     const sources = ctx.state.languageDataAt('autocomplete', ctx.pos)
+      .filter((s) => s !== mide.editor.extraCompletionSource)
       .map((s) => (typeof s === 'function' ? s : completeFromList(s)));
     const results = (await Promise.all(sources.map((s) => Promise.resolve(s(ctx)).catch(() => null)))).filter(Boolean);
     if (results.length <= 1) return results[0] || null;
@@ -417,7 +419,7 @@ export function activate(mide) {
     return fallbackCompletions(ctx);
   };
 
-  mide.editor.addExtension([lintGutter(), autocompletion({ override: [completionSource] })]);
+  mide.editor.addExtension([lintGutter(), autocompletion({ override: [completionSource, mide.editor.extraCompletionSource] })]);
 
   // ---------------------------------------------------------------------------
   // Hover

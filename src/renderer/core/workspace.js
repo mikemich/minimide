@@ -244,6 +244,15 @@ export class Workspace extends Emitter {
     this.activePane = null;
     this.openers = [];
     this.paneActions = [];
+    this.completionSources = new Set();
+    // One stable source that merges results from every registered source (snippets, …).
+    this.extraCompletionSource = async (ctx) => {
+      const results = (await Promise.all([...this.completionSources].map((s) => Promise.resolve(s(ctx)).catch(() => null)))).filter(Boolean);
+      if (!results.length) return null;
+      const from = Math.min(...results.map((r) => r.from));
+      const same = results.filter((r) => r.from === from);
+      return { from, options: same.flatMap((r) => r.options), validFor: same.length === 1 ? same[0].validFor : undefined };
+    };
     this.saveHooks = [];
     this.extensions = new Set();
     this.dragging = null;
@@ -397,6 +406,11 @@ export class Workspace extends Emitter {
     if (!p || p === this.project) return '';
     if (this.project && p.startsWith(this.project + '/')) return p.slice(this.project.length + 1);
     return p;
+  }
+
+  addCompletionSource(source) {
+    this.completionSources.add(source);
+    return new Disposable(() => this.completionSources.delete(source));
   }
 
   /** addPaneAction({ id, icon, title, when(item, pane), run(item, pane), className }) */
@@ -625,7 +639,7 @@ export class Workspace extends Emitter {
       const pane = i === 0 ? this.panes[0] : this.addPane(this.panes[i - 1]);
       pane.flex = ps.flex || 1;
       for (const s of ps.items) {
-        if (s.type !== 'editor' || !s.path) continue;
+        if (!s?.path) continue; // editors and any other item that serializes a path (images…)
         const stat = await window.native.fs.stat(s.path);
         if (!stat?.isFile) continue;
         const item = await this.open(s.path, { pane, focus: false, activate: false });

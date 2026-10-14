@@ -1,0 +1,11 @@
+{
+  "name": "snippets",
+  "displayName": "Snippets",
+  "description": "Type a prefix and press Tab. Built-in snippets for popular languages, plus your own (VS Code format).",
+  "version": "0.1.0",
+  "main": "index.js",
+  "configSchema": {
+    "builtins": { "type": "boolean", "default": true, "title": "Built-in Snippets" },
+    "tabExpands": { "type": "boolean", "default": true, "title": "Tab Expands Prefixes", "description": "Pressing Tab right after a snippet prefix expands it." }
+  }
+}

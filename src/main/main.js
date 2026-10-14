@@ -312,6 +312,13 @@ function registerIpc() {
     try { const s = await fs.stat(p); return { isDir: s.isDirectory(), isFile: s.isFile(), size: s.size, mtime: s.mtimeMs }; }
     catch { return null; }
   });
+  handle('fs:readDataUrl', async (_e, p, maxBytes = 50 * 1024 * 1024) => {
+    const stat = await fs.stat(p);
+    if (stat.size > maxBytes) throw new Error(`File is too large to preview (${Math.round(stat.size / 1048576)} MB)`);
+    const type = { '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.bmp': 'image/bmp', '.avif': 'image/avif' }[path.extname(p).toLowerCase()]
+      || MIME[path.extname(p).toLowerCase()] || 'application/octet-stream';
+    return `data:${type};base64,${(await fs.readFile(p)).toString('base64')}`;
+  });
   handle('fs:mkdir', (_e, p) => fs.mkdir(p, { recursive: true }));
   handle('fs:rename', (_e, a, b) => fs.rename(a, b));
   handle('fs:trash', (_e, p) => shell.trashItem(p));

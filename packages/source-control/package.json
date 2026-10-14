@@ -1,0 +1,13 @@
+{
+  "name": "source-control",
+  "displayName": "Source Control",
+  "description": "Stage, diff, commit, push and pull from a git panel in the sidebar.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"],
+  "keymap": { "Ctrl-Shift-g": "source-control:show", "Mod-k Mod-d": "source-control:diff-active-file" },
+  "configSchema": {
+    "diffLayout": { "type": "string", "default": "side-by-side", "enum": ["side-by-side", "inline"], "title": "Diff Layout" },
+    "confirmStageAllOnCommit": { "type": "boolean", "default": true, "title": "Ask Before Committing All", "description": "When nothing is staged, ask before staging every change and committing." }
+  }
+}

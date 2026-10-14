@@ -93,6 +93,18 @@ export class Keymap extends Emitter {
     return map;
   }
 
+  /** Every command bound to `binding`, highest priority first (user, then later layers). */
+  candidates(binding) {
+    const out = [];
+    for (const layer of [this.userLayer, ...[...this.layers].reverse()]) {
+      if (!layer.bindings.has(binding)) continue;
+      const cmd = layer.bindings.get(binding);
+      if (cmd == null) break; // explicitly unbound: stop here
+      if (!out.includes(cmd)) out.push(cmd);
+    }
+    return out;
+  }
+
   bindingsFor(commandId) {
     const out = [];
     for (const [k, v] of this.resolved()) if (v === commandId) out.push(k);
@@ -109,31 +121,32 @@ export class Keymap extends Emitter {
     if (e.isComposing) return;
     const stroke = keystrokeFromEvent(e);
     if (!stroke) return;
-    let resolved = this.resolved();
-    // Inside [data-keymap-passthrough] (terminals) the keyboard belongs to the program running
-    // there: only ⌘ shortcuts (Ctrl-Shift elsewhere), F-keys and allowed commands are handled.
-    if (e.target?.closest?.('[data-keymap-passthrough]')) {
-      const reserved = (binding) => {
-        const first = binding.split(' ')[0];
-        return isMac ? first.includes('Cmd-') : /^Ctrl-(Alt-)?Shift-/.test(first) || /^(Shift-)?F\d+$/.test(first);
-      };
-      resolved = new Map([...resolved].filter(([b, id]) => this.passthroughCommands.has(id) || reserved(b) || /^(Shift-)?F\d+$/.test(b.split(' ')[0])));
-    }
     const seq = [...this.pending, stroke].join(' ');
+    // Inside [data-keymap-passthrough] (terminals, Vim) the keyboard belongs to the program running
+    // there: only ⌘ shortcuts (Ctrl-Shift elsewhere), F-keys and allowed commands are handled.
+    const passthrough = !!e.target?.closest?.('[data-keymap-passthrough]');
+    const reserved = (binding) => {
+      const first = binding.split(' ')[0];
+      if (/^(Shift-)?F\d+$/.test(first)) return true;
+      return isMac ? first.includes('Cmd-') : /^Ctrl-(Alt-)?Shift-/.test(first);
+    };
+    const allowed = (binding, id) => !passthrough || this.passthroughCommands.has(id) || reserved(binding);
     const editable = isEditable(e.target);
     const bare = !/^(Ctrl|Alt|Cmd)-/.test(stroke) && !/^(Shift-)?(F\d+|Escape)$/.test(stroke);
+    const blockedBare = bare && editable && !this.pending.length;
 
-    const exact = resolved.get(seq);
-    const isPrefix = [...resolved.keys()].some((k) => k.startsWith(seq + ' '));
+    // A key can map to several commands; the first allowed one whose `when` passes wins.
+    const exact = this.candidates(seq).find((id) => allowed(seq, id) && this.commands.isEnabled(id));
+    const isPrefix = [...this.resolved()].some(([k, id]) => k.startsWith(seq + ' ') && allowed(k, id));
 
-    if (exact && !(bare && editable && !this.pending.length) && this.commands.isEnabled(exact)) {
+    if (exact && !blockedBare) {
       e.preventDefault();
       e.stopPropagation();
       this.clearPending();
       this.commands.run(exact);
       return;
     }
-    if (isPrefix && !(bare && editable && !this.pending.length)) {
+    if (isPrefix && !blockedBare) {
       e.preventDefault();
       e.stopPropagation();
       this.pending.push(stroke);

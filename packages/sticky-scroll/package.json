@@ -1,0 +1,10 @@
+{
+  "name": "sticky-scroll",
+  "displayName": "Sticky Scroll",
+  "description": "Pins the headers of the functions, classes and blocks you're scrolled into to the top of the editor.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "configSchema": {
+    "maxLines": { "type": "number", "default": 5, "title": "Maximum Pinned Lines" }
+  }
+}

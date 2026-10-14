@@ -100,6 +100,8 @@ That's the whole loop. The full API is in [docs/PLUGINS.md](docs/PLUGINS.md).
 | `⇧⌥F` | Format document (LSP) |
 | `F8` / `⇧F8` | Next / previous problem |
 | `⌘K ⌘P` | Problems panel |
+| `⌃⇧G` | Source control panel (`⌘K ⌘D` diffs the current file) |
+| `log` + `Tab` | Expand a snippet (`Snippets: Insert Snippet…` lists them all) |
 
 On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `keymap.json`.
 
@@ -113,12 +115,16 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `find-in-project` | Regex / case-sensitive search and replace across the project |
 | `lsp` | Language servers: completions (with auto-import), diagnostics, hover, signature help, definition, references, rename, code actions, formatting, symbols, Problems panel |
 | `git` | Branch switcher, tree status, change markers in the editor gutter |
+| `source-control` | Git panel (`⌃⇧G`): stage, unstage, discard, commit, amend, push, pull, and side-by-side or inline diffs |
 | `terminal` | A real terminal (xterm.js + node-pty) in tabs; click `file:line` in output to jump there |
 | `runner` | Run the current file with `F5` (Python, JS/TS, Go, Rust, C/C++, Java, Ruby, shell and more) or a project task with `⌘⇧B` |
 | `markdown-preview` | Live, sanitized preview in a split pane |
 | `settings-view` | Settings, themes, packages and keybindings, generated from schemas |
 | `status-bar` | Cursor, selection, language, indentation, line endings |
 | `editor-guides` | Scope-aware indent guides; optional rainbow brackets |
+| `image-viewer` | Opens PNG, JPG, GIF, WebP, SVG and more in a tab with zoom (`⌘+` / `⌘-` / pinch) |
+| `sticky-scroll` | Pins the headers of the function, class or block you're in to the top of the editor |
+| `snippets` | Type a prefix and press Tab. Built-ins for popular languages, plus your own in VS Code format |
 | `color-preview` | Inline swatches for `#hex`, `rgb()` and `hsl()`; click a hex swatch to pick a new color |
 | `git-blame` | Who changed the current line, and when, shown at its end (like GitLens) |
 | `todos` | Highlights TODO / FIXME / HACK / NOTE in comments, plus a sidebar listing them all (`⌘K ⌘T`) |
@@ -177,6 +183,7 @@ Everything personal lives in `~/.minimide/`:
 | `keymap.json` | Your keybindings. Wins over every package. |
 | `styles.css` | Your CSS, loaded last. Every color is a variable. |
 | `init.js` | JavaScript run at startup with the full package API. |
+| `snippets.json` | Your snippets in VS Code's format. Or drop VS Code snippet files into `snippets/`. |
 | `packages/` | Your packages. **Packages: Create New Package…** scaffolds one. |
 
 The full API is in [docs/PLUGINS.md](docs/PLUGINS.md) (or **Help → Plugin API Docs** in the app).

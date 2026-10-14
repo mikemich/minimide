@@ -1,0 +1,336 @@
+// Source Control: a git panel (stage / unstage / discard / commit / push / pull) and a diff view.
+
+const LABELS = { M: 'Modified', A: 'Added', D: 'Deleted', R: 'Renamed', C: 'Copied', U: 'Conflict', '?': 'Untracked', T: 'Type changed' };
+
+export function activate(mide) {
+  const { h, icon, fileIcon } = mide.ui;
+  const state = { root: null, branch: '', upstream: null, ahead: 0, behind: 0, staged: [], changes: [], conflicts: [], hasHead: true, busy: false };
+  const diffs = new Set();
+
+  // Never let git wait for a password prompt that nobody can see.
+  const git = (args, opts = {}) => mide.process.exec('git', args, { cwd: state.root || mide.workspace.project, timeout: 60000, env: { GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' }, ...opts });
+
+  // --- status --------------------------------------------------------------
+  async function refresh() {
+    const project = mide.workspace.project;
+    if (!project) { state.root = null; return render(); }
+    const top = await mide.process.exec('git', ['rev-parse', '--show-toplevel'], { cwd: project });
+    if (top.code !== 0) { state.root = null; return render(); }
+    state.root = top.stdout.trim();
+    const res = await git(['status', '--porcelain=v2', '--branch', '-z', '--untracked-files=all']);
+    const staged = [];
+    const changes = [];
+    const conflicts = [];
+    state.branch = '';
+    state.upstream = null;
+    state.ahead = state.behind = 0;
+    state.hasHead = true;
+    const parts = res.stdout.split('\0');
+    for (let i = 0; i < parts.length; i++) {
+      const line = parts[i];
+      if (!line) continue;
+      if (line.startsWith('# branch.head ')) state.branch = line.slice(14);
+      else if (line.startsWith('# branch.oid ')) state.hasHead = line.slice(13) !== '(initial)';
+      else if (line.startsWith('# branch.upstream ')) state.upstream = line.slice(18);
+      else if (line.startsWith('# branch.ab ')) {
+        const m = /\+(\d+) -(\d+)/.exec(line);
+        if (m) { state.ahead = +m[1]; state.behind = +m[2]; }
+      } else if (line[0] === '1' || line[0] === '2') {
+        const fields = line.split(' ');
+        const xy = fields[1];
+        const path = fields.slice(line[0] === '1' ? 8 : 9).join(' ');
+        const orig = line[0] === '2' ? parts[++i] : null;
+        if (xy[0] !== '.') staged.push({ path, code: xy[0], orig });
+        if (xy[1] !== '.') changes.push({ path, code: xy[1] });
+      } else if (line[0] === 'u') {
+        conflicts.push({ path: line.split(' ').slice(10).join(' '), code: 'U' });
+      } else if (line[0] === '?') {
+        changes.push({ path: line.slice(2), code: '?' });
+      }
+    }
+    Object.assign(state, { staged, changes, conflicts });
+    render();
+    for (const d of diffs) d.reload();
+  }
+
+  let refreshTimer = null;
+  const scheduleRefresh = () => { clearTimeout(refreshTimer); refreshTimer = setTimeout(refresh, 300); };
+  const afterChange = async () => {
+    await refresh();
+    mide.services.consume('git-status', (svc) => svc.refresh?.()).dispose(); // keep tree + branch item in sync
+  };
+
+  async function run(args, { quiet = false, label } = {}) {
+    state.busy = true;
+    render();
+    const r = await git(args);
+    state.busy = false;
+    if (r.code !== 0 && !quiet) {
+      const msg = (r.stderr || r.stdout).trim();
+      const auth = /terminal prompts disabled|could not read Username|Authentication failed|Permission denied \(publickey\)/i.test(msg);
+      mide.notify.error(`git ${label || args[0]} failed`, auth ? `${msg}\n\nGit needs credentials. Set up an SSH key or a credential helper (e.g. "gh auth setup-git"), then try again.` : msg);
+    }
+    await afterChange();
+    return r;
+  }
+
+  // --- actions -------------------------------------------------------------
+  const abs = (p) => `${state.root}/${p}`;
+  const stage = (paths) => run(['add', '-A', '--', ...paths], { label: 'add' });
+  const unstage = (paths) => (state.hasHead ? run(['restore', '--staged', '--', ...paths], { label: 'unstage' }) : run(['rm', '--cached', '-r', '-q', '--', ...paths], { label: 'unstage' }));
+
+  async function discard(entries) {
+    const names = entries.map((e) => e.path);
+    const choice = await mide.ui.confirm({
+      type: 'warning',
+      message: entries.length === 1 ? `Discard changes to ${names[0]}?` : `Discard changes to ${entries.length} files?`,
+      detail: 'Edits to tracked files are reverted to the last commit. New (untracked) files are moved to the Trash.',
+      buttons: ['Discard Changes', 'Cancel'],
+    });
+    if (choice !== 0) return;
+    const untracked = entries.filter((e) => e.code === '?');
+    const tracked = entries.filter((e) => e.code !== '?');
+    for (const e of untracked) await mide.fs.trash(abs(e.path));
+    if (tracked.length) await run(['restore', '--', ...tracked.map((e) => e.path)], { label: 'restore' });
+    else await afterChange();
+  }
+
+  async function commit() {
+    const message = msgInput.value.trim();
+    if (!message) { msgInput.focus(); return mide.notify.info('Write a commit message first.'); }
+    const amend = amendBox.checked;
+    if (!state.staged.length && !amend) {
+      if (!state.changes.length) return mide.notify.info('Nothing to commit.');
+      if (mide.config.get('source-control.confirmStageAllOnCommit')) {
+        const c = await mide.ui.confirm({ message: 'There are no staged changes.', detail: `Stage all ${state.changes.length} changes and commit them?`, buttons: ['Stage All & Commit', 'Cancel'] });
+        if (c !== 0) return;
+      }
+      const s = await run(['add', '-A'], { label: 'add' });
+      if (s.code !== 0) return;
+    }
+    const r = await run(['commit', '-m', message, ...(amend ? ['--amend'] : [])], { label: 'commit' });
+    if (r.code === 0) {
+      msgInput.value = '';
+      amendBox.checked = false;
+      try { localStorage.removeItem(draftKey()); } catch {}
+      mide.notify.success(amend ? 'Commit amended' : 'Committed', r.stdout.split('\n')[0]);
+    }
+  }
+
+  async function push() {
+    const r = state.upstream ? await run(['push'], { label: 'push' }) : await run(['push', '-u', 'origin', 'HEAD'], { label: 'push' });
+    if (r.code === 0) mide.notify.success(`Pushed ${state.branch}`);
+  }
+  async function pull() {
+    const r = await run(['pull', '--ff-only'], { label: 'pull' });
+    if (r.code === 0) mide.notify.success('Up to date', r.stdout.trim().split('\n').pop());
+  }
+
+  // --- panel ---------------------------------------------------------------
+  const draftKey = () => `source-control:draft:${state.root}`;
+  const msgInput = h('textarea.input.sc-message', {
+    rows: 3, placeholder: 'Commit message (⌘↩ to commit)', spellcheck: true,
+    oninput: () => { try { localStorage.setItem(draftKey(), msgInput.value); } catch {} },
+    onkeydown: (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commit(); } },
+  });
+  const amendBox = h('input', { type: 'checkbox' });
+  const branchEl = h('div.sc-branch');
+  const commitBtn = h('button.btn.primary.sc-commit', { onclick: commit }, 'Commit');
+  const lists = h('div.sc-lists');
+  const el = h('div.sc-view',
+    h('div.sc-header', h('span.sc-title', 'Source Control'),
+      h('div.sc-header-actions', h('button.icon-btn', { title: 'Refresh', onclick: () => refresh() }, icon('refresh', 14)))),
+    h('div.sc-body', branchEl,
+      h('div.sc-compose', msgInput, h('div.sc-compose-row', commitBtn, h('label.sc-amend', amendBox, 'Amend'))),
+      lists));
+
+  function render() {
+    if (!mide.workspace.project) {
+      lists.replaceChildren(h('div.sc-empty', 'Open a folder to use source control.'));
+      branchEl.replaceChildren();
+      return;
+    }
+    if (!state.root) {
+      branchEl.replaceChildren();
+      lists.replaceChildren(h('div.sc-empty', h('p', 'This folder is not a git repository.'),
+        h('button.btn.primary', { onclick: async () => { await mide.process.exec('git', ['init'], { cwd: mide.workspace.project }); afterChange(); } }, 'Initialize Repository')));
+      return;
+    }
+    if (document.activeElement !== msgInput && !msgInput.value) { try { msgInput.value = localStorage.getItem(draftKey()) || ''; } catch {} }
+    branchEl.replaceChildren(
+      icon('branch', 14), h('span.sc-branch-name', state.branch || 'detached'),
+      // (replaceChildren would print a null child as "null", so spread an empty list instead)
+      ...(state.upstream ? [h('span.sc-sync', { title: `${state.ahead} to push, ${state.behind} to pull from ${state.upstream}` }, `↑${state.ahead} ↓${state.behind}`)] : []),
+      h('div.sc-branch-actions',
+        h('button.btn.small', { onclick: pull, disabled: state.busy || !state.upstream }, 'Pull'),
+        h('button.btn.small', { onclick: push, disabled: state.busy, title: state.upstream ? `Push to ${state.upstream}` : 'Push this branch to origin and track it' }, state.upstream ? 'Push' : 'Publish')));
+    commitBtn.disabled = state.busy;
+    commitBtn.textContent = state.busy ? 'Working…' : state.staged.length ? `Commit ${state.staged.length} staged` : 'Commit';
+    const groups = [];
+    if (state.conflicts.length) groups.push(group('Merge Conflicts', state.conflicts, 'conflict'));
+    if (state.staged.length) groups.push(group('Staged Changes', state.staged, 'staged'));
+    groups.push(group('Changes', state.changes, 'changes'));
+    if (!state.staged.length && !state.changes.length && !state.conflicts.length) groups.push(h('div.sc-empty', 'No changes. Working tree is clean.'));
+    lists.replaceChildren(...groups);
+  }
+
+  function group(title, entries, kind) {
+    if (!entries.length) return h('div');
+    const actions = kind === 'staged'
+      ? [h('button.icon-btn', { title: 'Unstage All', onclick: () => unstage(entries.map((e) => e.path)) }, '−')]
+      : kind === 'changes'
+        ? [h('button.icon-btn', { title: 'Discard All', onclick: () => discard(entries) }, '↺'), h('button.icon-btn', { title: 'Stage All', onclick: () => stage(entries.map((e) => e.path)) }, '+')]
+        : [h('button.icon-btn', { title: 'Stage All (mark resolved)', onclick: () => stage(entries.map((e) => e.path)) }, '+')];
+    return h('div.sc-group',
+      h('div.sc-group-header', h('span', title), h('span.sc-count', String(entries.length)), h('div.sc-group-actions', actions)),
+      ...entries.map((e) => row(e, kind)));
+  }
+
+  function row(entry, kind) {
+    const slash = entry.path.lastIndexOf('/');
+    const name = entry.path.slice(slash + 1);
+    const dir = slash > 0 ? entry.path.slice(0, slash) : '';
+    const actions = kind === 'staged'
+      ? [h('button.icon-btn', { title: 'Open File', onclick: (e) => { e.stopPropagation(); openFile(entry); } }, icon('file', 13)), h('button.icon-btn', { title: 'Unstage', onclick: (e) => { e.stopPropagation(); unstage([entry.path]); } }, '−')]
+      : [h('button.icon-btn', { title: 'Open File', onclick: (e) => { e.stopPropagation(); openFile(entry); } }, icon('file', 13)),
+        h('button.icon-btn', { title: 'Discard Changes', onclick: (e) => { e.stopPropagation(); discard([entry]); } }, '↺'),
+        h('button.icon-btn', { title: 'Stage', onclick: (e) => { e.stopPropagation(); stage([entry.path]); } }, '+')];
+    return h('div.sc-row', {
+      title: `${entry.path} · ${LABELS[entry.code] || entry.code}${entry.orig ? ` (from ${entry.orig})` : ''}`,
+      onclick: () => openDiff(entry, kind),
+      oncontextmenu: async (ev) => {
+        ev.preventDefault();
+        const choice = await mide.ui.contextMenu([
+          { id: 'diff', label: 'Open Changes' }, { id: 'open', label: 'Open File', enabled: entry.code !== 'D' },
+          { type: 'separator' },
+          kind === 'staged' ? { id: 'unstage', label: 'Unstage' } : { id: 'stage', label: 'Stage' },
+          { id: 'discard', label: 'Discard Changes', enabled: kind !== 'staged' },
+          { type: 'separator' }, { id: 'reveal', label: 'Reveal in Finder' },
+        ]);
+        if (choice === 'diff') openDiff(entry, kind);
+        else if (choice === 'open') openFile(entry);
+        else if (choice === 'stage') stage([entry.path]);
+        else if (choice === 'unstage') unstage([entry.path]);
+        else if (choice === 'discard') discard([entry]);
+        else if (choice === 'reveal') mide.shell.reveal(abs(entry.path));
+      },
+    }, h(`span.sc-code.c-${entry.code === '?' ? 'U' : entry.code}`, entry.code === '?' ? 'U' : entry.code === 'U' ? '!' : entry.code),
+    fileIcon(name), h('span.sc-name', name), dir ? h('span.sc-dir', dir) : null, h('div.sc-row-actions', actions));
+  }
+
+  function openFile(entry) { if (entry.code !== 'D') mide.workspace.open(abs(entry.path)); }
+
+  // --- diff view -----------------------------------------------------------
+  async function textAt(ref, path) {
+    if (ref === 'worktree') { try { return await mide.fs.read(abs(path)); } catch { return ''; } }
+    const r = await git(['show', `${ref}:${path}`]);
+    return r.code === 0 ? r.stdout : '';
+  }
+
+  class DiffItem {
+    constructor(entry, kind) {
+      this.type = 'diff';
+      this.entry = entry;
+      this.kind = kind;
+      this.iconName = 'split';
+      this.id = `diff-${kind}-${entry.path}`;
+      this.listeners = new Map();
+      this.headerLeft = h('span.sc-diff-side');
+      this.headerRight = h('span.sc-diff-side');
+      this.host = h('div.sc-diff-host');
+      this.element = h('div.sc-diff', { tabIndex: -1 },
+        h('div.sc-diff-toolbar', h('span.sc-diff-path', entry.path), this.headerLeft, h('span.sc-diff-arrow', '→'), this.headerRight,
+          h('div.sc-diff-actions',
+            h('button.btn.small', { onclick: () => this.toggleLayout() }, 'Toggle Layout'),
+            entry.code !== 'D' ? h('button.btn.small', { onclick: () => openFile(entry) }, 'Open File') : null,
+            kind === 'staged' ? h('button.btn.small', { onclick: () => unstage([entry.path]) }, 'Unstage')
+              : h('button.btn.small.primary', { onclick: () => stage([entry.path]) }, 'Stage'))),
+        this.host);
+      this.layout = mide.config.get('source-control.diffLayout');
+      this.reload();
+    }
+    on(ev, fn) { this.listeners.set(ev, fn); return { dispose: () => this.listeners.delete(ev) }; }
+    getTitle() { return `${mide.path.basename(this.entry.path)} (${this.kind === 'staged' ? 'staged' : 'changes'})`; }
+    getElement() { return this.element; }
+    focus() { this.element.focus({ preventScroll: true }); }
+    serialize() { return null; }
+    destroy() { this.view?.destroy(); diffs.delete(this); }
+    toggleLayout() { this.layout = this.layout === 'inline' ? 'side-by-side' : 'inline'; this.reload(); }
+
+    async reload() {
+      const { entry, kind } = this;
+      const [leftRef, rightRef, leftLabel, rightLabel] = kind === 'staged'
+        ? [state.hasHead ? 'HEAD' : null, '', 'Last commit', 'Staged']
+        : [entry.code === '?' ? null : '', 'worktree', entry.code === '?' ? 'New file' : 'Staged / last commit', 'Working tree'];
+      const [a, b] = await Promise.all([leftRef == null ? '' : textAt(leftRef, entry.orig || entry.path), textAt(rightRef, entry.path)]);
+      if (a === this.a && b === this.b && this.view && this.shownLayout === this.layout) return;
+      Object.assign(this, { a, b });
+      this.headerLeft.textContent = leftLabel;
+      this.headerRight.textContent = rightLabel;
+      const { MergeView, unifiedMergeView } = await mide.cm.extras.merge();
+      const { EditorView, lineNumbers } = mide.cm.view;
+      const { EditorState } = mide.cm.state;
+      const { syntaxHighlighting } = mide.cm.language;
+      const { classHighlighter } = mide.cm.highlight;
+      if (a === b) {
+        // Nothing left to compare (e.g. the change was just committed or discarded).
+        this.view?.destroy();
+        this.view = null;
+        this.shownLayout = null;
+        this.host.replaceChildren(h('div.sc-diff-empty', h('div.sc-diff-empty-title', 'No changes'),
+          h('div', kind === 'staged' ? 'The staged version matches the last commit.' : 'The file matches its staged / committed version.')));
+        return;
+      }
+      const lang = await mide.editor.languageFor(entry.path);
+      const extensions = [lineNumbers(), syntaxHighlighting(classHighlighter), EditorView.editable.of(false), EditorState.readOnly.of(true), lang || []];
+      const scroll = this.view?.dom.querySelector('.cm-scroller, .cm-mergeView')?.scrollTop || this.view?.scrollDOM?.scrollTop || 0;
+      this.view?.destroy();
+      this.host.replaceChildren();
+      this.shownLayout = this.layout;
+      if (this.layout === 'inline') {
+        this.view = new EditorView({ parent: this.host, doc: b, extensions: [...extensions, unifiedMergeView({ original: a, mergeControls: false, collapseUnchanged: { margin: 3, minSize: 6 } })] });
+      } else {
+        this.view = new MergeView({ parent: this.host, a: { doc: a, extensions }, b: { doc: b, extensions }, collapseUnchanged: { margin: 3, minSize: 6 }, gutter: true, highlightChanges: true });
+      }
+      requestAnimationFrame(() => { const s = this.host.querySelector('.cm-mergeView') || this.host.querySelector('.cm-scroller'); if (s) s.scrollTop = scroll; });
+    }
+  }
+
+  function openDiff(entry, kind) {
+    const existing = mide.workspace.getItems().find((i) => i.type === 'diff' && i.id === `diff-${kind}-${entry.path}`);
+    if (existing) return mide.workspace.openItem(existing);
+    const item = new DiffItem(entry, kind);
+    diffs.add(item);
+    mide.workspace.openItem(item);
+  }
+
+  // --- wiring --------------------------------------------------------------
+  mide.sidebar.addView({ id: 'source-control', title: 'Source Control', icon: 'branch', order: 15, element: el, onShow: refresh, focus: () => msgInput.focus() });
+  mide.commands.add({
+    'source-control:show': { title: 'Show Source Control', run: () => { mide.sidebar.show('source-control', { focus: true }); refresh(); } },
+    'source-control:commit': { title: 'Commit', when: () => !!state.root, run: () => { mide.sidebar.show('source-control'); commit(); } },
+    'source-control:push': { title: 'Push', when: () => !!state.root, run: push },
+    'source-control:pull': { title: 'Pull', when: () => !!state.root, run: pull },
+    'source-control:stage-all': { title: 'Stage All Changes', when: () => !!state.root, run: () => stage(state.changes.map((e) => e.path)) },
+    'source-control:diff-active-file': {
+      title: 'Open Changes for Current File',
+      when: () => !!state.root && !!mide.workspace.getActiveItem()?.getPath?.(),
+      run: async () => {
+        await refresh();
+        const rel = mide.workspace.getActiveItem().getPath().slice(state.root.length + 1);
+        const entry = state.changes.find((e) => e.path === rel);
+        const stagedEntry = state.staged.find((e) => e.path === rel);
+        if (entry) openDiff(entry, 'changes');
+        else if (stagedEntry) openDiff(stagedEntry, 'staged');
+        else mide.notify.info('No changes in this file.');
+      },
+    },
+  });
+  mide.workspace.onDidChangeProject(() => { refresh(); });
+  mide.workspace.onDidSave(scheduleRefresh);
+  mide.workspace.onDidChangeFiles(scheduleRefresh);
+  const onFocus = () => scheduleRefresh();
+  window.addEventListener('focus', onFocus);
+  mide.subscriptions.add({ dispose: () => { window.removeEventListener('focus', onFocus); for (const d of [...diffs]) mide.workspace.closeItem(d); } });
+  refresh();
+}

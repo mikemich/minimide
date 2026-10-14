@@ -12,7 +12,7 @@ import * as lezerHighlight from '@lezer/highlight';
 import { Emitter, Disposable } from './events.js';
 import { h, icon, fileIcon, registerIcon, basename, dirname } from './dom.js';
 import { fuzzyFilter, fuzzyMatch, highlightMatches } from './fuzzy.js';
-import { registerLanguage } from './editor.js';
+import { registerLanguage, detectLanguage } from './editor.js';
 import { prettyBinding } from './keymap.js';
 
 // Popular CodeMirror add-ons, bundled against the editor's own CodeMirror (two copies
@@ -21,6 +21,7 @@ const extras = Object.freeze({
   vim: () => import('@replit/codemirror-vim'),
   minimap: () => import('@replit/codemirror-minimap'),
   indentationMarkers: () => import('@replit/codemirror-indentation-markers'),
+  merge: () => import('@codemirror/merge'),
 });
 
 const cm = Object.freeze({
@@ -224,6 +225,11 @@ export class PackageManager extends Emitter {
       editor: {
         addExtension: (ext) => track(ws.addEditorExtension(ext)),
         registerLanguage: (desc) => track(registerLanguage(desc)),
+        /** LanguageSupport for a file path (loads the grammar), or null. */
+        languageFor: async (path) => { const d = detectLanguage(path); return d ? d.support || d.load() : null; },
+        /** Add a completion source that runs alongside the language's own (and the LSP's). */
+        addCompletionSource: (source) => track(ws.addCompletionSource(source)),
+        extraCompletionSource: ws.extraCompletionSource,
       },
       cm,
       ui: {
