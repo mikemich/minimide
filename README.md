@@ -10,7 +10,7 @@ A small, beautiful code editor in the spirit of Atom. Every feature is a package
 you can change while it runs.
 
 [![MIT license](https://img.shields.io/badge/license-MIT-6aa8ff)](LICENSE)
-![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon%20%7C%20Intel-c792ea)
+![Platforms](https://img.shields.io/badge/macOS%20%7C%20Windows%20%7C%20Linux-c792ea)
 ![Core](https://img.shields.io/badge/core-~5k%20lines-a3d385)
 [![Download](https://img.shields.io/badge/download-latest-f0b866)](https://github.com/mikemich/minimide/releases/latest)
 
@@ -25,7 +25,13 @@ built-in packages included, is about 10,000. The file tree, git panel, terminal,
 servers, Vim mode and every theme are packages built on the same API you get, and they
 reload the moment you save. Make it yours.
 
-![Minimide with the Nightfall theme: code, git panel and terminal](docs/screenshots/dark.png)
+```bash
+curl -fsSL https://mikemich.github.io/minimide/install.sh | sh
+```
+
+<a href="docs/media/theme-reel.mp4"><img src="docs/media/theme-reel.gif" alt="Minimide cycling through its 19 themes and 5 of its fonts, with the app icon changing to match" width="840"></a>
+
+*19 themes and 27 fonts, built in. Even the Dock icon follows your theme.*
 
 ## Why
 
@@ -43,6 +49,9 @@ Minimide picks up Atom's idea, small enough to own:
   private back door.
 - **Change it while it runs.** Save a package and it reloads instantly. `init.js`,
   `styles.css`, `keymap.json` and `config.json` in `~/.minimide` do the same.
+- **Safe to share.** Atom's packages could do anything. Minimide's installed packages run
+  in a sandbox: no access to your files, programs or the internet unless you approve the
+  permissions they ask for. Install them from GitHub in a click.
 - **Simple by default.** A file tree, tabs, a command palette and a fuzzy finder, built
   on CodeMirror 6 with syntax highlighting for 100+ languages. Power tools such as LSP,
   split panes, multi-cursor and project-wide replace are there when you reach for them.

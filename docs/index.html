@@ -73,14 +73,12 @@
     .feature b { display: block; color: var(--strong); font-size: 16px; margin-bottom: 4px; }
     .feature span { color: var(--muted); font-size: 14.5px; line-height: 1.5; display: block; }
 
+    .icons { display: flex; align-items: center; gap: 28px; margin-top: 28px; }
+    .icons img { width: 56%; max-width: 620px; height: auto; border-radius: 14px; flex: none; }
+    .icons p { margin: 0; color: var(--muted); font-size: 17px; line-height: 1.55; }
+    .icons p b { color: var(--strong); }
+    @media (max-width: 880px) { .icons { flex-direction: column; align-items: flex-start; } .icons img { width: 100%; } }
     .shot { border-radius: var(--radius); border: 1px solid var(--line); width: 100%; display: block; box-shadow: 0 30px 80px rgba(0,0,0,.45); }
-    .themes { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 28px; }
-    .theme { border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--bg2); }
-    .theme .sw { display: flex; height: 54px; }
-    .theme .sw i { flex: 1; } .theme .sw i:first-child { flex: 2.4; }
-    .theme div:last-child { padding: 10px 12px; font-size: 14.5px; color: var(--strong); }
-    .fonts-card .sw { align-items: center; justify-content: center; gap: 18px; font-size: 24px; font-weight: 600; color: var(--strong); background: linear-gradient(135deg, #a5b4fc33, #c084fc33); }
-    .fonts-card .sw .mono { font-family: var(--mono); }
 
     .cta { text-align: center; padding: 110px 0 60px; }
     footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
@@ -90,7 +88,6 @@
     @media (max-width: 880px) {
       .grid3, .split { grid-template-columns: 1fr; }
       .features { grid-template-columns: repeat(2, 1fr); }
-      .themes { grid-template-columns: repeat(3, 1fr); }
       .nav-links a:not(.gh) { display: none; }
     }
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }
@@ -104,6 +101,8 @@
         <a href="#why">Why</a>
         <a href="#hack">Hack it</a>
         <a href="#features">Features</a>
+        <a href="#themes">Themes</a>
+        <a href="#safe">Sandbox</a>
         <a class="gh" href="https://github.com/mikemich/minimide">GitHub ↗</a>
       </div>
     </nav>
@@ -113,7 +112,7 @@
       <h1>The editor you can<br><span class="grad">read in an afternoon.</span></h1>
       <p class="lede">A small, beautiful code editor in the spirit of Atom. Every feature is a package, and you can change any of them while it runs.</p>
       <div class="ctas">
-        <a class="btn primary" href="https://github.com/mikemich/minimide/releases/latest">Download for Mac</a>
+        <a class="btn primary" href="https://github.com/mikemich/minimide/releases/latest">Download</a>
         <a class="btn" href="https://github.com/mikemich/minimide">Read the source ↗</a>
       </div>
       <p class="small">macOS (Apple Silicon &amp; Intel) · Windows · Linux · free and open source</p>
@@ -171,36 +170,30 @@
         <div class="feature"><b>Command palette</b><span>Every action by name, plus a fuzzy file finder with <code>file:42</code>.</span></div>
         <div class="feature"><b>Vim mode</b><span>Motions, registers, macros, <code>:w</code> and <code>:q</code>. Off until you want it.</span></div>
         <div class="feature"><b>Snippets</b><span>Tab-expand built-ins, or paste your VS Code snippet files.</span></div>
+        <div class="feature"><b>Big repos</b><span>Indexes and searches 250,000 files without freezing the editor.</span></div>
+        <div class="feature"><b>Updates itself</b><span>Checks GitHub once a day and verifies every download.</span></div>
+        <div class="feature"><b>27 fonts</b><span>JetBrains Mono, Fira Code, Iosevka, Monaspace, Geist and more, previewed live.</span></div>
         <div class="feature"><b>And more</b><span>Sticky scroll, minimap, image viewer, Markdown preview, project-wide replace.</span></div>
       </div>
     </section>
 
-    <section>
+    <section id="themes">
       <h2>Beautiful by default.</h2>
-      <p class="sub">19 themes, 27 fonts and any accent color you like, built in. A theme is one CSS file of variables: write your own in minutes.</p>
-      <img class="shot" src="screenshots/dark.png" alt="Minimide with the Nightfall theme: code, git panel and terminal" loading="lazy">
-      <div class="themes">
-        <div class="theme"><div class="sw"><i style="background:#1e2128"></i><i style="background:#6aa8ff"></i><i style="background:#c792ea"></i><i style="background:#a3d385"></i><i style="background:#f0b866"></i></div><div>Nightfall</div></div>
-        <div class="theme"><div class="sw"><i style="background:#000000"></i><i style="background:#7df9ff"></i><i style="background:#ff6ac1"></i><i style="background:#5af78e"></i><i style="background:#f3f99d"></i></div><div>Midnight</div></div>
-        <div class="theme"><div class="sw"><i style="background:#2b303b"></i><i style="background:#88c0d0"></i><i style="background:#b48ead"></i><i style="background:#a3be8c"></i><i style="background:#ebcb8b"></i></div><div>Fjord</div></div>
-        <div class="theme"><div class="sw"><i style="background:#fbfbfa"></i><i style="background:#2f6fed"></i><i style="background:#a33ea1"></i><i style="background:#3c8a2e"></i><i style="background:#b4690e"></i></div><div>Daylight</div></div>
-        <div class="theme"><div class="sw"><i style="background:#f4ecdf"></i><i style="background:#b5532f"></i><i style="background:#7a4f9c"></i><i style="background:#5f7a2c"></i><i style="background:#a86a12"></i></div><div>Dune</div></div>
-        <div class="theme"><div class="sw"><i style="background:#1c1917"></i><i style="background:#ff8a4c"></i><i style="background:#f4c56b"></i><i style="background:#b8cc72"></i><i style="background:#82c8bb"></i></div><div>Ember</div></div>
-        <div class="theme"><div class="sw"><i style="background:#1a211d"></i><i style="background:#7fcf8f"></i><i style="background:#e3cc7f"></i><i style="background:#c5d98f"></i><i style="background:#79c7b8"></i></div><div>Grove</div></div>
-        <div class="theme"><div class="sw"><i style="background:#1f1a24"></i><i style="background:#eb9fb6"></i><i style="background:#c4a7e7"></i><i style="background:#f6c177"></i><i style="background:#9ccfd8"></i></div><div>Rosewood</div></div>
-        <div class="theme"><div class="sw"><i style="background:#22212c"></i><i style="background:#bd93f9"></i><i style="background:#ff79c6"></i><i style="background:#50fa7b"></i><i style="background:#f1fa8c"></i></div><div>Nocturne</div></div>
-        <div class="theme"><div class="sw"><i style="background:#1e1e2e"></i><i style="background:#cba6f7"></i><i style="background:#89b4fa"></i><i style="background:#a6e3a1"></i><i style="background:#f9e2af"></i></div><div>Cocoa</div></div>
-        <div class="theme"><div class="sw"><i style="background:#282624"></i><i style="background:#fabd2f"></i><i style="background:#fb4934"></i><i style="background:#b8bb26"></i><i style="background:#d3869b"></i></div><div>Harvest</div></div>
-        <div class="theme"><div class="sw"><i style="background:#1a1b26"></i><i style="background:#7aa2f7"></i><i style="background:#bb9af7"></i><i style="background:#9ece6a"></i><i style="background:#2ac3de"></i></div><div>Metro</div></div>
-        <div class="theme"><div class="sw"><i style="background:#272822"></i><i style="background:#a6e22e"></i><i style="background:#f92672"></i><i style="background:#e6db74"></i><i style="background:#66d9ef"></i></div><div>Volcano</div></div>
-        <div class="theme"><div class="sw"><i style="background:#0f1b2a"></i><i style="background:#3ecfcf"></i><i style="background:#6cb6ff"></i><i style="background:#5fe0e0"></i><i style="background:#8ee3a0"></i></div><div>Abyss</div></div>
-        <div class="theme"><div class="sw"><i style="background:#000000"></i><i style="background:#ffd60a"></i><i style="background:#f783ac"></i><i style="background:#74c0fc"></i><i style="background:#69db7c"></i></div><div>High Contrast</div></div>
-        <div class="theme"><div class="sw"><i style="background:#f6f3ec"></i><i style="background:#3b5bab"></i><i style="background:#4b6b2f"></i><i style="background:#7a4a8c"></i><i style="background:#856a12"></i></div><div>Paper</div></div>
-        <div class="theme"><div class="sw"><i style="background:#f6f9fc"></i><i style="background:#0e7490"></i><i style="background:#2563eb"></i><i style="background:#15803d"></i><i style="background:#9333ea"></i></div><div>Glacier</div></div>
-        <div class="theme"><div class="sw"><i style="background:#fdf7f8"></i><i style="background:#d6457e"></i><i style="background:#4a6fd1"></i><i style="background:#4f8a3a"></i><i style="background:#a845b8"></i></div><div>Blossom</div></div>
-        <div class="theme"><div class="sw"><i style="background:#fdf6e3"></i><i style="background:#268bd2"></i><i style="background:#859900"></i><i style="background:#2aa198"></i><i style="background:#b58900"></i></div><div>Solstice</div></div>
-        <div class="theme fonts-card"><div class="sw"><span>Aa</span><span class="mono">{ }</span></div><div>+ 27 fonts</div></div>
+      <p class="sub">19 themes, 27 fonts and any accent color, built in. A theme is one CSS file of variables: write your own in minutes.</p>
+      <video class="shot" src="media/theme-reel.mp4" poster="media/theme-poster.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Minimide cycling through its 19 themes and 5 of its fonts, with the app icon changing to match"></video>
+      <div class="icons">
+        <img src="media/theme-icons.png" alt="Minimide's app icon in each of the 19 themes" loading="lazy">
+        <p><b>Even the icon is yours.</b> The Dock icon is drawn from your theme, accent color and editor font, and changes the moment you switch.</p>
       </div>
+    </section>
+
+    <section id="safe">
+      <h2>Safe to share.</h2>
+      <p class="sub">Install other people's packages without handing them your computer. Atom's packages could do anything; Minimide's run in a sandbox.</p>
+      <div class="grid3">
+        <div class="card"><h3>Sandboxed by default</h3><p>Installed packages run in an isolated worker with no access to your files, programs or the internet.</p></div>
+        <div class="card"><h3>You approve permissions</h3><p>A package that needs more asks for it, like “read files in this project” or “use the network”, and you see the list before installing.</p></div>
+        <div class="card"><h3>Install from GitHub</h3><p>Browse <b>Settings → Packages → Discover</b> or install any <code>owner/repo</code>. Publish yours with the <code>minimide-package</code> topic.</p></div>
       </div>
     </section>
 
@@ -208,9 +201,10 @@
       <h2>Make it yours.</h2>
       <p class="sub" style="margin:0 auto 30px">Download it, read it, change it. Then show us what you built.</p>
       <div class="ctas">
-        <a class="btn primary" href="https://github.com/mikemich/minimide/releases/latest">Download for Mac</a>
+        <a class="btn primary" href="https://github.com/mikemich/minimide/releases/latest">Download</a>
         <a class="btn" href="https://github.com/mikemich/minimide/blob/master/docs/PLUGINS.md">Plugin API ↗</a>
       </div>
+      <p class="install"><code>curl -fsSL https://mikemich.github.io/minimide/install.sh | sh</code></p>
     </div>
 
     <footer>
