@@ -120,11 +120,19 @@
     await ws.open(root + '/lines.txt');
     ed.view.dispatch({ changes: { from: 0, to: ed.view.state.doc.length, insert: 'x = `${name}` + #{y} + $1' } });
     ed.view.dispatch({ selection: { anchor: 0, head: ed.view.state.doc.length } });
-    await app.commands.run('snippets:insert');
-    const input = await until(() => document.querySelector('.select-list .select-input'));
-    input.value = 'wrapit'; input.dispatchEvent(new Event('input'));
-    (await until(() => document.querySelector('.select-item')))?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-    await wait(300);
+    // The snippets package reloads snippets.json from the file watcher; on slow machines that can
+    // take a moment, so retry until the new snippet is offered.
+    let item = null;
+    for (let i = 0; i < 20 && !item; i++) {
+      await app.commands.run('snippets:insert');
+      const input = await until(() => document.querySelector('.select-list .select-input'));
+      input.value = 'wrapit'; input.dispatchEvent(new Event('input'));
+      await wait(100);
+      item = [...document.querySelectorAll('.select-item')].find((li) => /wrapit/i.test(li.textContent));
+      if (!item) { app.ui.closeModal(); await wait(400); }
+    }
+    item?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    await until(() => ed.getText().startsWith('try {'), 3000);
     const text = ed.getText();
     await T.answers('confirm', 1); await ws.closeItem(ed);
     return { literalPreserved: text === 'try {\nx = `${name}` + #{y} + $1\n}', text: JSON.stringify(text) };
