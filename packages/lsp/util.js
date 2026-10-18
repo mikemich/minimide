@@ -41,20 +41,6 @@ export const SYMBOL_KINDS = [
   'null', 'enum member', 'struct', 'event', 'operator', 'type parameter',
 ];
 
-/** LSP snippet syntax -> CodeMirror snippet syntax. */
-export function convertSnippet(text) {
-  let s = text
-    .replace(/\$\{(\d+)\|([^|},]*)(?:,[^|}]*)*\|\}/g, (_, n, first) => `\${${n}:${first}}`) // choices -> first
-    .replace(/\$(\d+)/g, '${$1}')
-    .replace(/\$\{([A-Z_]+)(?::([^}]*))?\}/g, (_, _v, def) => def || '') // variables
-    .replace(/\$[A-Z_]+/g, '');
-  // CodeMirror fields can't nest: keep the inner text of nested placeholders.
-  for (let guard = 0; guard < 10 && /\$\{\d+:[^{}]*\$\{/.test(s); guard++) {
-    s = s.replace(/(\$\{\d+:[^{}]*)\$\{\d+(?::([^{}]*))?\}/, (_, head, inner) => head + (inner || ''));
-  }
-  return s;
-}
-
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /** Tiny, safe Markdown renderer for hover / completion docs (escapes all HTML). */

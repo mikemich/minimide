@@ -54,7 +54,7 @@
   "build": {
     "appId": "dev.minimide.app",
     "productName": "Minimide",
-    "copyright": "Copyright © 2026 mikemich",
+    "copyright": "Copyright \u00a9 2026 mikemich",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -173,6 +173,14 @@
     "asarUnpack": [
       "node_modules/node-pty/**"
     ],
-    "npmRebuild": false
+    "npmRebuild": false,
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "onlyLoadAppFromAsar": true,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "enableCookieEncryption": true
+    }
   }
 }

@@ -25,7 +25,7 @@ export function activate(mide) {
   async function load() {
     const next = {};
     const merge = (lang, defs) => { for (const id of lang.split(',').map((l) => l.trim()).filter(Boolean)) next[id] = { ...next[id], ...defs }; };
-    try {
+    if (await mide.fs.stat(userFile)) try {
       const data = parse(await mide.fs.read(userFile));
       for (const [lang, defs] of Object.entries(data)) if (defs && typeof defs === 'object') merge(lang === 'global' ? '*' : lang, defs);
     } catch (err) {
@@ -75,11 +75,11 @@ export function activate(mide) {
   }
 
   // --- expansion -----------------------------------------------------------
-  function resolveVariables(body, editor, selected) {
+  function variables(editor, selected) {
     const path = editor?.getPath() || '';
     const now = new Date();
     const pad = (n) => String(n).padStart(2, '0');
-    const vars = {
+    return {
       TM_FILENAME: mide.path.basename(path) || 'untitled',
       TM_FILENAME_BASE: (mide.path.basename(path) || 'untitled').replace(/\.[^.]+$/, ''),
       TM_FILEPATH: path, TM_DIRECTORY: path ? mide.path.dirname(path) : '',
@@ -92,29 +92,17 @@ export function activate(mide) {
       CURRENT_MONTH_NAME: now.toLocaleString('en', { month: 'long' }), CURRENT_DAY_NAME: now.toLocaleString('en', { weekday: 'long' }),
       UUID: crypto.randomUUID(), RANDOM: String(Math.random()).slice(2, 8),
     };
-    return body
-      .replace(/\$\{([A-Z_]+)(?::([^}]*))?\}/g, (m, v, def) => (v in vars ? vars[v] || def || '' : m))
-      .replace(/\$([A-Z_]+)\b/g, (m, v) => (v in vars ? vars[v] : m));
-  }
-
-  /** VS Code snippet syntax -> CodeMirror snippet syntax. */
-  function toTemplate(body) {
-    let s = body
-      .replace(/\$\{(\d+)\|([^|},]*)(?:,[^|}]*)*\|\}/g, (_, n, first) => `\${${n}:${first}}`) // choices -> first option
-      .replace(/\$\{(\d+)\/[^}]*\}/g, '${$1}') // transforms -> plain field
-      .replace(/\$(\d+)/g, '${$1}');
-    for (let i = 0; i < 10 && /\$\{\d+:[^{}]*\$\{/.test(s); i++) {
-      s = s.replace(/(\$\{\d+:[^{}]*)\$\{\d+(?::([^{}]*))?\}/, (_, head, inner) => head + (inner || '')); // flatten nesting
-    }
-    return s;
   }
 
   function expand(view, editor, entry, from, to, completion = null) {
     const selected = view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to);
+    const vars = variables(editor, selected);
+    // The shared converter escapes variable values, so selected code containing `${x}`, `$1`
+    // or `#{y}` is inserted literally rather than turned into tab stops.
     // CodeMirror re-indents continuation lines and turns leading tabs into the indent unit.
-    const body = resolveVariables(entry.body, editor, selected);
-    snippet(toTemplate(body))(view, completion, from, to);
+    snippet(mide.editor.convertSnippet(entry.body, (name) => vars[name]))(view, completion, from, to);
   }
+
 
   const editorFor = (view) => mide.workspace.getItems().find((i) => i.view === view);
 

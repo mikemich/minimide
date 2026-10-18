@@ -2,7 +2,7 @@
 
 export async function activate(mide) {
   const { vim, Vim, getCM } = await mide.cm.extras.vim();
-  const { EditorView, lineNumbers } = mide.cm.view;
+  const { EditorView, gutter, GutterMarker } = mide.cm.view;
   const { Prec } = mide.cm.state;
   const { h } = mide.ui;
 
@@ -40,6 +40,8 @@ export async function activate(mide) {
     if (mappedEscape) { try { Vim.unmap(mappedEscape, 'insert'); } catch {} mappedEscape = null; }
     if (seq && seq.length >= 2) { Vim.map(seq, '<Esc>', 'insert'); mappedEscape = seq; }
   });
+  // Vim's mappings are global: remove ours when the package is switched off.
+  mide.subscriptions.add({ dispose: () => { if (mappedEscape) { try { Vim.unmap(mappedEscape, 'insert'); } catch {} } } });
 
   // System clipboard integration for the unnamed register.
   const register = Vim.getRegisterController();
@@ -51,16 +53,27 @@ export async function activate(mide) {
   };
   mide.subscriptions.add({ dispose: () => { unnamed.setText = originalSetText; } });
 
-  // Relative line numbers.
+  // Relative line numbers: our own gutter, redrawn whenever the cursor moves (the built-in
+  // line-number gutter only redraws on document changes). It replaces the normal column visually.
+  class NumberMarker extends GutterMarker {
+    constructor(text, current) { super(); this.text = text; this.current = current; }
+    eq(o) { return o.text === this.text && o.current === this.current; }
+    toDOM() { const el = document.createElement('div'); el.textContent = this.text; if (this.current) el.className = 'vim-current'; return el; }
+  }
+  const relativeGutter = gutter({
+    class: 'cm-vim-relative',
+    lineMarker(view, line) {
+      const n = view.state.doc.lineAt(line.from).number;
+      const cur = view.state.doc.lineAt(view.state.selection.main.head).number;
+      return new NumberMarker(n === cur ? String(n) : String(Math.abs(n - cur)), n === cur);
+    },
+    lineMarkerChange: (u) => u.selectionSet || u.docChanged,
+    initialSpacer: (view) => new NumberMarker(String(view.state.doc.lines), false),
+  });
   let relative = null;
   mide.config.observe('vim-mode.relativeLineNumbers', (on) => {
     relative?.dispose();
-    relative = on ? mide.editor.addExtension(Prec.high(lineNumbers({
-      formatNumber: (n, state) => {
-        const cur = state.doc.lineAt(state.selection.main.head).number;
-        return n === cur ? String(n) : String(Math.abs(n - cur));
-      },
-    }))) : null;
+    relative = on ? mide.editor.addExtension([relativeGutter, EditorView.editorAttributes.of({ class: 'vim-relative' })]) : null;
   });
 
   // Mode indicator in the status bar.
@@ -104,6 +117,9 @@ export async function activate(mide) {
     .vim-enabled .cm-fat-cursor { background: color-mix(in srgb, var(--cursor) 70%, transparent) !important; color: var(--bg) !important; }
     .vim-enabled:not(.cm-focused) .cm-fat-cursor { background: none !important; outline: 1px solid var(--cursor); }
     .vim-enabled .cm-vim-panel { padding: 4px 10px; font-family: var(--editor-font); background: var(--bg-sidebar); }
+    .vim-relative .cm-lineNumbers { display: none; }
+    .cm-vim-relative .cm-gutterElement { padding: 0 6px 0 18px; min-width: 44px; text-align: right; color: var(--gutter-fg); }
+    .cm-vim-relative .vim-current { color: var(--gutter-fg-active); }
     .vim-enabled .cm-vim-panel input { background: transparent; border: 0; outline: none; color: var(--fg-strong); font-family: var(--editor-font); }
   `);
 }

@@ -60,13 +60,15 @@ export class Config extends Emitter {
   async reload() {
     let text = '{}';
     try { text = await window.native.fs.read(this.file); } catch {}
-    if (text === this.lastWritten) return;
+    if (text === this.lastWritten) { this.lastWritten = null; return; } // our own write echoing back
     try {
       const next = parseJSONC(text);
       const prev = this.user;
       this.user = next;
+      this.parseFailed = false;
       this.emitDiff(prev, next);
     } catch (err) {
+      this.parseFailed = true;
       this.emit('error', err);
     }
   }
@@ -105,6 +107,11 @@ export class Config extends Emitter {
     prune(this.user);
     this.emitDiff(prev, this.user);
     if (this.file) {
+      // Rewriting a file we couldn't parse would throw away everything else in it.
+      if (this.parseFailed) {
+        this.emit('error', new Error('config.json has a syntax error, so this change was applied for now but not saved. Fix the file to save settings again.'));
+        return;
+      }
       this.lastWritten = JSON.stringify(this.user, null, 2) + '\n';
       await window.native.fs.write(this.file, this.lastWritten);
     }

@@ -35,7 +35,10 @@ export function normalizeBinding(binding) {
 
 export function keystrokeFromEvent(e) {
   let key;
-  if (/^Key[A-Z]$/.test(e.code)) key = e.code.slice(3).toLowerCase();
+  // Letters/digits follow the active keyboard layout (AZERTY ⌘Z is "z"); other keys use their
+  // physical position so Shift/Option variants still map to the same binding.
+  if (!e.altKey && /^[a-z0-9]$/i.test(e.key)) key = e.key.toLowerCase();
+  else if (/^Key[A-Z]$/.test(e.code)) key = e.code.slice(3).toLowerCase();
   else if (/^Digit\d$/.test(e.code)) key = e.code.slice(5);
   else if (CODE_KEYS[e.code]) key = CODE_KEYS[e.code];
   else key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
@@ -119,6 +122,8 @@ export class Keymap extends Emitter {
 
   handle(e) {
     if (e.isComposing) return;
+    // AltGr (Ctrl+Alt on Windows/Linux) types characters like "ł" or "@": never a shortcut.
+    if (e.getModifierState?.('AltGraph') && !e.metaKey) return;
     const stroke = keystrokeFromEvent(e);
     if (!stroke) return;
     const seq = [...this.pending, stroke].join(' ');
@@ -132,7 +137,8 @@ export class Keymap extends Emitter {
     };
     const allowed = (binding, id) => !passthrough || this.passthroughCommands.has(id) || reserved(binding);
     const editable = isEditable(e.target);
-    const bare = !/^(Ctrl|Alt|Cmd)-/.test(stroke) && !/^(Shift-)?(F\d+|Escape)$/.test(stroke);
+    // "Bare" = would type text: no Ctrl/Alt/Cmd held (Shift alone still types), and not F-keys/Escape.
+    const bare = !(e.ctrlKey || e.altKey || e.metaKey) && !/^(Shift-)?(F\d+|Escape)$/.test(stroke);
     const blockedBare = bare && editable && !this.pending.length;
 
     // A key can map to several commands; the first allowed one whose `when` passes wins.

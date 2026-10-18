@@ -11,13 +11,28 @@ export function activate(mide) {
   const git = (args, opts = {}) => mide.process.exec('git', args, { cwd: state.root || mide.workspace.project, timeout: 60000, env: { GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' }, ...opts });
 
   // --- status --------------------------------------------------------------
+  // The repo root derived from the project path itself (not `--show-toplevel`, which resolves
+  // symlinks and then no longer matches the paths the editor uses).
+  async function findRoot(project) {
+    const r = await mide.process.exec('git', ['rev-parse', '--show-cdup'], { cwd: project });
+    if (r.code !== 0) return null;
+    const parts = project.split('/');
+    for (const seg of r.stdout.trim().split('/').filter(Boolean)) if (seg === '..') parts.pop();
+    return parts.join('/') || '/';
+  }
+
+  let refreshSeq = 0;
   async function refresh() {
+    const seq = ++refreshSeq; // a newer refresh supersedes this one
     const project = mide.workspace.project;
     if (!project) { state.root = null; return render(); }
-    const top = await mide.process.exec('git', ['rev-parse', '--show-toplevel'], { cwd: project });
-    if (top.code !== 0) { state.root = null; return render(); }
-    state.root = top.stdout.trim();
-    const res = await git(['status', '--porcelain=v2', '--branch', '-z', '--untracked-files=all']);
+    const root = await findRoot(project);
+    if (seq !== refreshSeq) return;
+    if (!root) { state.root = null; return render(); }
+    // --no-optional-locks: a background status must not hold .git/index.lock during stage/commit.
+    const res = await git(['--no-optional-locks', 'status', '--porcelain=v2', '--branch', '-z', '--untracked-files=all'], { cwd: root });
+    if (seq !== refreshSeq) return;
+    state.root = root;
     const staged = [];
     const changes = [];
     const conflicts = [];
@@ -57,14 +72,24 @@ export function activate(mide) {
   const scheduleRefresh = () => { clearTimeout(refreshTimer); refreshTimer = setTimeout(refresh, 300); };
   const afterChange = async () => {
     await refresh();
-    mide.services.consume('git-status', (svc) => svc.refresh?.()).dispose(); // keep tree + branch item in sync
+    mide.services.get('git-status')?.refresh?.(); // keep tree + branch item in sync
   };
 
-  async function run(args, { quiet = false, label } = {}) {
+  // Git operations run one at a time (two at once fight over .git/index.lock).
+  let queue = Promise.resolve();
+  let pending = 0;
+  function run(args, opts) {
+    pending++;
     state.busy = true;
     render();
+    const job = queue.then(() => runNow(args, opts));
+    queue = job.catch(() => {});
+    return job;
+  }
+  async function runNow(args, { quiet = false, label } = {}) {
     const r = await git(args);
-    state.busy = false;
+    pending--;
+    state.busy = pending > 0;
     if (r.code !== 0 && !quiet) {
       const msg = (r.stderr || r.stdout).trim();
       const auth = /terminal prompts disabled|could not read Username|Authentication failed|Permission denied \(publickey\)/i.test(msg);
@@ -77,7 +102,13 @@ export function activate(mide) {
   // --- actions -------------------------------------------------------------
   const abs = (p) => `${state.root}/${p}`;
   const stage = (paths) => run(['add', '-A', '--', ...paths], { label: 'add' });
-  const unstage = (paths) => (state.hasHead ? run(['restore', '--staged', '--', ...paths], { label: 'unstage' }) : run(['rm', '--cached', '-r', '-q', '--', ...paths], { label: 'unstage' }));
+  const stageAll = () => run(['add', '-A'], { label: 'add' }); // no path list: fine for thousands of files
+  // Unstaging a rename must also unstage the deletion of its old path.
+  const unstage = (entries) => {
+    const paths = [...new Set(entries.flatMap((e) => (e.orig ? [e.path, e.orig] : [e.path])))];
+    return state.hasHead ? run(['restore', '--staged', '--', ...paths], { label: 'unstage' }) : run(['rm', '--cached', '-r', '-q', '--', ...paths], { label: 'unstage' });
+  };
+  const unstageAll = () => (state.hasHead ? run(['restore', '--staged', '--', '.'], { label: 'unstage' }) : run(['rm', '--cached', '-r', '-q', '--', '.'], { label: 'unstage' }));
 
   async function discard(entries) {
     const names = entries.map((e) => e.path);
@@ -91,7 +122,9 @@ export function activate(mide) {
     const untracked = entries.filter((e) => e.code === '?');
     const tracked = entries.filter((e) => e.code !== '?');
     for (const e of untracked) await mide.fs.trash(abs(e.path));
-    if (tracked.length) await run(['restore', '--', ...tracked.map((e) => e.path)], { label: 'restore' });
+    // Discarding every change uses "." rather than a (possibly huge) list of paths.
+    const all = tracked.length && tracked.length === state.changes.filter((e) => e.code !== '?').length;
+    if (tracked.length) await run(['restore', '--', ...(all ? ['.'] : tracked.map((e) => e.path))], { label: 'restore' });
     else await afterChange();
   }
 
@@ -177,10 +210,10 @@ export function activate(mide) {
   function group(title, entries, kind) {
     if (!entries.length) return h('div');
     const actions = kind === 'staged'
-      ? [h('button.icon-btn', { title: 'Unstage All', onclick: () => unstage(entries.map((e) => e.path)) }, '−')]
+      ? [h('button.icon-btn', { title: 'Unstage All', onclick: () => unstageAll() }, '−')]
       : kind === 'changes'
-        ? [h('button.icon-btn', { title: 'Discard All', onclick: () => discard(entries) }, '↺'), h('button.icon-btn', { title: 'Stage All', onclick: () => stage(entries.map((e) => e.path)) }, '+')]
-        : [h('button.icon-btn', { title: 'Stage All (mark resolved)', onclick: () => stage(entries.map((e) => e.path)) }, '+')];
+        ? [h('button.icon-btn', { title: 'Discard All', onclick: () => discard(entries) }, '↺'), h('button.icon-btn', { title: 'Stage All', onclick: () => stageAll() }, '+')]
+        : [h('button.icon-btn', { title: 'Mark All Resolved', onclick: () => stage(entries.map((e) => e.path)) }, '+')];
     return h('div.sc-group',
       h('div.sc-group-header', h('span', title), h('span.sc-count', String(entries.length)), h('div.sc-group-actions', actions)),
       ...entries.map((e) => row(e, kind)));
@@ -190,27 +223,29 @@ export function activate(mide) {
     const slash = entry.path.lastIndexOf('/');
     const name = entry.path.slice(slash + 1);
     const dir = slash > 0 ? entry.path.slice(0, slash) : '';
+    const btn = (title, label, fn) => h('button.icon-btn', { title, disabled: state.busy, onclick: (e) => { e.stopPropagation(); fn(); } }, label);
+    const open = btn('Open File', icon('file', 13), () => openFile(entry));
     const actions = kind === 'staged'
-      ? [h('button.icon-btn', { title: 'Open File', onclick: (e) => { e.stopPropagation(); openFile(entry); } }, icon('file', 13)), h('button.icon-btn', { title: 'Unstage', onclick: (e) => { e.stopPropagation(); unstage([entry.path]); } }, '−')]
-      : [h('button.icon-btn', { title: 'Open File', onclick: (e) => { e.stopPropagation(); openFile(entry); } }, icon('file', 13)),
-        h('button.icon-btn', { title: 'Discard Changes', onclick: (e) => { e.stopPropagation(); discard([entry]); } }, '↺'),
-        h('button.icon-btn', { title: 'Stage', onclick: (e) => { e.stopPropagation(); stage([entry.path]); } }, '+')];
+      ? [open, btn('Unstage', '−', () => unstage([entry]))]
+      : kind === 'conflict'
+        ? [open, btn('Mark Resolved (stage)', '+', () => stage([entry.path]))] // discard/restore don't apply to unmerged files
+        : [open, btn('Discard Changes', '↺', () => discard([entry])), btn('Stage', '+', () => stage([entry.path]))];
     return h('div.sc-row', {
       title: `${entry.path} · ${LABELS[entry.code] || entry.code}${entry.orig ? ` (from ${entry.orig})` : ''}`,
-      onclick: () => openDiff(entry, kind),
+      onclick: () => (kind === 'conflict' ? openFile(entry) : openDiff(entry, kind)),
       oncontextmenu: async (ev) => {
         ev.preventDefault();
         const choice = await mide.ui.contextMenu([
           { id: 'diff', label: 'Open Changes' }, { id: 'open', label: 'Open File', enabled: entry.code !== 'D' },
           { type: 'separator' },
-          kind === 'staged' ? { id: 'unstage', label: 'Unstage' } : { id: 'stage', label: 'Stage' },
-          { id: 'discard', label: 'Discard Changes', enabled: kind !== 'staged' },
+          kind === 'staged' ? { id: 'unstage', label: 'Unstage' } : { id: 'stage', label: kind === 'conflict' ? 'Mark Resolved' : 'Stage' },
+          { id: 'discard', label: 'Discard Changes', enabled: kind === 'changes' },
           { type: 'separator' }, { id: 'reveal', label: 'Reveal in Finder' },
         ]);
         if (choice === 'diff') openDiff(entry, kind);
         else if (choice === 'open') openFile(entry);
         else if (choice === 'stage') stage([entry.path]);
-        else if (choice === 'unstage') unstage([entry.path]);
+        else if (choice === 'unstage') unstage([entry]);
         else if (choice === 'discard') discard([entry]);
         else if (choice === 'reveal') mide.shell.reveal(abs(entry.path));
       },
@@ -243,7 +278,7 @@ export function activate(mide) {
           h('div.sc-diff-actions',
             h('button.btn.small', { onclick: () => this.toggleLayout() }, 'Toggle Layout'),
             entry.code !== 'D' ? h('button.btn.small', { onclick: () => openFile(entry) }, 'Open File') : null,
-            kind === 'staged' ? h('button.btn.small', { onclick: () => unstage([entry.path]) }, 'Unstage')
+            kind === 'staged' ? h('button.btn.small', { onclick: () => unstage([entry]) }, 'Unstage')
               : h('button.btn.small.primary', { onclick: () => stage([entry.path]) }, 'Stage'))),
         this.host);
       this.layout = mide.config.get('source-control.diffLayout');
@@ -311,7 +346,7 @@ export function activate(mide) {
     'source-control:commit': { title: 'Commit', when: () => !!state.root, run: () => { mide.sidebar.show('source-control'); commit(); } },
     'source-control:push': { title: 'Push', when: () => !!state.root, run: push },
     'source-control:pull': { title: 'Pull', when: () => !!state.root, run: pull },
-    'source-control:stage-all': { title: 'Stage All Changes', when: () => !!state.root, run: () => stage(state.changes.map((e) => e.path)) },
+    'source-control:stage-all': { title: 'Stage All Changes', when: () => !!state.root, run: () => stageAll() },
     'source-control:diff-active-file': {
       title: 'Open Changes for Current File',
       when: () => !!state.root && !!mide.workspace.getActiveItem()?.getPath?.(),

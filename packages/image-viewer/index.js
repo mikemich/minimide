@@ -33,7 +33,11 @@ export function activate(mide) {
         e.preventDefault();
         this.setZoom(Math.min(16, Math.max(0.05, this.current() * Math.exp(-e.deltaY / 200))));
       }, { passive: false });
-      this.resizeObserver = new ResizeObserver(() => { if (this.zoom == null) this.layout(); });
+      // Re-fit on the next frame; laying out inside the observer callback causes a resize loop.
+      this.resizeObserver = new ResizeObserver(() => {
+        cancelAnimationFrame(this.fitFrame);
+        this.fitFrame = requestAnimationFrame(() => { if (this.zoom == null) this.layout(); });
+      });
       this.resizeObserver.observe(this.stage);
       this.img.addEventListener('load', () => { this.layout(); this.updateInfo(); });
       this.load();
@@ -44,12 +48,13 @@ export function activate(mide) {
     getElement() { return this.element; }
     focus() { this.element.focus({ preventScroll: true }); }
     serialize() { return { type: 'image', path: this.path }; }
-    destroy() { this.resizeObserver.disconnect(); items.delete(this); }
+    destroy() { this.resizeObserver.disconnect(); cancelAnimationFrame(this.fitFrame); items.delete(this); }
 
     async load() {
       try {
         const [url, stat] = await Promise.all([mide.fs.readDataUrl(this.path), mide.fs.stat(this.path)]);
         this.size = stat?.size;
+        if (!this.img.isConnected) this.stage.replaceChildren(this.img); // recover after an earlier error
         this.img.src = url;
       } catch (err) {
         this.stage.replaceChildren(h('div.iv-error', `Couldn't open this image: ${err.message}`));
@@ -87,9 +92,10 @@ export function activate(mide) {
     }
   }
 
-  mide.workspace.addOpener((path) => {
+  mide.workspace.addOpener((path, opts = {}) => {
     const ext = path.includes('.') ? path.split('.').pop().toLowerCase() : '';
-    if (!IMAGE_EXT.has(ext)) return null;
+    // Jumping to a line (e.g. a search hit inside an .svg) or "Open as Text" means the source.
+    if (!IMAGE_EXT.has(ext) || opts.asText || opts.line != null) return null;
     const item = new ImageItem(path);
     items.add(item);
     return item;
@@ -108,6 +114,15 @@ export function activate(mide) {
     'image-viewer:actual-size': { title: 'Actual Size', when: () => !!active(), run: () => active().setZoom(1) },
   });
   mide.keymap.add({ 'Mod-=': 'image-viewer:zoom-in', 'Mod-Shift-=': 'image-viewer:zoom-in', 'Mod--': 'image-viewer:zoom-out', 'Mod-0': 'image-viewer:fit' });
+
+  mide.commands.add('image-viewer:open-as-text', 'Open Image as Text', async () => {
+    const item = active();
+    if (!item) return;
+    const path = item.path;
+    await mide.workspace.closeItem(item);
+    mide.workspace.open(path, { asText: true });
+  }, { when: () => !!active() && active().path.toLowerCase().endsWith('.svg') });
+  mide.subscriptions.add({ dispose: () => { for (const item of [...items]) mide.workspace.closeItem(item); } });
 
   mide.config.onDidChange('image-viewer.background', (bg) => { for (const item of items) item.element.dataset.bg = bg; });
 

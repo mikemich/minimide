@@ -54,7 +54,8 @@ export function isModalOpen(id) { return !!activeModal && (!id || activeModal.id
 export function selectList(opts) {
   if (opts.id && isModalOpen(opts.id)) { closeModal(); return null; }
   const filterKey = opts.filterKey || ((it) => it.label ?? String(it));
-  const input = h('input.select-input', { type: 'text', placeholder: opts.placeholder || 'Type to search…', spellcheck: false });
+  // Passthrough: Ctrl-N/Ctrl-P move the selection here instead of running New File / Find File.
+  const input = h('input.select-input', { type: 'text', placeholder: opts.placeholder || 'Type to search…', spellcheck: false, dataset: { keymapPassthrough: '' } });
   const list = h('ol.select-items');
   const footer = h('div.select-footer');
   const panel = h('div.select-list', input, list, footer);
@@ -63,7 +64,8 @@ export function selectList(opts) {
   let selected = 0;
   let loading = true;
 
-  const modal = openModal(panel, { id: opts.id, onClose: () => opts.onCancel?.() });
+  let chosen = false;
+  const modal = openModal(panel, { id: opts.id, onClose: () => { if (!chosen) opts.onCancel?.(); } });
 
   const renderItem = (item, indices) => {
     if (opts.render) return opts.render(item, indices);
@@ -112,10 +114,11 @@ export function selectList(opts) {
     const entry = filtered[i];
     if (!entry) {
       const q = input.value.trim();
-      if (q && opts.onEnterWithoutMatch) { modal.close(!opts.keepFocus); opts.onEnterWithoutMatch(q); }
+      if (q && opts.onEnterWithoutMatch) { chosen = true; modal.close(!opts.keepFocus); opts.onEnterWithoutMatch(q); }
       return;
     }
     const q = input.value;
+    chosen = true;
     modal.close(!opts.keepFocus);
     opts.onSelect?.(entry.item, q);
   };

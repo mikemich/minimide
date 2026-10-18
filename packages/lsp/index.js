@@ -6,7 +6,7 @@ import { LspClient, NOT_FOUND } from './client.js';
 import { resolveServers, serverForPath, languageIdFor } from './servers.js';
 import {
   toUri, fromUri, toPosition, fromPosition, offsetInText, COMPLETION_KINDS, SYMBOL_KINDS,
-  convertSnippet, renderMarkdown, markupToMarkdown,
+  renderMarkdown, markupToMarkdown,
 } from './util.js';
 
 const SEVERITY = { 1: 'error', 2: 'warning', 3: 'info', 4: 'hint' };
@@ -53,7 +53,9 @@ export function activate(mide) {
       const bin = argv[0];
       const ok = bin.includes('/')
         ? !!(await mide.fs.stat(bin.replace(/^~/, mide.user.home)))
-        : (await mide.process.exec(mide.user.shell || '/bin/sh', ['-lc', `command -v '${bin.replace(/'/g, '')}'`])).code === 0;
+        : mide.user.platform === 'win32'
+          ? (await mide.process.exec('where', [bin])).code === 0 // cmd.exe has no `command -v`
+          : (await mide.process.exec(mide.user.shell || '/bin/sh', ['-lc', `command -v '${bin.replace(/'/g, '')}'`])).code === 0;
       if (ok) { found = argv.map((a, i) => (i === 0 ? a.replace(/^~/, mide.user.home) : a)); break; }
     }
     commandCache.set(server.name, found);
@@ -74,7 +76,10 @@ export function activate(mide) {
     });
   }
 
+  let disposed = false;
+
   function ensureClient(server) {
+    if (disposed) return Promise.resolve(null);
     if (clients.has(server.name)) return clients.get(server.name);
     const promise = (async () => {
       const argv = await findCommand(server);
@@ -91,12 +96,13 @@ export function activate(mide) {
         await client.start();
         client.ready = true;
         log(server.name, `ready${client.serverInfo ? ` (${client.serverInfo.name} ${client.serverInfo.version || ''})` : ''}`);
+        setTimeout(trackAll, 0); // attach files that lost their server (e.g. after a crash)
       } catch (err) {
         log(server.name, `failed to start: ${err.message}`, 'stderr');
         mide.notify.error(`${server.name} language server failed to start`, err.message, { actions: [{ label: 'Show Log', run: showLog }] });
         client.stop();
-        live.delete(server.name);
-        clients.delete(server.name);
+        if (live.get(server.name) === client) live.delete(server.name);
+        if (clients.get(server.name) === promise) clients.delete(server.name);
         renderStatus();
         return null;
       }
@@ -108,9 +114,19 @@ export function activate(mide) {
   }
 
   function onExit(client, code, signal, wasStopping) {
-    if (live.get(client.name) === client) live.delete(client.name);
-    clients.delete(client.name);
-    for (const entry of tracked.values()) if (entry.client === client) { entry.client = null; entry.opened = false; }
+    // Only forget this client: after a restart, a newer one for the same server may already be registered.
+    if (live.get(client.name) === client) {
+      live.delete(client.name);
+      clients.delete(client.name);
+    }
+    // Its documents get re-attached when the next server for them starts; drop their stale diagnostics.
+    for (const [doc, entry] of [...tracked]) {
+      if (entry.client !== client) continue;
+      entry.sub?.dispose();
+      tracked.delete(doc);
+      if (diagnostics.delete(entry.uri)) applyDiagnostics(doc);
+    }
+    scheduleProblems();
     log(client.name, `exited (${signal || `code ${code}`})`, wasStopping ? 'info' : 'stderr');
     renderStatus();
     if (!wasStopping && client.ready) {
@@ -167,7 +183,7 @@ export function activate(mide) {
   }
 
   async function track(doc) {
-    if (!doc?.path || tracked.has(doc)) return;
+    if (disposed || !doc?.path || tracked.has(doc)) return;
     const server = serverForPath(servers, doc.path);
     if (!server) return;
     const entry = { server, path: doc.path, uri: toUri(doc.path), languageId: languageIdFor(doc.path, server), version: 0, client: null, opened: false };
@@ -263,8 +279,10 @@ export function activate(mide) {
   function onNotification(client, method, params) {
     switch (method) {
       case 'textDocument/publishDiagnostics': {
-        diagnostics.set(params.uri, params.diagnostics || []);
-        const doc = docByPath(fromUri(params.uri));
+        // Servers encode URIs differently (%28 vs "("): key everything by our own encoding.
+        const path = fromUri(params.uri);
+        diagnostics.set(toUri(path), params.diagnostics || []);
+        const doc = docByPath(path);
         if (doc) applyDiagnostics(doc);
         scheduleProblems();
         break;
@@ -354,7 +372,7 @@ export function activate(mide) {
         detail: shortDetail,
         type: (COMPLETION_KINDS[item.kind] || 'text') + (item.deprecated || item.tags?.includes(1) ? ' deprecated' : ''),
         boost: -Math.floor((i * 99) / n),
-        apply: makeApply(item, entry),
+        apply: makeApply(item, entry, ctx.pos, ctx.state.doc),
         info: completionInfo(item, entry),
       };
     });
@@ -386,13 +404,19 @@ export function activate(mide) {
     return item.__resolved;
   }
 
-  function makeApply(item, entry) {
+  function makeApply(item, entry, requestPos, requestDoc) {
     return (view, completion, from, to) => {
       const edit = item.textEdit;
       const range = edit?.range || edit?.insert;
       const text = edit?.newText ?? item.insertText ?? item.label;
       const start = range ? Math.min(from, fromPosition(view.state.doc, range.start)) : from;
-      if (item.insertTextFormat === 2) snippet(convertSnippet(text))(view, completion, start, to);
+      // The edit may also cover text after the cursor (e.g. a closing quote): extend to its end,
+      // shifted by whatever was typed since the request.
+      if (range) {
+        const endAtRequest = fromPosition(requestDoc, range.end);
+        if (endAtRequest > requestPos) to = Math.min(view.state.doc.length, Math.max(to, endAtRequest + (to - requestPos)));
+      }
+      if (item.insertTextFormat === 2) snippet(mide.editor.convertSnippet(text))(view, completion, start, to);
       else view.dispatch({ ...insertCompletionText(view.state, text, start, to), annotations: pickedCompletion.of(completion) });
       // Auto-imports and similar edits, which servers often only provide after resolving.
       const extra = (edits) => { if (edits?.length && view.state) applyTextEditsToView(view, edits); };
@@ -593,8 +617,9 @@ export function activate(mide) {
   }
 
   function applyTextEditsToText(text, edits) {
-    const resolved = edits.map((e) => ({ from: offsetInText(text, e.range.start), to: offsetInText(text, e.range.end), text: e.newText }))
-      .sort((a, b) => b.from - a.from || b.to - a.to);
+    // Apply from the end; edits at the same spot keep their array order (later ones applied first).
+    const resolved = edits.map((e, i) => ({ i, from: offsetInText(text, e.range.start), to: offsetInText(text, e.range.end), text: e.newText }))
+      .sort((a, b) => b.from - a.from || b.to - a.to || b.i - a.i);
     for (const e of resolved) text = text.slice(0, e.from) + e.text + text.slice(e.to);
     return text;
   }
@@ -622,8 +647,7 @@ export function activate(mide) {
         const from = fromUri(step.oldUri);
         const to = fromUri(step.newUri);
         await mide.fs.rename(from, to);
-        const doc = docByPath(from);
-        if (doc) doc.setPath(to);
+        mide.workspace.renamePath(from, to);
         touched.add(to);
       } else if (step.kind === 'delete') {
         await mide.fs.trash(fromUri(step.uri));
@@ -638,10 +662,12 @@ export function activate(mide) {
       if (!quiet) mide.notify.info('Formatting is not available for this file');
       return;
     }
+    const version = entry.version;
     const edits = await entry.client.request('textDocument/formatting', {
       textDocument: { uri: entry.uri },
       options: { tabSize: mide.config.get('editor.tabSize'), insertSpaces: mide.config.get('editor.softTabs'), trimTrailingWhitespace: true, insertFinalNewline: true },
     }, { timeout: 5000 });
+    if (entry.version !== version) return; // the file changed while formatting: edits would land in the wrong place
     if (edits?.length && editor.view) applyTextEditsToView(editor.view, edits);
   }
 
@@ -850,6 +876,10 @@ export function activate(mide) {
   mide.workspace.onDidChangeProject(() => restartAll());
   mide.subscriptions.add({
     dispose: () => {
+      disposed = true;
+      clearTimeout(problemsTimer);
+      for (const entry of tracked.values()) entry.sub?.dispose();
+      tracked.clear();
       stopAll();
       for (const doc of mide.workspace.getDocuments()) {
         for (const item of doc.views) if (item.view) item.view.dispatch(setDiagnostics(item.view.state, []));

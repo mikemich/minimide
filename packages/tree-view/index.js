@@ -346,7 +346,8 @@ export function activate(mide) {
       });
       if (!value || value === rel) return;
       const target = `${this.root.path}/${value}`;
-      if (await mide.fs.stat(target)) return mide.notify.error(`"${value}" already exists.`);
+      // A case-only rename is the same file on case-insensitive disks (macOS): allow it.
+      if (target.toLowerCase() !== node.path.toLowerCase() && await mide.fs.stat(target)) return mide.notify.error(`"${value}" already exists.`);
       await this.move(node, target);
     },
 
@@ -354,13 +355,8 @@ export function activate(mide) {
       try {
         await mide.fs.mkdir(target.slice(0, target.lastIndexOf('/')));
         await mide.fs.rename(node.path, target);
-        // Keep open editors pointing at the right file.
-        for (const item of mide.workspace.getItems()) {
-          const p = item.getPath?.();
-          if (item.type === 'editor' && p && (p === node.path || p.startsWith(node.path + '/'))) {
-            item.document.setPath(target + p.slice(node.path.length));
-          }
-        }
+        // Keep open editors (and the workspace's document map) pointing at the right files.
+        mide.workspace.renamePath(node.path, target);
         await this.refreshPath(target);
         await this.load(node.parent);
         this.render();
@@ -387,7 +383,9 @@ export function activate(mide) {
       if (!value) return;
       const target = `${this.root.path}/${value}`;
       if (await mide.fs.stat(target)) return mide.notify.error(`"${value}" already exists.`);
-      await mide.fs.write(target, await mide.fs.read(node.path));
+      try {
+        await mide.fs.copy(node.path, target); // byte-for-byte, so images and other binaries survive
+      } catch (err) { return mide.notify.error('Duplicate failed', err.message); }
       await this.refreshPath(target);
     },
 
@@ -465,7 +463,7 @@ export function activate(mide) {
   mide.workspace.onDidChangeActiveItem(() => { tree.markActive(); if (mide.config.get('tree-view.autoReveal')) tree.revealActive(false); });
   mide.config.onDidChange('core.ignoredNames', () => tree.refresh());
   mide.config.onDidChange('tree-view.hideIgnored', () => tree.refresh());
-  mide.services.consume('git-status', (git) => { tree.git = git; git.onDidChange(() => tree.decorate()); tree.decorate(); });
+  mide.services.consume('git-status', (git) => { tree.git = git; mide.subscriptions.add(git.onDidChange(() => tree.decorate())); tree.decorate(); });
 
   if (mide.workspace.project) tree.setRoot(mide.workspace.project);
   else tree.render();

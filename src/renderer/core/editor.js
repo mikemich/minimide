@@ -61,6 +61,13 @@ export function detectLanguage(path, firstLine = '') {
 
 let nextId = 1;
 
+/** The file's dominant line ending, so one stray CRLF doesn't convert the whole file. */
+function detectLineEnding(text) {
+  const crlf = (text.match(/\r\n/g) || []).length;
+  const lf = (text.match(/\n/g) || []).length - crlf;
+  return crlf > lf ? '\r\n' : '\n';
+}
+
 export class Document extends Emitter {
   constructor(path, text = '') {
     super();
@@ -68,14 +75,14 @@ export class Document extends Emitter {
     this.path = path;
     this.initialText = text;
     this.savedDoc = Text.of(text.split(/\r?\n/));
-    this.lineEnding = text.includes('\r\n') ? '\r\n' : '\n';
+    this.lineEnding = detectLineEnding(text);
     this.dirty = false;
     this.views = new Set();
     this.language = detectLanguage(path, text.slice(0, 200).split('\n')[0]);
     this.conflict = false;
   }
 
-  get title() { return this.path ? basename(this.path) : 'untitled'; }
+  get title() { return (this.path ? basename(this.path) : 'untitled') + (this.deleted ? ' (deleted)' : ''); }
 
   /** The authoritative state: any attached view (they are all identical in content). */
   primaryView() { return this.views.values().next().value?.view; }
@@ -84,7 +91,8 @@ export class Document extends Emitter {
   updateDirty() {
     const doc = this.primaryView()?.state.doc;
     if (!doc) return;
-    const dirty = doc.length !== this.savedDoc.length || !doc.eq(this.savedDoc);
+    // A file deleted on disk counts as unsaved, so closing it asks first.
+    const dirty = this.deleted || doc.length !== this.savedDoc.length || !doc.eq(this.savedDoc);
     if (dirty !== this.dirty) {
       this.dirty = dirty;
       this.emit('dirty', dirty);
@@ -94,6 +102,7 @@ export class Document extends Emitter {
   markSaved(text) {
     this.savedDoc = Text.of(text.split(/\r?\n/));
     this.conflict = false;
+    this.deleted = false;
     const doc = this.primaryView()?.state.doc;
     this.dirty = doc ? doc.length !== this.savedDoc.length || !doc.eq(this.savedDoc) : false;
     this.emit('dirty', this.dirty);
@@ -116,10 +125,19 @@ export class Document extends Emitter {
   reloadFrom(text) {
     const view = this.primaryView();
     if (!view) return;
+    const next = text.replace(/\r\n?/g, '\n'); // the editor buffer always uses \n
     const current = view.state.doc.toString();
-    if (current !== text) {
-      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text }, annotations: Transaction.addToHistory.of(true) });
+    if (current !== next) {
+      // Replace only the changed middle so cursors, folds and scroll stay where they were.
+      let start = 0;
+      while (start < current.length && start < next.length && current[start] === next[start]) start++;
+      let endA = current.length;
+      let endB = next.length;
+      while (endA > start && endB > start && current[endA - 1] === next[endB - 1]) { endA--; endB--; }
+      view.dispatch({ changes: { from: start, to: endA, insert: next.slice(start, endB) }, annotations: Transaction.addToHistory.of(true) });
     }
+    this.lineEnding = detectLineEnding(text);
+    this.deleted = false;
     this.markSaved(text);
   }
 }

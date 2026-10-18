@@ -91,12 +91,14 @@ export function registerCoreCommands(app) {
         const old = item.getPath();
         const target = await ui.prompt({ title: 'Enter the new path for the file.', value: old, selection: [old.lastIndexOf('/') + 1, old.length] });
         if (!target || target === old) return;
-        if (await window.native.fs.stat(target)) return ui.notify.error('A file with that name already exists.');
-        await window.native.fs.mkdir(target.slice(0, target.lastIndexOf('/')));
-        await window.native.fs.rename(old, target);
-        ws.documents.delete(old);
-        item.document.setPath(target);
-        ws.documents.set(target, item.document);
+        // Case-only renames hit the same file on case-insensitive disks (macOS), so allow them.
+        const caseOnly = target.toLowerCase() === old.toLowerCase();
+        if (!caseOnly && await window.native.fs.stat(target)) return ui.notify.error('A file with that name already exists.');
+        try {
+          await window.native.fs.mkdir(target.slice(0, target.lastIndexOf('/')));
+          await window.native.fs.rename(old, target);
+        } catch (err) { return ui.notify.error('Rename failed', err.message); }
+        ws.renamePath(old, target);
       },
     },
     'file:copy-path': { title: 'Copy Path', when: () => !!ws.getActiveItem()?.getPath?.(), run: () => window.native.clipboard.write(ws.getActiveItem().getPath()) },
@@ -153,7 +155,13 @@ export function registerCoreCommands(app) {
     },
     'window:new': { title: 'New Window', run: () => window.native.window.newWindow() },
     'window:close': { title: 'Close Window', run: () => app.requestClose() },
-    'window:reload': { title: 'Reload Window', run: async () => { app.saveSession(); await app.persistState(); window.native.window.reload(); } },
+    'window:reload': {
+      title: 'Reload Window',
+      run: async () => {
+        if (!await app.confirmUnsaved('reload')) return; // reloading would drop unsaved edits
+        app.saveSession(); await app.persistState(); window.native.window.reload();
+      },
+    },
     'window:toggle-dev-tools': { title: 'Toggle Developer Tools', run: () => window.native.window.toggleDevTools() },
     'window:toggle-full-screen': { title: 'Toggle Full Screen', run: () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()) },
     'window:toggle-zen-mode': {

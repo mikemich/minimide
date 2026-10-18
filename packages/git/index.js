@@ -15,20 +15,37 @@ export function activate(mide) {
   const headCache = new Map(); // abs path -> HEAD text | null
 
   const git = (...args) => mide.process.exec('git', args, { cwd: repoRoot || mide.workspace.project });
+  // The repo root derived from the project path itself (not `--show-toplevel`, which resolves
+  // symlinks and then no longer matches the paths the editor uses).
+  async function findRoot(project) {
+    const r = await mide.process.exec('git', ['rev-parse', '--show-cdup'], { cwd: project });
+    if (r.code !== 0) return null;
+    const parts = project.split('/');
+    for (const seg of r.stdout.trim().split('/').filter(Boolean)) if (seg === '..') parts.pop();
+    return parts.join('/') || '/';
+  }
 
+  let refreshSeq = 0;
   async function refresh() {
+    const seq = ++refreshSeq; // a newer refresh supersedes this one (e.g. the project changed meanwhile)
     const project = mide.workspace.project;
-    if (!project) { repoRoot = null; branch = ''; statuses = new Map(); dirStatuses = new Map(); emit(); return; }
-    const top = await mide.process.exec('git', ['rev-parse', '--show-toplevel'], { cwd: project });
-    if (top.code !== 0) { repoRoot = null; branch = ''; statuses = new Map(); dirStatuses = new Map(); emit(); return; }
-    repoRoot = top.stdout.trim();
-    const [b, s] = await Promise.all([git('rev-parse', '--abbrev-ref', 'HEAD'), git('status', '--porcelain=v1', '-z')]);
-    branch = b.code === 0 ? b.stdout.trim() : '';
-    if (!branch || branch === 'HEAD') {
+    const clear = () => { repoRoot = null; branch = ''; statuses = new Map(); dirStatuses = new Map(); emit(); };
+    if (!project) return clear();
+    const root = await findRoot(project);
+    if (seq !== refreshSeq) return;
+    if (!root) return clear();
+    const inRoot = (...args) => mide.process.exec('git', args, { cwd: root });
+    // --no-optional-locks: background status must not hold .git/index.lock while you stage or commit.
+    const [b, s] = await Promise.all([inRoot('rev-parse', '--abbrev-ref', 'HEAD'), inRoot('--no-optional-locks', 'status', '--porcelain=v1', '-z')]);
+    let nextBranch = b.code === 0 ? b.stdout.trim() : '';
+    if (!nextBranch || nextBranch === 'HEAD') {
       // No commits yet, or detached: symbolic-ref knows the branch name in the first case.
-      const sym = await git('symbolic-ref', '--short', 'HEAD');
-      branch = sym.code === 0 ? sym.stdout.trim() : b.code === 0 ? 'detached' : '';
+      const sym = await inRoot('symbolic-ref', '--short', 'HEAD');
+      nextBranch = sym.code === 0 ? sym.stdout.trim() : b.code === 0 ? 'detached' : '';
     }
+    if (seq !== refreshSeq) return;
+    repoRoot = root;
+    branch = nextBranch;
     statuses = new Map();
     const entries = s.stdout.split('\0');
     for (let i = 0; i < entries.length; i++) {
@@ -174,7 +191,7 @@ export function activate(mide) {
       if (base == null || !editor.view) return;
       const doc = editor.view.state.doc;
       if (doc.lines > 20000) return;
-      for (const ch of diffLines(base.split('\n'), doc.toString().split('\n'))) {
+      for (const ch of diffLines(base.split(/\r?\n/), doc.toString().split('\n'))) {
         if (ch.type === 'deleted') {
           const ln = Math.min(Math.max(ch.line, 1), doc.lines);
           ranges.push(markers.deleted.range(doc.line(ln).from));

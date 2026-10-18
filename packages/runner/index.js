@@ -26,8 +26,7 @@ export function activate(mide) {
   let last = null; // { command, cwd, title }
 
   const terminal = () => {
-    let svc = null;
-    mide.services.consume('terminal', (t) => { svc = t; }).dispose();
+    const svc = mide.services.get('terminal');
     if (!svc) mide.notify.error('The Terminal package is disabled', 'Enable it in Settings → Packages to run code.');
     return svc;
   };
@@ -166,9 +165,7 @@ export function activate(mide) {
     return !!(user[ext] || DEFAULT_COMMANDS[ext] || ['html', 'htm', 'md', 'markdown'].includes(ext) || item.document?.initialText?.startsWith('#!'));
   };
   const isRunning = () => {
-    let running = false;
-    mide.services.consume('terminal', (t) => { running = t.isRunning('run'); }).dispose();
-    return running;
+    return !!mide.services.get('terminal')?.isRunning('run');
   };
   function refreshButtons() { setTimeout(() => mide.workspace.refreshPaneActions?.(), 30); }
 
@@ -182,8 +179,7 @@ export function activate(mide) {
   });
 
   function stop() {
-    let stopped = false;
-    mide.services.consume('terminal', (t) => { stopped = t.stop('run'); }).dispose();
+    const stopped = !!mide.services.get('terminal')?.stop('run');
     if (!stopped) mide.notify.info('Nothing is running.');
     refreshButtons();
   }

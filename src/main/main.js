@@ -1,5 +1,5 @@
 // Minimide main process: windows, the mide:// protocol, and the native bridge.
-import { app, BrowserWindow, Menu, protocol, ipcMain, dialog, shell, clipboard, nativeTheme } from 'electron';
+import { app, BrowserWindow, Menu, protocol, ipcMain, dialog, shell, clipboard, nativeTheme, session } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import fss from 'node:fs';
@@ -7,6 +7,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawn, execFile } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { Worker } from 'node:worker_threads';
 
 // node-pty is native and optional: without it the terminal falls back gracefully.
 let pty = null;
@@ -15,12 +16,23 @@ try { pty = createRequire(import.meta.url)('node-pty'); } catch (err) { console.
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const RENDERER_DIR = path.join(ROOT, 'dist/renderer');
 const BUILTIN_PACKAGES = path.join(ROOT, 'packages');
-const USER_DIR = process.env.MINIMIDE_HOME || path.join(os.homedir(), '.minimide');
+// Test/dev overrides are ignored in packaged builds: they would let anything that can launch the
+// app run code with the editor's file permissions.
+const DEV_BUILD = !app.isPackaged;
+const USER_DIR = (DEV_BUILD && process.env.MINIMIDE_HOME) || path.join(os.homedir(), '.minimide');
 const USER_PACKAGES = path.join(USER_DIR, 'packages');
 const DEV = process.argv.includes('--dev');
-const SCREENSHOT = process.env.MINIMIDE_SCREENSHOT;
+const SCREENSHOT = DEV_BUILD ? process.env.MINIMIDE_SCREENSHOT : undefined;
 // Apps launched from Finder/the Dock may not inherit $SHELL, so fall back to the user's login shell.
-const USER_SHELL = process.env.SHELL || safeUserShell() || (process.platform === 'win32' ? 'cmd.exe' : '/bin/sh');
+const IS_WIN = process.platform === 'win32';
+const USER_SHELL = IS_WIN ? process.env.COMSPEC || 'cmd.exe' : process.env.SHELL || safeUserShell() || '/bin/sh';
+
+/** Kill a child and everything it started (detached children lead their own process group). */
+function killTree(child, signal = 'SIGTERM') {
+  if (!child?.pid || child.exitCode != null) return;
+  if (IS_WIN) { try { spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true }); } catch {} return; }
+  try { process.kill(-child.pid, signal); } catch { try { child.kill(signal); } catch {} }
+}
 
 function safeUserShell() {
   try { return os.userInfo().shell || null; } catch { return null; }
@@ -110,13 +122,15 @@ function within(base, rel) {
 
 async function handleProtocol(request) {
   const url = new URL(request.url);
-  const parts = decodeURIComponent(url.pathname).split('/').filter(Boolean);
+  let parts;
+  try { parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent); } catch { return new Response('Bad request', { status: 400 }); }
   let file = null;
   if (url.host === 'app') file = within(RENDERER_DIR, parts.join('/') || 'index.html');
   else if (url.host === 'user') file = within(USER_DIR, parts.join('/'));
   else if (url.host === 'pkg') {
-    // "name@stamp" lets the renderer bust the module cache for a whole package on reload.
-    const pkg = packageIndex.get(parts.shift().replace(/@\d+$/, ''));
+    // mide://pkg/<name>/~<stamp>/… : the stamp segment busts the module cache on reload.
+    const pkg = parts.length ? packageIndex.get(parts.shift()) : null;
+    if (/^~\d+$/.test(parts[0] || '')) parts.shift();
     if (pkg) file = within(pkg.dir, parts.join('/') || pkg.manifest.main || 'index.js');
   }
   if (!file) return new Response('Not found', { status: 404 });
@@ -156,43 +170,18 @@ async function walk(root, { ignored = DEFAULT_IGNORES, limit = 50000 } = {}) {
   return files;
 }
 
-const BINARY_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.zip', '.gz', '.woff', '.woff2', '.ttf', '.otf', '.mp3', '.mp4', '.mov', '.exe', '.dylib', '.so', '.o', '.a', '.class', '.jar', '.wasm', '.lock']);
+const SEARCH_WORKER = path.join(ROOT, 'src/main/search-worker.cjs');
+let searchWorkerSource = null;
 
-async function searchProject(root, query, { regex = false, caseSensitive = false, ignored, maxResults = 2000 } = {}) {
-  if (!query) return { results: [], truncated: false };
-  let re;
-  try {
-    re = new RegExp(regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), caseSensitive ? 'g' : 'gi');
-  } catch (err) {
-    return { error: err.message, results: [] };
-  }
-  const files = await walk(root, { ignored: ignored ? new Set(ignored) : DEFAULT_IGNORES });
-  const results = [];
-  let count = 0;
-  for (const file of files) {
-    if (BINARY_EXT.has(path.extname(file).toLowerCase())) continue;
-    let text;
-    try {
-      const stat = await fs.stat(file);
-      if (stat.size > 2_000_000) continue;
-      text = await fs.readFile(file, 'utf8');
-    } catch { continue; }
-    if (text.includes('\u0000')) continue;
-    const matches = [];
-    const lines = text.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      re.lastIndex = 0;
-      const line = lines[i];
-      const m = re.exec(line);
-      if (m) {
-        matches.push({ line: i + 1, col: m.index, length: m[0].length || 1, text: line.slice(0, 400) });
-        if (++count >= maxResults) break;
-      }
-    }
-    if (matches.length) results.push({ file, matches });
-    if (count >= maxResults) return { results, truncated: true };
-  }
-  return { results, truncated: false };
+/** Search in a worker thread with a time limit, so a pathological regex can't freeze the app. */
+async function searchProject(root, query, { regex = false, caseSensitive = false, ignored, maxResults = 2000 } = {}, timeoutMs = 15000) {
+  searchWorkerSource ??= await fs.readFile(SEARCH_WORKER, 'utf8'); // read via fs so it also works inside app.asar
+  const worker = new Worker(searchWorkerSource, { eval: true, workerData: { root, query, regex, caseSensitive, ignored: ignored || [...DEFAULT_IGNORES], maxResults } });
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => { worker.terminate(); resolve({ error: 'Search took too long and was stopped. If you used a regular expression, try a simpler one.', results: [] }); }, timeoutMs);
+    worker.once('message', (r) => { clearTimeout(timer); worker.terminate(); resolve(r); });
+    worker.once('error', (err) => { clearTimeout(timer); resolve({ error: err.message, results: [] }); });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -221,6 +210,8 @@ function createWindow(projectPath, { restore = false } = {}) {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // Test mode only: lets automated tests script dialog answers (see test:answers below).
+      additionalArguments: SCREENSHOT ? ['--mide-test'] : [],
     },
   });
   windows.add(win);
@@ -249,16 +240,33 @@ function createWindow(projectPath, { restore = false } = {}) {
   });
 
   win.on('close', (e) => {
-    if (win.__forceClose) return;
+    if (win.__forceClose || win.webContents.isCrashed() || !win.__rendererReady) return;
     e.preventDefault();
     win.webContents.send('app:request-close');
+    // If the page never answers (hung package, frozen renderer), offer to close anyway.
+    clearTimeout(win.__closeTimer);
+    win.__closeTimer = setTimeout(async () => {
+      if (win.isDestroyed()) return;
+      const { response } = await dialog.showMessageBox(win, {
+        type: 'warning', message: 'Minimide is not responding.', detail: 'Close the window anyway? Unsaved changes in it will be lost.',
+        buttons: ['Close Anyway', 'Keep Waiting'], defaultId: 1, cancelId: 1,
+      });
+      if (response === 0 && !win.isDestroyed()) { win.__forceClose = true; win.close(); }
+      else quitting = false;
+    }, 4000);
   });
 
+  // Everything a page started dies with the page: on close, reload/navigation, or a renderer crash.
+  const cleanup = () => {
+    for (const [key, w] of watchers) if (key.startsWith(`${wcId}:`)) { w.close(); watchers.delete(key); }
+    for (const [key, child] of procs) if (key.startsWith(`${wcId}:`)) { killTree(child); procs.delete(key); }
+    for (const [key, term] of ptys) if (key.startsWith(`${wcId}:`)) { try { term.kill(); } catch {} ptys.delete(key); }
+  };
+  win.webContents.on('did-start-navigation', (details) => { if (details.isMainFrame && !details.isSameDocument) cleanup(); });
+  win.webContents.on('render-process-gone', () => { cleanup(); win.__forceClose = true; });
   win.on('closed', () => {
     windows.delete(win);
-    for (const [key, w] of watchers) if (key.startsWith(`${wcId}:`)) { w.close(); watchers.delete(key); }
-    for (const [key, child] of procs) if (key.startsWith(`${wcId}:`)) { child.kill(); procs.delete(key); }
-    for (const [key, term] of ptys) if (key.startsWith(`${wcId}:`)) { try { term.kill(); } catch {} ptys.delete(key); }
+    cleanup();
   });
 
   win.loadURL('mide://app/index.html');
@@ -296,9 +304,18 @@ function sendCommand(id) {
 // ---------------------------------------------------------------------------
 // IPC
 
+// Only Minimide's own page may use the native bridge.
+const trustedSender = (event) => (event.senderFrame?.url || '').startsWith('mide://app/');
 function handle(channel, fn) {
-  ipcMain.handle(channel, async (event, ...args) => fn(event, ...args));
+  ipcMain.handle(channel, async (event, ...args) => {
+    if (!trustedSender(event)) throw new Error(`Blocked IPC "${channel}" from ${event.senderFrame?.url || 'unknown frame'}`);
+    return fn(event, ...args);
+  });
 }
+
+// Windows: run a command line through cmd.exe exactly as written (no libuv re-quoting).
+const winQuote = (a) => (/^[\w.\\/:=-]+$/.test(a) ? a : `"${String(a).replace(/"/g, '""')}"`);
+const winShell = (commandLine) => [process.env.COMSPEC || 'cmd.exe', ['/d', '/s', '/c', `"${commandLine}"`], { windowsVerbatimArguments: true, windowsHide: true }];
 
 function registerIpc() {
   // filesystem
@@ -320,6 +337,7 @@ function registerIpc() {
     return `data:${type};base64,${(await fs.readFile(p)).toString('base64')}`;
   });
   handle('fs:mkdir', (_e, p) => fs.mkdir(p, { recursive: true }));
+  handle('fs:copy', (_e, from, to) => fs.cp(from, to, { recursive: true, errorOnExist: true, force: false }));
   handle('fs:rename', (_e, a, b) => fs.rename(a, b));
   handle('fs:trash', (_e, p) => shell.trashItem(p));
   handle('fs:watch', (event, root, key = 'project') => {
@@ -352,25 +370,39 @@ function registerIpc() {
     return files.map((f) => path.relative(root, f));
   });
   handle('project:search', (_e, root, query, opts) => searchProject(root, query, opts));
+  // Called once the page is listening for close requests and open-path events.
   handle('project:initial', (event) => {
     const w = BrowserWindow.fromWebContents(event.sender);
-    return { project: w?.__project ?? null, restore: !!w?.__restore };
+    if (!w) return { project: null, restore: false, files: [] };
+    w.__rendererReady = true;
+    const files = w.__pendingFiles || [];
+    w.__pendingFiles = [];
+    return { project: w.__project ?? null, restore: !!w.__restore, files };
   });
 
   // dialogs
+  // Test mode: queued answers replace native dialogs so scripted QA never blocks.
+  const testAnswers = { confirm: [], saveAs: [], openFolder: [], openFile: [] };
+  const scripted = (kind) => (SCREENSHOT && testAnswers[kind].length ? { value: testAnswers[kind].shift() } : null);
+  if (SCREENSHOT) handle('test:answers', (_e, kind, values) => { testAnswers[kind].push(...values); });
+
   handle('dialog:openFolder', async (event) => {
+    const s = scripted('openFolder'); if (s) return s.value;
     const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), { properties: ['openDirectory', 'createDirectory'] });
     return r.canceled ? null : r.filePaths[0];
   });
   handle('dialog:openFile', async (event) => {
+    const s = scripted('openFile'); if (s) return s.value;
     const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), { properties: ['openFile', 'multiSelections'] });
     return r.canceled ? [] : r.filePaths;
   });
   handle('dialog:saveAs', async (event, defaultPath) => {
+    const s = scripted('saveAs'); if (s) return s.value;
     const r = await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), { defaultPath });
     return r.canceled ? null : r.filePath;
   });
   handle('dialog:confirm', async (event, opts) => {
+    const s = scripted('confirm'); if (s) return s.value;
     const r = await dialog.showMessageBox(BrowserWindow.fromWebContents(event.sender), {
       type: opts.type || 'question',
       message: opts.message,
@@ -406,19 +438,19 @@ function registerIpc() {
   handle('proc:spawn', (event, id, command, opts = {}) => {
     const sender = event.sender;
     const key = `${sender.id}:${id}`;
-    const shellPath = USER_SHELL;
-    const args = process.platform === 'win32' ? ['/d', '/s', '/c', command] : ['-lc', command];
-    const child = spawn(shellPath, args, {
-      cwd: opts.cwd || os.homedir(),
-      env: { ...process.env, FORCE_COLOR: '0', TERM: 'dumb', ...opts.env },
-      detached: process.platform !== 'win32',
-    });
+    const env = { ...process.env, FORCE_COLOR: '0', TERM: 'dumb', ...opts.env };
+    const cwd = opts.cwd || os.homedir();
+    const child = IS_WIN
+      ? (([cmd, args, o]) => spawn(cmd, args, { ...o, cwd, env }))(winShell(command))
+      : spawn(USER_SHELL, ['-lc', command], { cwd, env, detached: true });
+    procs.get(key) && killTree(procs.get(key));
     procs.set(key, child);
+    child.stdin.on('error', () => {}); // writing to a finished process must not crash the app
     const send = (ch, ...a) => { if (!sender.isDestroyed()) sender.send(ch, id, ...a); };
     child.stdout.on('data', (d) => send('proc:data', d.toString(), 'stdout'));
     child.stderr.on('data', (d) => send('proc:data', d.toString(), 'stderr'));
     child.on('error', (err) => send('proc:data', `${err.message}\n`, 'stderr'));
-    child.on('close', (code, signal) => { procs.delete(key); send('proc:exit', code, signal); });
+    child.on('close', (code, signal) => { if (procs.get(key) === child) procs.delete(key); send('proc:exit', code, signal); });
     return child.pid;
   });
   // JSON-RPC over stdio with Content-Length framing (LSP, DAP). Framing works on raw bytes,
@@ -427,11 +459,14 @@ function registerIpc() {
     const sender = event.sender;
     const key = `${sender.id}:${id}`;
     const quote = (a) => `'${String(a).replace(/'/g, `'\\''`)}'`;
-    const shellPath = USER_SHELL;
-    // A login shell gives servers the user's PATH (npm globals, Homebrew, cargo, …).
-    const child = process.platform === 'win32'
-      ? spawn(argv[0], argv.slice(1), { cwd: opts.cwd, env: { ...process.env, ...opts.env }, shell: true })
-      : spawn(shellPath, ['-lc', `exec ${argv.map(quote).join(' ')}`], { cwd: opts.cwd || os.homedir(), env: { ...process.env, ...opts.env } });
+    const env = { ...process.env, ...opts.env };
+    const cwd = opts.cwd || os.homedir();
+    // A login shell gives servers the user's PATH (npm globals, Homebrew, cargo, …). Detached so the
+    // whole process group (servers often start helpers) can be killed together.
+    const child = IS_WIN
+      ? (([cmd, args, o]) => spawn(cmd, args, { ...o, cwd, env }))(winShell(argv.map(winQuote).join(' ')))
+      : spawn(USER_SHELL, ['-lc', `exec ${argv.map(quote).join(' ')}`], { cwd, env, detached: true });
+    procs.get(key) && killTree(procs.get(key));
     procs.set(key, child);
     const send = (ch, ...a) => { if (!sender.isDestroyed()) sender.send(ch, id, ...a); };
     let buffer = Buffer.alloc(0);
@@ -453,7 +488,7 @@ function registerIpc() {
     child.stderr.on('data', (d) => send('proc:data', d.toString(), 'stderr'));
     child.on('error', (err) => send('proc:data', `${err.message}\n`, 'stderr'));
     child.stdin.on('error', () => {});
-    child.on('close', (code, signal) => { procs.delete(key); send('proc:exit', code, signal); });
+    child.on('close', (code, signal) => { if (procs.get(key) === child) procs.delete(key); send('proc:exit', code, signal); });
     return child.pid;
   });
   handle('proc:send', (event, id, json) => {
@@ -462,12 +497,11 @@ function registerIpc() {
     child.stdin.write(`Content-Length: ${Buffer.byteLength(json, 'utf8')}\r\n\r\n${json}`);
     return true;
   });
-  handle('proc:write', (event, id, data) => procs.get(`${event.sender.id}:${id}`)?.stdin.write(data));
-  handle('proc:kill', (event, id) => {
+  handle('proc:write', (event, id, data) => {
     const child = procs.get(`${event.sender.id}:${id}`);
-    if (!child) return;
-    try { process.kill(-child.pid, 'SIGTERM'); } catch { child.kill('SIGTERM'); }
+    if (child?.stdin.writable) child.stdin.write(data);
   });
+  handle('proc:kill', (event, id) => killTree(procs.get(`${event.sender.id}:${id}`)));
 
   // pseudo-terminals (integrated terminal, code runner)
   handle('term:available', () => !!pty);
@@ -493,6 +527,7 @@ function registerIpc() {
     delete env.ELECTRON_RUN_AS_NODE;
     let cwd = opts.cwd && safeIsDir(opts.cwd) ? opts.cwd : os.homedir();
     const term = pty.spawn(shell, args, { name: 'xterm-256color', cols: opts.cols || 80, rows: opts.rows || 24, cwd, env });
+    try { ptys.get(key)?.kill(); } catch {}
     ptys.set(key, term);
     // Coalesce output so a flood (e.g. `cat bigfile`) doesn't drown the IPC channel.
     let buffer = '';
@@ -501,7 +536,7 @@ function registerIpc() {
     term.onData((data) => { buffer += data; if (!timer) timer = setTimeout(flush, 4); });
     term.onExit(({ exitCode, signal }) => {
       flush();
-      ptys.delete(key);
+      if (ptys.get(key) === term) ptys.delete(key);
       if (!sender.isDestroyed()) sender.send('term:exit', id, exitCode, signal);
     });
     return { pid: term.pid, shell: path.basename(shell) };
@@ -519,10 +554,8 @@ function registerIpc() {
   // user dir, packages & state
   handle('user:info', () => ({ appRoot: ROOT, dir: USER_DIR, packagesDir: USER_PACKAGES, platform: process.platform, home: os.homedir(), shell: USER_SHELL, version: app.getVersion() }));
   handle('packages:list', () => listPackages());
-  handle('state:load', async () => {
-    try { return JSON.parse(await fs.readFile(path.join(USER_DIR, 'state.json'), 'utf8')); } catch { return {}; }
-  });
-  handle('state:save', (_e, state) => fs.writeFile(path.join(USER_DIR, 'state.json'), JSON.stringify(state, null, 2)));
+  handle('state:load', () => readState());
+  handle('state:save', (_e, state) => saveState(state));
 
   // window
   handle('window:new', (_e, project) => { createWindow(project); });
@@ -530,11 +563,32 @@ function registerIpc() {
   handle('window:setProject', (event, p) => { const w = BrowserWindow.fromWebContents(event.sender); if (w) w.__project = p; });
   handle('window:close', (event) => {
     const w = BrowserWindow.fromWebContents(event.sender);
-    if (w) { w.__forceClose = true; w.close(); }
+    if (w) { clearTimeout(w.__closeTimer); w.__forceClose = true; w.close(); }
   });
-  handle('window:cancelClose', () => { quitting = false; });
+  handle('window:cancelClose', (event) => {
+    quitting = false;
+    clearTimeout(BrowserWindow.fromWebContents(event.sender)?.__closeTimer);
+  });
   handle('window:toggleDevTools', (event) => event.sender.toggleDevTools());
   handle('window:reload', (event) => event.sender.reload());
+}
+
+// state.json is shared by every window: writes are queued, merged with what's on disk, and
+// written to a temp file then renamed, so concurrent quits can't leave it half-written.
+const STATE_FILE = () => path.join(USER_DIR, 'state.json');
+let stateQueue = Promise.resolve();
+async function readState() {
+  try { return JSON.parse(await fs.readFile(STATE_FILE(), 'utf8')); } catch { return {}; }
+}
+function saveState(incoming) {
+  stateQueue = stateQueue.then(async () => {
+    const disk = await readState();
+    const merged = { ...disk, ...incoming, sessions: { ...disk.sessions, ...incoming.sessions } };
+    const tmp = `${STATE_FILE()}.${process.pid}.tmp`;
+    await fs.writeFile(tmp, JSON.stringify(merged, null, 2));
+    await fs.rename(tmp, STATE_FILE());
+  }).catch((err) => console.warn('[state] save failed:', err.message));
+  return stateQueue;
 }
 
 function safeIsDir(p) {
@@ -614,19 +668,33 @@ function buildMenu() {
 const gotLock = SCREENSHOT || app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
 
-function projectFromArgv(argv) {
-  const args = argv.slice(app.isPackaged ? 1 : 2).filter((a) => !a.startsWith('-') && a !== '.');
-  const candidate = args[args.length - 1];
-  return candidate && safeIsDir(path.resolve(candidate)) ? path.resolve(candidate) : null;
+/** Folders and files named on the command line, resolved against the caller's working directory. */
+function pathsFromArgv(argv, cwd = process.cwd()) {
+  // In development argv is [electron, ".", …args]; packaged it's [Minimide, …args].
+  const args = argv.slice(app.isPackaged ? 1 : 2).filter((a) => a && !a.startsWith('-') && !a.startsWith('psn_'));
+  const dirs = [];
+  const files = [];
+  for (const a of args) {
+    const p = path.resolve(cwd, a);
+    if (safeIsDir(p)) dirs.push(p);
+    else if (fss.existsSync(p)) files.push(p);
+  }
+  return { dirs, files };
+}
+
+/** Deliver a file to a window, queuing it until that window's page is ready. */
+function sendOpenPath(win, p) {
+  if (win.__rendererReady) win.webContents.send('app:open-path', p);
+  else (win.__pendingFiles ||= []).push(p);
 }
 
 // Files and folders handed to us by Finder, the Dock or `open -a Minimide`.
 const pendingOpens = [];
 function openPath(p) {
   if (safeIsDir(p)) return createWindow(p);
-  const win = focusedWin();
-  if (win) win.webContents.send('app:open-path', p);
-  else createWindow().webContents.once('did-finish-load', () => setTimeout(() => focusedWin()?.webContents.send('app:open-path', p), 800));
+  const win = focusedWin() || createWindow();
+  sendOpenPath(win, p);
+  win.focus();
 }
 app.on('open-file', (e, p) => {
   e.preventDefault();
@@ -634,10 +702,11 @@ app.on('open-file', (e, p) => {
   else pendingOpens.push(p);
 });
 
-app.on('second-instance', (_e, argv) => {
-  const p = projectFromArgv(argv);
-  if (p) createWindow(p);
-  else focusedWin()?.focus();
+app.on('second-instance', (_e, argv, workingDirectory) => {
+  const { dirs, files } = pathsFromArgv(argv, workingDirectory);
+  for (const d of dirs) createWindow(d);
+  for (const f of files) openPath(f);
+  if (!dirs.length && !files.length) focusedWin()?.focus();
 });
 
 app.whenReady().then(async () => {
@@ -648,10 +717,15 @@ app.whenReady().then(async () => {
   registerIpc();
   buildMenu();
   app.setAboutPanelOptions({ applicationName: 'Minimide', applicationVersion: app.getVersion(), copyright: 'The editor you can read in an afternoon.' });
-  const initialDir = pendingOpens.find((p) => safeIsDir(p));
-  const win = createWindow(initialDir || projectFromArgv(process.argv) || process.env.MINIMIDE_PROJECT || undefined, { restore: !initialDir });
-  const files = pendingOpens.filter((p) => !safeIsDir(p));
-  if (files.length) win.webContents.once('did-finish-load', () => setTimeout(() => files.forEach((f) => win.webContents.send('app:open-path', f)), 800));
+  // Deny-by-default for browser permission prompts (camera, mic, location…) packages might trigger.
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => callback(['fullscreen', 'clipboard-sanitized-write'].includes(permission)));
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => ['fullscreen', 'clipboard-sanitized-write'].includes(permission));
+  const argvPaths = pathsFromArgv(process.argv);
+  const initialDir = pendingOpens.find((p) => safeIsDir(p)) || argvPaths.dirs[0] || (DEV_BUILD && process.env.MINIMIDE_PROJECT) || undefined;
+  const opened = !!(pendingOpens.length || argvPaths.dirs.length || argvPaths.files.length);
+  const win = createWindow(initialDir, { restore: !opened });
+  for (const d of argvPaths.dirs.slice(1)) createWindow(d);
+  for (const f of [...pendingOpens.filter((p) => !safeIsDir(p)), ...argvPaths.files]) sendOpenPath(win, f);
   app.on('activate', () => { if (windows.size === 0) createWindow(); });
 });
 

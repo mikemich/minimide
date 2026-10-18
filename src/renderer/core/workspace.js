@@ -28,7 +28,7 @@ export class Pane extends Emitter {
         const old = this.items.find((i) => i.pending);
         if (old && old !== item) {
           index ??= this.items.indexOf(old);
-          this.removeItem(old, { destroy: true, force: false });
+          this.removeItem(old, { destroy: true, keepPane: true });
         }
       }
       item.pending = pending;
@@ -134,7 +134,7 @@ export class Pane extends Emitter {
     this.ws.notifyActiveItem();
   }
 
-  removeItem(item, { destroy = true } = {}) {
+  removeItem(item, { destroy = true, keepPane = false } = {}) {
     const idx = this.items.indexOf(item);
     if (idx < 0) return;
     this.items.splice(idx, 1);
@@ -156,7 +156,7 @@ export class Pane extends Emitter {
       item.destroy();
       if (item.type === 'editor') this.ws.releaseDocument(item.document);
     }
-    if (!this.items.length && this.ws.panes.length > 1) this.ws.removePane(this);
+    if (!this.items.length && this.ws.panes.length > 1 && !keepPane) this.ws.removePane(this);
     else { this.ws.notifyActiveItem(); this.ws.updateEmptyState(); }
   }
 
@@ -244,6 +244,8 @@ export class Workspace extends Emitter {
     this.activePane = null;
     this.openers = [];
     this.paneActions = [];
+    this.loadingDocs = new Map(); // path -> Promise while a file is being read
+    this.selfWrites = new Map(); // path -> time we last wrote it ourselves
     this.completionSources = new Set();
     // One stable source that merges results from every registered source (snippets, …).
     this.extraCompletionSource = async (ctx) => {
@@ -276,8 +278,8 @@ export class Workspace extends Emitter {
   }
 
   removePane(pane) {
-    if (this.panes.length <= 1) return;
     const idx = this.panes.indexOf(pane);
+    if (idx < 0 || this.panes.length <= 1) return; // already gone (e.g. emptied by its last close)
     for (const item of [...pane.items]) pane.removeItem(item, { destroy: true });
     this.panes.splice(idx, 1);
     this.layoutPanes();
@@ -377,8 +379,8 @@ export class Workspace extends Emitter {
     const empty = this.panes.length === 1 && this.panes[0].items.length === 0;
     document.body.classList.toggle('workspace-empty', empty);
     if (empty) {
-      this.welcome ??= this.renderWelcome?.() || h('div');
-      if (!this.welcome.isConnected) this.panes[0].content.append(this.welcome);
+      if (!this.welcome && this.renderWelcome) this.welcome = this.renderWelcome();
+      if (this.welcome && !this.welcome.isConnected) this.panes[0].content.append(this.welcome);
     } else this.welcome?.remove();
   }
 
@@ -438,18 +440,23 @@ export class Workspace extends Emitter {
     return null;
   }
 
-  async open(path, { pane = this.activePane, line, col, length, pending = false, focus = true, activate = true } = {}) {
+  async open(path, opts = {}) {
+    let { pane = this.activePane, line, col, length, pending = false, focus = true, activate = true } = opts;
     if (!path) return this.newFile();
     const existing = this.findItemForPath(path, pane);
     let item;
-    if (existing) {
+    // Asked for a specific pane while the file is open in another one: give that pane its own view.
+    if (existing && opts.pane && existing.pane !== pane && existing.item.type === 'editor') {
+      item = new EditorItem(existing.item.document, this, existing.item.view);
+      pane.addItem(item, { pending, activate });
+    } else if (existing) {
       item = existing.item;
       if (activate) existing.pane.activate(item);
       if (!pending) existing.pane.pin(item);
       pane = existing.pane;
     } else {
       for (const opener of this.openers) {
-        item = await opener(path, { pane });
+        item = await opener(path, { ...opts, pane });
         if (item) break;
       }
       if (!item) item = await this.createEditorForPath(path);
@@ -464,22 +471,37 @@ export class Workspace extends Emitter {
   }
 
   async createEditorForPath(path) {
+    // Two opens of the same path racing (restore + Finder) must share one Document.
+    if (this.loadingDocs.has(path)) await this.loadingDocs.get(path).catch(() => {});
     let doc = this.documents.get(path);
     if (!doc) {
-      const stat = await window.native.fs.stat(path);
-      if (stat && !stat.isFile) return null;
-      let text = '';
-      if (stat) {
-        if (stat.size > MAX_TEXT_SIZE) return new BinaryItem(path);
-        try { text = await window.native.fs.read(path); } catch (err) { this.ui.notify.error(`Could not open ${basename(path)}`, err.message); return null; }
-        if (text.slice(0, 8000).includes('\u0000')) return new BinaryItem(path);
+      let done;
+      this.loadingDocs.set(path, new Promise((r) => { done = r; }));
+      try {
+        doc = await this.loadDocument(path);
+      } finally {
+        this.loadingDocs.delete(path);
+        done();
       }
-      doc = new Document(path, text);
-      this.documents.set(path, doc);
-      this.emit('document-opened', doc);
+      if (!doc || doc instanceof BinaryItem) return doc;
     }
     const source = [...doc.views][0]?.view;
     return new EditorItem(doc, this, source);
+  }
+
+  async loadDocument(path) {
+    const stat = await window.native.fs.stat(path);
+    if (stat && !stat.isFile) return null;
+    let text = '';
+    if (stat) {
+      if (stat.size > MAX_TEXT_SIZE) return new BinaryItem(path);
+      try { text = await window.native.fs.read(path); } catch (err) { this.ui.notify.error(`Could not open ${basename(path)}`, err.message); return null; }
+      if (text.slice(0, 8000).includes('\u0000')) return new BinaryItem(path);
+    }
+    const doc = new Document(path, text);
+    this.documents.set(path, doc);
+    this.emit('document-opened', doc);
+    return doc;
   }
 
   newFile(pane = this.activePane) {
@@ -500,7 +522,7 @@ export class Workspace extends Emitter {
 
   releaseDocument(doc) {
     if (doc.views.size === 0 && doc.path) {
-      this.documents.delete(doc.path);
+      if (this.documents.get(doc.path) === doc) this.documents.delete(doc.path);
       this.emit('document-closed', doc);
     }
   }
@@ -528,7 +550,7 @@ export class Workspace extends Emitter {
   async closeActivePane() {
     const pane = this.activePane;
     for (const item of [...pane.items]) if (!await this.closeItem(item)) return false;
-    if (this.panes.length > 1) this.removePane(pane);
+    if (this.panes.includes(pane)) this.removePane(pane);
     return true;
   }
 
@@ -548,15 +570,30 @@ export class Workspace extends Emitter {
     }
     const text = doc.getTextForSave();
     try {
-      this.selfWrites.add(doc.path);
+      this.selfWrites.set(doc.path, Date.now());
       await window.native.fs.write(doc.path, text);
       doc.markSaved(text);
       this.activePane.pin(item);
       this.emit('did-save', item);
       return true;
     } catch (err) {
+      this.selfWrites.delete(doc.path);
       this.ui.notify.error(`Failed to save ${doc.title}`, err.message);
       return false;
+    }
+  }
+
+  /**
+   * A file or folder moved on disk: point open documents (and their map keys) at the new path.
+   * Used by rename/move in the tree, File: Rename, and language-server workspace edits.
+   */
+  renamePath(from, to) {
+    for (const [path, doc] of [...this.documents]) {
+      if (path !== from && !path.startsWith(from + '/')) continue;
+      const next = to + path.slice(from.length);
+      this.documents.delete(path);
+      doc.setPath(next);
+      this.documents.set(next, doc);
     }
   }
 
@@ -565,9 +602,20 @@ export class Workspace extends Emitter {
     const target = await window.native.dialog.saveAs(item.document.path || (this.project ? `${this.project}/untitled` : undefined));
     if (!target) return false;
     const doc = item.document;
-    if (doc.path) this.documents.delete(doc.path);
+    const other = this.documents.get(target);
+    if (other && other !== doc) {
+      // The target is open in another tab: that tab's copy is about to be replaced on disk.
+      if (other.dirty) {
+        this.ui.notify.error(`${basename(target)} is open with unsaved changes`, 'Save or close that tab first, then try Save As again.');
+        return false;
+      }
+      for (const view of [...other.views]) this.panes.find((p) => p.items.includes(view))?.removeItem(view);
+    }
+    const hadPath = !!doc.path;
+    if (hadPath && this.documents.get(doc.path) === doc) this.documents.delete(doc.path);
     doc.setPath(target);
     this.documents.set(target, doc);
+    if (!hadPath) this.emit('document-opened', doc);
     return this.save(item);
   }
 
@@ -586,12 +634,13 @@ export class Workspace extends Emitter {
   }
 
   // --- external changes ----------------------------------------------------
-  selfWrites = new Set();
-
   async onFilesChanged(paths) {
     this.emit('files-changed', paths);
     for (const p of paths) {
-      if (this.selfWrites.delete(p)) continue;
+      // Our own save echoing back through the watcher (only briefly, so real edits aren't missed).
+      const wrote = this.selfWrites.get(p);
+      this.selfWrites.delete(p);
+      if (wrote && Date.now() - wrote < 1500) continue;
       const doc = this.documents.get(p);
       if (doc) this.syncFromDisk(doc);
     }
@@ -602,8 +651,14 @@ export class Workspace extends Emitter {
   }
 
   async syncFromDisk(doc) {
+    if (!doc.path) return;
     let text;
-    try { text = await window.native.fs.read(doc.path); } catch { return; }
+    try { text = await window.native.fs.read(doc.path); } catch (err) {
+      // Deleted on disk (git checkout, rm…): keep the buffer, mark it unsaved so closing asks.
+      if (/ENOENT/.test(err.message) && !doc.deleted) { doc.deleted = true; doc.updateDirty(); doc.emit('dirty', doc.dirty); }
+      return;
+    }
+    if (doc.deleted) { doc.deleted = false; doc.updateDirty(); doc.emit('dirty', doc.dirty); }
     const saved = doc.savedDoc.toString();
     if (text.replace(/\r\n/g, '\n') === saved) return;
     if (!doc.dirty) doc.reloadFrom(text);
@@ -645,7 +700,8 @@ export class Workspace extends Emitter {
         const item = await this.open(s.path, { pane, focus: false, activate: false });
         item?.restore?.(s);
       }
-      const active = pane.items[ps.active] || pane.items[0];
+      const activePath = ps.items[ps.active]?.path;
+      const active = pane.items.find((i) => activePath && i.getPath?.() === activePath) || pane.items[0];
       if (active) pane.activate(active);
     }
     this.panes.filter((p) => !p.items.length && this.panes.length > 1).forEach((p) => this.removePane(p));

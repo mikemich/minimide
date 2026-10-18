@@ -109,7 +109,10 @@ export async function activate(mide) {
       if (mide.config.get('terminal.copyOnSelect') && term.hasSelection()) mide.clipboard.write(term.getSelection());
     });
     term.onResize(({ cols, rows }) => session.proc?.resize(cols, rows));
-    new ResizeObserver(() => fit(session)).observe(container);
+    // Fit on the next frame: resizing the terminal inside the observer callback causes a resize loop.
+    let fitFrame = 0;
+    session.resizeObserver = new ResizeObserver(() => { cancelAnimationFrame(fitFrame); fitFrame = requestAnimationFrame(() => fit(session)); });
+    session.resizeObserver.observe(container);
 
     select(session);
     mide.panel.show('terminal');
@@ -119,6 +122,7 @@ export async function activate(mide) {
 
   function start(session, { command, onExit } = {}) {
     const { term } = session;
+    if (onExit) session.onExit = onExit; // kept for Enter-to-rerun
     session.running = true;
     session.exit = null;
     if (command) term.write(`\x1b[2m${session.cwd.replace(mide.user.home, '~')}\x1b[0m\r\n\x1b[1;34m❯\x1b[0m \x1b[1m${command}\x1b[0m\r\n`);
@@ -146,9 +150,20 @@ export async function activate(mide) {
         term.write(`\r\n\x1b[2m[shell exited${code ? ` with code ${code}` : ''}]\x1b[0m\r\n`);
       }
       renderTabs();
-      onExit?.(code, signal);
+      session.onExit?.(code, signal);
+      mide.workspace.refreshPaneActions(); // e.g. the runner's ■ goes back to ▶
     });
     renderTabs();
+    mide.workspace.refreshPaneActions();
+  }
+
+  /** Stop like Ctrl-C does (reaches the whole foreground job), then force it if it ignores that. */
+  function interrupt(session) {
+    if (!session.running) return false;
+    const proc = session.proc;
+    proc.write('\x03');
+    setTimeout(() => { if (session.proc === proc && session.running) proc.kill('SIGTERM'); }, 1500);
+    return true;
   }
 
   function rerun(session, command = session.command) {
@@ -156,7 +171,7 @@ export async function activate(mide) {
     session.command = command;
     session.title = command.split(/\s+/)[0];
     session.term.reset();
-    start(session, { command });
+    start(session, { command, onExit: session.onExit });
   }
 
   function fit(session) {
@@ -172,6 +187,7 @@ export async function activate(mide) {
   }
 
   function closeSession(session) {
+    session.resizeObserver?.disconnect();
     if (session.running) session.proc.kill();
     session.term.dispose();
     session.container.remove();
@@ -286,8 +302,8 @@ export async function activate(mide) {
       let session = sessions.find((s) => s.key === key);
       if (session) {
         session.cwd = cwd || session.cwd;
+        if (onExit) session.onExit = onExit;
         rerun(session, command);
-        if (onExit) session.proc.onExit(onExit);
         if (title) session.title = title;
         select(session);
         mide.panel.show('terminal');
@@ -298,18 +314,17 @@ export async function activate(mide) {
       }
       if (session) requestAnimationFrame(() => session.term.focus());
       return session && {
-        stop: () => session.running && session.proc.kill('SIGINT'),
+        stop: () => interrupt(session),
         get running() { return session.running; },
       };
     },
     create: (opts) => !!create(opts),
     stop(key = 'run') {
       const s = sessions.find((x) => x.key === key);
-      if (s?.running) { s.proc.kill('SIGINT'); return true; }
-      return false;
+      return s ? interrupt(s) : false;
     },
     isRunning: (key = 'run') => !!sessions.find((x) => x.key === key)?.running,
   });
 
-  mide.subscriptions.add({ dispose: () => { for (const s of [...sessions]) { if (s.running) s.proc.kill(); s.term.dispose(); } } });
+  mide.subscriptions.add({ dispose: () => { for (const s of [...sessions]) { s.resizeObserver?.disconnect(); if (s.running) s.proc.kill(); s.term.dispose(); s.container.remove(); } } });
 }

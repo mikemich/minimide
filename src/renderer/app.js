@@ -21,6 +21,8 @@ class App {
     this.state = {};
     this.fileCache = null;
     this.procSeq = 0;
+    // Unique per page load: after Reload Window, old and new process ids can't collide.
+    this.procPrefix = Math.random().toString(36).slice(2, 8);
   }
 
   async start() {
@@ -28,8 +30,9 @@ class App {
     document.body.classList.add(`platform-${this.userInfo.platform}`);
 
     this.config.register(CORE_SCHEMA, 'core');
+    // Listen before loading, so a broken config.json is reported at launch too.
+    this.config.on('error', (err) => notify.error('Problem with config.json', err.message, { actions: [{ label: 'Open config.json', run: () => this.workspace?.open(`${this.userInfo.dir}/config.json`) }] }));
     await this.config.load(`${this.userInfo.dir}/config.json`);
-    this.config.on('error', (err) => notify.error('Could not parse config.json', err.message));
     this.bindAppearance();
 
     this.state = await window.native.state.load();
@@ -68,6 +71,7 @@ class App {
     const project = initial.project || (initial.restore && this.config.get('core.restoreSession') ? this.state.lastProject : null);
     if (project && await window.native.fs.stat(project)) await this.openProject(project, { restore: this.config.get('core.restoreSession') });
     else this.workspace.updateTitle();
+    for (const file of initial.files || []) await this.workspace.open(file); // opened via Finder/CLI at launch
 
     await this.runInitScript();
     document.body.classList.add('ready');
@@ -99,6 +103,7 @@ class App {
     if (restore && session?.workspace) await this.workspace.restore(session.workspace);
     this.sidebar.show(undefined);
     this.welcomeEl = null;
+    this.workspace.welcome?.remove();
     this.workspace.welcome = null;
     this.workspace.updateEmptyState();
   }
@@ -114,16 +119,14 @@ class App {
     return this.fileCache.promise;
   }
 
-  invalidateFileCache(paths) {
-    const cache = this.fileCache;
-    if (!cache?.set) return;
-    const root = this.workspace.project;
-    if (paths.some((p) => !cache.set.has(p.slice(root.length + 1)))) this.fileCache = null;
+  invalidateFileCache() {
+    // Any change may be an add, delete or rename: re-list lazily on the next finder open.
+    this.fileCache = null;
   }
 
   // --- processes -----------------------------------------------------------
   spawn(command, { cwd, env, onData, onExit } = {}, track = (d) => d) {
-    const id = `p${++this.procSeq}`;
+    const id = `p-${this.procPrefix}-${++this.procSeq}`;
     let resolveDone;
     const done = new Promise((r) => { resolveDone = r; });
     const offData = window.native.proc.onData((pid, data, stream) => { if (pid === id) onData?.(data, stream); });
@@ -147,7 +150,7 @@ class App {
 
   /** JSON-RPC (Content-Length framed) child process, e.g. a language server. */
   spawnRpc(argv, { cwd, env, onMessage, onStderr, onExit } = {}, track = (d) => d) {
-    const id = `rpc${++this.procSeq}`;
+    const id = `rpc-${this.procPrefix}-${++this.procSeq}`;
     let resolveDone;
     const done = new Promise((r) => { resolveDone = r; });
     const offMsg = window.native.proc.onMessage((pid, body) => {
@@ -177,7 +180,7 @@ class App {
 
   /** A pseudo-terminal: an interactive shell, or `command` run through a login shell. */
   spawnPty({ command, cwd, cols, rows, env, shell } = {}, track = (d) => d) {
-    const id = `pty${++this.procSeq}`;
+    const id = `pty-${this.procPrefix}-${++this.procSeq}`;
     const dataFns = new Set();
     const exitFns = new Set();
     const offData = window.native.term.onData((pid, data) => { if (pid === id) for (const fn of dataFns) fn(data); });
@@ -331,10 +334,26 @@ class App {
   }
 
   async persistState() {
-    // Merge with whatever other windows wrote, so they don't clobber each other.
-    const disk = await window.native.state.load();
-    const merged = { ...disk, ...this.state, sessions: { ...disk.sessions, ...this.state.sessions } };
-    await window.native.state.save(merged);
+    // The main process merges this with what other windows wrote and saves atomically.
+    await window.native.state.save(this.state);
+  }
+
+  /** Ask about unsaved changes. Resolves true if it's OK to discard the window's state. */
+  async confirmUnsaved(action = 'close') {
+    const dirty = this.workspace.dirtyDocuments();
+    if (!dirty.length) return true;
+    const choice = await window.native.dialog.confirm({
+      type: 'warning',
+      message: dirty.length === 1 ? `Save changes to ${dirty[0].title} before you ${action}?` : `You have ${dirty.length} unsaved files.`,
+      detail: dirty.length > 1 ? dirty.map((d) => d.title).join(', ') : "Your changes will be lost if you don't save them.",
+      buttons: [dirty.length === 1 ? 'Save' : 'Save All', "Don't Save", 'Cancel'],
+      cancelId: 2,
+    });
+    if (choice === 2) return false;
+    if (choice === 0) {
+      for (const doc of dirty) if (!await this.workspace.save([...doc.views][0])) return false;
+    }
+    return true;
   }
 
   async requestClose() {

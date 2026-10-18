@@ -91,6 +91,9 @@ export function activate(mide) {
   }
 
   async function replaceAll() {
+    // Re-run the search first so we never replace using results from an older query.
+    clearTimeout(timer);
+    await run();
     const q = query.value;
     if (!q || !state.results.length) return;
     const total = state.results.reduce((n, r) => n + r.matches.length, 0);
@@ -103,20 +106,36 @@ export function activate(mide) {
     if (choice !== 0) return;
     const source = state.regex ? q : q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const re = new RegExp(source, state.caseSensitive ? 'g' : 'gi');
+    const value = replace.value;
+    // Search matched line by line, so replace line by line too (a pattern like \s+ must not join lines).
+    // With regex off the replacement is literal: "$&" or "$5" are inserted as typed.
+    const replaceLine = (line) => (state.regex ? line.replace(re, value) : line.replace(re, () => value));
     let changed = 0;
+    const failed = [];
     for (const r of state.results) {
-      const editor = mide.workspace.getItems().find((i) => i.type === 'editor' && i.getPath() === r.file);
-      if (editor) {
-        const text = editor.getText();
-        const next = text.replace(re, replace.value);
-        if (next !== text) { editor.view.dispatch({ changes: { from: 0, to: text.length, insert: next } }); changed++; }
-      } else {
-        const text = await mide.fs.read(r.file);
-        const next = text.replace(re, replace.value);
-        if (next !== text) { await mide.fs.write(r.file, next); changed++; }
+      try {
+        const editor = mide.workspace.getItems().find((i) => i.type === 'editor' && i.getPath() === r.file);
+        if (editor) {
+          const doc = editor.view.state.doc;
+          const changes = [];
+          for (let n = 1; n <= doc.lines; n++) {
+            const line = doc.line(n);
+            const next = replaceLine(line.text);
+            if (next !== line.text) changes.push({ from: line.from, to: line.to, insert: next });
+          }
+          if (changes.length) { editor.view.dispatch({ changes, userEvent: 'input.replace.all' }); changed++; }
+        } else {
+          const text = await mide.fs.read(r.file);
+          if (text.includes('\ufffd')) { failed.push(`${mide.workspace.relativePath(r.file)} (not UTF-8, skipped)`); continue; }
+          const next = text.split('\n').map(replaceLine).join('\n');
+          if (next !== text) { await mide.fs.write(r.file, next); changed++; }
+        }
+      } catch (err) {
+        failed.push(`${mide.workspace.relativePath(r.file)}: ${err.message}`);
       }
     }
-    mide.notify.success(`Replaced in ${changed} file${changed === 1 ? '' : 's'}`);
+    if (failed.length) mide.notify.warn(`Replaced in ${changed} file${changed === 1 ? '' : 's'}; ${failed.length} skipped`, failed.slice(0, 5).join('\n'));
+    else mide.notify.success(`Replaced in ${changed} file${changed === 1 ? '' : 's'}`);
     run();
   }
 

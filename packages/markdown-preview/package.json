@@ -4,6 +4,18 @@
   "description": "Live preview of Markdown files in a split pane.",
   "version": "0.1.0",
   "main": "index.js",
-  "styles": ["style.css"],
-  "keymap": { "Ctrl-Shift-m": "markdown-preview:toggle" }
+  "styles": [
+    "style.css"
+  ],
+  "keymap": {
+    "Ctrl-Shift-m": "markdown-preview:toggle"
+  },
+  "configSchema": {
+    "remoteImages": {
+      "type": "boolean",
+      "default": false,
+      "title": "Load Remote Images",
+      "description": "Show https:// images in previews. Off by default, because loading them tells the image server when you opened the file."
+    }
+  }
 }

@@ -7,7 +7,7 @@ export function activate(mide) {
   const { h, icon, fileIcon, registerIcon } = mide.ui;
   registerIcon('checklist', '<path d="M4 6l1.5 1.5L8 5"/><path d="M4 12l1.5 1.5L8 11"/><path d="M4 18l1.5 1.5L8 17"/><path d="M11 6h9M11 12h9M11 18h9"/>');
 
-  const keywords = () => mide.config.get('todos.keywords') || [];
+  const keywords = () => (mide.config.get('todos.keywords') || []).filter(Boolean);
   const regex = () => new RegExp(`\\b(${keywords().map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b:?`, 'g');
   const kind = (k) => (/FIXME|BUG/.test(k) ? 'fix' : /HACK|XXX/.test(k) ? 'hack' : /NOTE/.test(k) ? 'note' : 'todo');
 
@@ -34,10 +34,16 @@ export function activate(mide) {
     return builder.finish();
   }
 
+  const instances = new Set();
   mide.editor.addExtension(ViewPlugin.fromClass(class {
-    constructor(view) { this.decorations = build(view); }
+    constructor(view) { this.view = view; this.decorations = build(view); instances.add(this); }
     update(u) { if (u.docChanged || u.viewportChanged || syntaxTree(u.startState) !== syntaxTree(u.state)) this.decorations = build(u.view); }
+    destroy() { instances.delete(this); }
   }, { decorations: (v) => v.decorations }));
+  mide.config.onDidChange('todos.keywords', () => {
+    for (const p of instances) { p.decorations = build(p.view); p.view.dispatch({}); }
+    if (mide.sidebar.isActive('todos')) refresh();
+  });
 
   // --- sidebar list --------------------------------------------------------
   const summary = h('div.todos-summary');
@@ -53,7 +59,10 @@ export function activate(mide) {
   async function refresh() {
     if (!mide.workspace.project) { summary.textContent = 'Open a folder to list its todos.'; list.replaceChildren(); return; }
     summary.textContent = 'Scanning…';
-    const res = await mide.project.search(`\\b(${keywords().join('|')})\\b`, { regex: true, caseSensitive: true, maxResults: 5000 });
+    const words = keywords().filter(Boolean);
+    if (!words.length) { results = []; return render(); }
+    const escaped = words.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const res = await mide.project.search(`\\b(${escaped.join('|')})\\b`, { regex: true, caseSensitive: true, maxResults: 5000 });
     results = res.results || [];
     render();
   }

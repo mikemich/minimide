@@ -7,7 +7,8 @@
   <true/>
   <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
   <true/>
-  <!-- Lets the app run tools such as language servers and git from your PATH. -->
+  <!-- Needed for ad-hoc signed builds under the hardened runtime (Electron's frameworks are signed
+       separately). Signed Developer ID builds could drop it. -->
   <key>com.apple.security.cs.disable-library-validation</key>
   <true/>
 </dict>

@@ -19,7 +19,9 @@ export function activate(mide) {
   function update() {
     const item = mide.workspace.getActiveItem();
     const p = item?.getPath?.();
-    path.textContent = p ? mide.workspace.relativePath(p).replace(mide.user.home, '~') : item ? item.getTitle() : '';
+    const home = mide.user.home;
+    const rel = p ? mide.workspace.relativePath(p) : '';
+    path.textContent = p ? (rel === home || rel.startsWith(home + '/') ? '~' + rel.slice(home.length) : rel) : item ? item.getTitle() : '';
     path.classList.toggle('dirty', !!item?.isDirty?.());
     if (item?.type === 'editor' && item.view) {
       const c = item.getCursor();

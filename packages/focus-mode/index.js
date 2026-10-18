@@ -2,13 +2,17 @@
 
 export function activate(mide) {
   const { EditorView, ViewPlugin, Decoration } = mide.cm.view;
-  const { EditorState, RangeSetBuilder } = mide.cm.state;
+  const { EditorState, RangeSetBuilder, Transaction } = mide.cm.state;
 
   // Every cursor move scrolls the cursor line to the middle of the editor.
   const typewriter = [
-    EditorState.transactionExtender.of((tr) => (tr.selection || tr.docChanged
-      ? { effects: EditorView.scrollIntoView(tr.newSelection.main.head, { y: 'center' }) }
-      : null)),
+    // Only the user's own typing/keyboard moves re-center: not mouse selection (the text would slide
+    // under the pointer) and not edits synced in from another split of the same file.
+    EditorState.transactionExtender.of((tr) => {
+      const event = tr.annotation(Transaction.userEvent);
+      if (!event || event.startsWith('select.pointer') || !(tr.selection || tr.docChanged)) return null;
+      return { effects: EditorView.scrollIntoView(tr.newSelection.main.head, { y: 'center' }) };
+    }),
     EditorView.theme({ '.cm-content': { paddingTop: '40vh !important', paddingBottom: '40vh !important' } }),
   ];
 

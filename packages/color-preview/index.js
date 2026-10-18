@@ -5,7 +5,23 @@ const STYLE_LANGS = /css|scss|sass|less|html|vue|svelte/i;
 
 export function activate(mide) {
   const { ViewPlugin, Decoration, WidgetType } = mide.cm.view;
-  const { RangeSetBuilder } = mide.cm.state;
+  const { RangeSetBuilder, StateField, StateEffect } = mide.cm.state;
+
+  // The color being edited is tracked through document changes, so typing elsewhere while the
+  // (non-modal) picker is open never makes it overwrite the wrong text.
+  const setPicking = StateEffect.define();
+  const picking = StateField.define({
+    create: () => null,
+    update(range, tr) {
+      for (const e of tr.effects) if (e.is(setPicking)) return e.value;
+      if (!range || !tr.docChanged) return range;
+      const from = tr.changes.mapPos(range.from, 1);
+      const to = tr.changes.mapPos(range.to, -1);
+      return to > from ? { from, to } : null; // the color text was deleted
+    },
+  });
+  let activeInput = null;
+  const closePicker = () => { activeInput?.remove(); activeInput = null; };
 
   // Accept only strings the browser itself parses as colors.
   const probe = new Option().style;
@@ -27,20 +43,28 @@ export function activate(mide) {
       return el;
     }
     pick(view) {
+      closePicker();
       const input = document.createElement('input');
+      activeInput = input;
       input.type = 'color';
       const hex = this.color.length === 4 ? '#' + [...this.color.slice(1)].map((c) => c + c).join('') : this.color;
       input.value = hex.toLowerCase();
       input.style.cssText = 'position:fixed;opacity:0;pointer-events:none;';
       document.body.append(input);
-      let from = this.from;
-      let to = this.to;
+      view.dispatch({ effects: setPicking.of({ from: this.from, to: this.to }) });
       input.addEventListener('input', () => {
-        view.dispatch({ changes: { from, to, insert: input.value }, userEvent: 'input.color' });
-        to = from + input.value.length;
+        const range = view.dom.isConnected ? view.state.field(picking, false) : null;
+        if (!range) return closePicker(); // tab closed or the color was deleted
+        view.dispatch({
+          changes: { from: range.from, to: range.to, insert: input.value },
+          effects: setPicking.of({ from: range.from, to: range.from + input.value.length }),
+          userEvent: 'input.color',
+        });
       });
-      input.addEventListener('change', () => input.remove());
-      input.addEventListener('blur', () => input.remove());
+      const done = () => { if (activeInput === input) closePicker(); if (view.dom.isConnected) view.dispatch({ effects: setPicking.of(null) }); };
+      input.addEventListener('change', done);
+      // The system picker isn't focusable, so treat the window regaining focus as "dismissed".
+      window.addEventListener('focus', () => setTimeout(done, 300), { once: true });
       input.click();
     }
     ignoreEvent() { return false; }
@@ -61,10 +85,17 @@ export function activate(mide) {
     return builder.finish();
   }
 
-  mide.editor.addExtension(ViewPlugin.fromClass(class {
-    constructor(view) { this.decorations = build(view); }
+  const instances = new Set();
+  mide.editor.addExtension([picking, ViewPlugin.fromClass(class {
+    constructor(view) { this.view = view; this.decorations = build(view); instances.add(this); }
     update(u) { if (u.docChanged || u.viewportChanged) this.decorations = build(u.view); }
-  }, { decorations: (v) => v.decorations }));
+    destroy() { instances.delete(this); }
+  }, { decorations: (v) => v.decorations })]);
+  // Apply the "Show In" setting immediately.
+  mide.config.onDidChange('color-preview.languages', () => {
+    for (const p of instances) { p.decorations = build(p.view); p.view.dispatch({}); }
+  });
+  mide.subscriptions.add({ dispose: closePicker });
 
   mide.styles.add(`
     .cm-color-swatch {

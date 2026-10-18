@@ -14,6 +14,7 @@ import { h, icon, fileIcon, registerIcon, basename, dirname } from './dom.js';
 import { fuzzyFilter, fuzzyMatch, highlightMatches } from './fuzzy.js';
 import { registerLanguage, detectLanguage } from './editor.js';
 import { prettyBinding } from './keymap.js';
+import { convertSnippet } from './snippet.js';
 
 // Popular CodeMirror add-ons, bundled against the editor's own CodeMirror (two copies
 // don't mix) and loaded only when a package asks for them.
@@ -89,7 +90,7 @@ export class PackageManager extends Emitter {
     const pkg = this.packages.get(name);
     if (!pkg || pkg.active) return;
     const { manifest } = pkg.meta;
-    const url = `mide://pkg/${encodeURIComponent(name)}@${Date.now()}/`; // fresh module graph per activation
+    const url = `mide://pkg/${encodeURIComponent(name)}/~${Date.now()}/`; // fresh module graph per activation
     const api = this.createApi(pkg);
     pkg.error = null;
     try {
@@ -206,6 +207,7 @@ export class PackageManager extends Emitter {
         relativePath: (p) => ws.relativePath(p),
         setProject: (p) => app.openProject(p),
         addPaneAction: (action) => track(ws.addPaneAction(action)),
+        renamePath: (from, to) => ws.renamePath(from, to),
         refreshPaneActions: () => ws.refreshPaneActions(),
         splitRight: (opts = {}) => ws.splitRight(ws.activePane, opts.empty ? null : ws.activePane.active),
         addOpener: (fn) => track(ws.addOpener(fn)),
@@ -230,6 +232,8 @@ export class PackageManager extends Emitter {
         /** Add a completion source that runs alongside the language's own (and the LSP's). */
         addCompletionSource: (source) => track(ws.addCompletionSource(source)),
         extraCompletionSource: ws.extraCompletionSource,
+        /** LSP/VS Code snippet text -> CodeMirror snippet template (escapes handled). */
+        convertSnippet: (text, resolveVariable) => convertSnippet(text, resolveVariable),
       },
       cm,
       ui: {
@@ -239,7 +243,7 @@ export class PackageManager extends Emitter {
         confirm: (o) => window.native.dialog.confirm(o),
         contextMenu: (items) => window.native.menu.popup(items),
         fuzzyFilter, fuzzyMatch, highlightMatches,
-        setWelcomeTip: (tip) => app.addWelcomeTip(tip),
+        setWelcomeTip: (tip) => track(app.addWelcomeTip(tip)),
       },
       notify: app.ui.notify,
       sidebar: {
@@ -263,6 +267,8 @@ export class PackageManager extends Emitter {
       services: {
         provide: (svc, value) => track(this.services.provide(svc, value)),
         consume: (svc, fn) => track(this.services.consume(svc, fn)),
+        /** The current provider, without subscribing (for one-off lookups). */
+        get: (svc) => this.services.get(svc),
       },
       packages: {
         list: () => [...this.packages.values()].map((p) => ({ name: p.meta.name, manifest: p.meta.manifest, builtin: p.meta.builtin, active: p.active, disabled: this.isDisabled(p.meta.name), theme: this.isTheme(p), error: p.error?.message })),
@@ -271,7 +277,17 @@ export class PackageManager extends Emitter {
         setTheme: (n) => app.config.set('core.theme', n),
         onDidChange: (fn) => track(this.on('changed', fn)),
       },
-      fs: window.native.fs,
+      fs: {
+        ...window.native.fs,
+        // Listeners and watchers are owned by the package, so they go away when it deactivates;
+        // watch keys are namespaced so a package can't replace the workspace's project watcher.
+        onChange: (fn) => { const off = window.native.fs.onChange(fn); track({ dispose: off }); return { dispose: off }; },
+        watch: (dir, key = 'default') => {
+          const k = `pkg:${name}:${key}`;
+          window.native.fs.watch(dir, k);
+          track({ dispose: () => window.native.fs.watch(null, k) });
+        },
+      },
       project: {
         files: () => app.projectFiles(),
         search: (query, opts = {}) => window.native.project.search(opts.root || ws.project, query, { ignored: app.config.get('core.ignoredNames'), ...opts, root: undefined }),

@@ -12,7 +12,8 @@ export function h(spec, props, ...children) {
     else el.id = part.slice(1);
   }
   for (const [k, v] of Object.entries(props)) {
-    if (v == null || v === false) continue;
+    if (v == null) continue;
+    if (v === false) { if (k in el) el[k] = false; continue; }
     if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
     else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
     else if (k === 'class' || k === 'className') el.className += (el.className ? ' ' : '') + v;

@@ -4,7 +4,9 @@
 export function activate(mide) {
   const { ViewPlugin } = mide.cm.view;
   const { syntaxTree } = mide.cm.language;
-  const { highlightCode, classHighlighter } = mide.cm.highlight;
+  const { highlightTree, classHighlighter } = mide.cm.highlight;
+  const MAX_SCAN = 3000; // lines to look back for an enclosing header (keeps huge files smooth)
+  const instances = new Set();
 
   const indentOf = (text, tabSize) => {
     let n = 0;
@@ -21,7 +23,7 @@ export function activate(mide) {
     const out = [];
     if (markdown) {
       let level = 7;
-      for (let i = n - 1; i >= 1 && out.length < max; i--) {
+      for (let i = n - 1; i >= 1 && out.length < max && n - i < MAX_SCAN; i--) {
         const m = /^(#{1,6})\s/.exec(doc.line(i).text);
         if (m && m[1].length < level) { out.unshift(i); level = m[1].length; if (level === 1) break; }
       }
@@ -32,7 +34,7 @@ export function activate(mide) {
     while (line <= doc.lines && isBlank(doc.line(line).text)) line++;
     if (line > doc.lines) return out;
     let indent = indentOf(doc.line(line).text, tab);
-    for (let i = n - 1; i >= 1 && indent > 0; i--) {
+    for (let i = n - 1; i >= 1 && indent > 0 && n - i < MAX_SCAN; i--) {
       const text = doc.line(i).text;
       if (isBlank(text) || isCloser(text)) continue;
       const ind = indentOf(text, tab);
@@ -55,12 +57,13 @@ export function activate(mide) {
         view.focus();
       });
       view.dom.appendChild(this.dom);
+      instances.add(this);
       this.onScroll = () => { if (!this.frame) this.frame = requestAnimationFrame(() => { this.frame = 0; this.render(); }); };
       view.scrollDOM.addEventListener('scroll', this.onScroll, { passive: true });
       this.render();
     }
     update(u) { if (u.docChanged || u.geometryChanged || u.viewportChanged || syntaxTree(u.startState) !== syntaxTree(u.state)) this.onScroll(); }
-    destroy() { this.view.scrollDOM.removeEventListener('scroll', this.onScroll); cancelAnimationFrame(this.frame); this.dom.remove(); }
+    destroy() { instances.delete(this); this.view.scrollDOM.removeEventListener('scroll', this.onScroll); cancelAnimationFrame(this.frame); this.dom.remove(); }
 
     render() {
       const { view } = this;
@@ -82,13 +85,15 @@ export function activate(mide) {
       const first = lineAt(0);
       headers = headers.filter((n) => n < first);
       if (!headers.length) return this.clear();
-      const key = headers.join(',') + '|' + view.state.doc.length;
+      const key = headers.join(',');
+      const tree = syntaxTree(view.state);
+      // Rebuild when the headers, the text, or the parse (late highlighting) change.
+      if (this.doc !== view.state.doc || this.tree !== tree) { this.key = ''; this.doc = view.state.doc; this.tree = tree; }
       const gutter = view.dom.querySelector('.cm-gutters');
       const gutterWidth = gutter ? gutter.getBoundingClientRect().width : 0;
       if (key !== this.key) {
         this.key = key;
-        const docText = view.state.doc.toString(); // highlightCode wants the full source
-        this.dom.replaceChildren(...headers.map((n) => this.row(n, docText)));
+        this.dom.replaceChildren(...headers.map((n) => this.row(n)));
       }
       // Line numbers end where the real line-number column ends; code starts after all gutters.
       const nums = view.dom.querySelector('.cm-lineNumbers');
@@ -99,7 +104,7 @@ export function activate(mide) {
       this.dom.hidden = false;
     }
 
-    row(n, docText) {
+    row(n) {
       const { state } = this.view;
       const line = state.doc.line(n);
       const row = document.createElement('div');
@@ -112,9 +117,11 @@ export function activate(mide) {
       code.className = 'cm-sticky-code';
       const tree = syntaxTree(state);
       if (tree.length >= line.to) {
-        highlightCode(docText, tree, classHighlighter,
-          (text, classes) => { const s = document.createElement('span'); if (classes) s.className = classes; s.textContent = text; code.append(s); },
-          () => {}, line.from, line.to);
+        // Highlight just this line's range (no copy of the whole document).
+        let pos = line.from;
+        const text = (from, to, cls) => { if (to <= from) return; const s = document.createElement('span'); if (cls) s.className = cls; s.textContent = state.sliceDoc(from, to); code.append(s); };
+        highlightTree(tree, classHighlighter, (from, to, cls) => { text(pos, from); text(from, to, cls); pos = to; }, line.from, line.to);
+        text(pos, line.to);
       } else code.textContent = line.text;
       row.append(num, code);
       return row;
@@ -124,7 +131,7 @@ export function activate(mide) {
   }
 
   mide.editor.addExtension(ViewPlugin.fromClass(Sticky));
-  mide.config.onDidChange('sticky-scroll.maxLines', () => mide.workspace.getItems().forEach((i) => i.view?.dispatch({})));
+  mide.config.onDidChange('sticky-scroll.maxLines', () => { for (const s of instances) { s.key = ''; s.render(); } });
 
   mide.styles.add(`
     .cm-sticky {

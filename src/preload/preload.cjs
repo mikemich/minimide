@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('native', {
     stat: call('fs:stat'),
     mkdir: call('fs:mkdir'),
     rename: call('fs:rename'),
+    copy: call('fs:copy'),
     trash: call('fs:trash'),
     watch: call('fs:watch'),
     onChange: (fn) => on('fs:changed', fn),
@@ -76,3 +77,8 @@ contextBridge.exposeInMainWorld('native', {
     onOpenPath: (fn) => on('app:open-path', fn),
   },
 });
+
+// Automated tests only (the main process passes --mide-test when launched in test mode).
+if (process.argv.includes('--mide-test')) {
+  contextBridge.exposeInMainWorld('mideTest', { answers: (kind, ...values) => ipcRenderer.invoke('test:answers', kind, values) });
+}

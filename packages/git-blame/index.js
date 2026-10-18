@@ -97,6 +97,7 @@ export function activate(mide) {
   mide.workspace.onDidUpdateEditor((editor, u) => { if (editor === mide.workspace.getActiveEditor() && (u?.selectionSet || u?.focusChanged)) schedule(); });
   mide.workspace.onDidChangeActiveItem(schedule);
   mide.workspace.onDidSave(() => { roots.clear(); schedule(); });
+  mide.config.onDidChange('git-blame.showSummary', () => schedule());
   mide.config.onDidChange('git-blame.inline', (on) => {
     if (on) { schedule(); return; }
     for (const i of mide.workspace.getItems()) {
