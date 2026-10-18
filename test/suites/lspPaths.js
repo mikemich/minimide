@@ -12,6 +12,13 @@
   const ed = await ws.open(root + '/src ü (app)/main app.ts');
   const out = {};
   out.ready = !!(await until(() => document.querySelector('.lsp-status[data-state="ready"], .lsp-status[data-state="busy"]')));
+  if (!out.ready) {
+    // Say why, so a CI failure is diagnosable from the log alone.
+    const status = document.querySelector('.lsp-status');
+    console.log('[lsp-debug] status:', status?.dataset.state, status?.textContent);
+    console.log('[lsp-debug] log:', (document.querySelector('.lsp-log')?.innerText || '(empty)').slice(-2500));
+    console.log('[lsp-debug] PATH check:', JSON.stringify(await window.native.proc.exec(app.userInfo.shell || '/bin/sh', ['-lc', 'echo $PATH; command -v typescript-language-server node; node --version'])));
+  }
   out.typeErrorFlagged = !!(await until(() => ed.view.dom.querySelector('.cm-lintRange-error')));
   const pos = ed.getText().indexOf('greetUser("x")') + 3;
   ed.view.dispatch({ selection: { anchor: pos } });
