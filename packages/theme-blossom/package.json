@@ -1,0 +1,18 @@
+{
+  "name": "blossom",
+  "displayName": "Blossom",
+  "description": "Cherry-blossom pinks on a soft blush background.",
+  "version": "0.1.0",
+  "theme": "ui",
+  "main": false,
+  "styles": [
+    "theme.css"
+  ],
+  "swatches": [
+    "#fdf7f8",
+    "#d6457e",
+    "#4a6fd1",
+    "#4f8a3a",
+    "#a845b8"
+  ]
+}

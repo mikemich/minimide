@@ -1,0 +1,8 @@
+{
+  "name": "fonts",
+  "displayName": "Fonts",
+  "description": "27 bundled open-source fonts for code and UI, with live previews. JetBrains Mono, Fira Code, Cascadia Code, Geist, Iosevka, Monaspace, Inter and more.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["fonts.css"]
+}

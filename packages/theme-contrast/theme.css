@@ -1,0 +1,45 @@
+/* High Contrast: maximum legibility: pure black, bright text and bold borders. */
+:root {
+  color-scheme: dark;
+  --bg: #000000;
+  --bg-sidebar: #000000;
+  --bg-tabbar: #000000;
+  --bg-statusbar: #000000;
+  --bg-elevated: #121212;
+  --bg-input: #000000;
+  --bg-hover: rgba(255, 255, 255, 0.045);
+  --bg-selected: rgba(255, 255, 255, 0.075);
+  --bg-selected-focus: rgba(255, 214, 10, 0.18);
+  --fg: #f2f2f2;
+  --fg-strong: #ffffff;
+  --fg-muted: #c8c8c8;
+  --fg-subtle: #9a9a9a;
+  --border: rgba(255, 255, 255, 0.28);
+  --border-strong: rgba(255, 255, 255, 0.45);
+  --accent: #ffd60a;
+  --accent-fg: #000000;
+  --selection: rgba(255, 214, 10, 0.24);
+  --selection-inactive: rgba(255, 255, 255, 0.08);
+  --cursor: #ffd60a;
+  --line-highlight: rgba(255, 255, 255, 0.03);
+  --gutter-fg: rgba(242, 242, 242, 0.3);
+  --gutter-fg-active: #c8c8c8;
+  --match: rgba(255, 212, 59, 0.25);
+  --match-border: rgba(255, 212, 59, 0.55);
+  --bracket-match: rgba(255, 214, 10, 0.3);
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --scrollbar: rgba(255, 255, 255, 0.11);
+  --scrollbar-hover: rgba(255, 255, 255, 0.2);
+  --c-red: #ff6b6b;
+  --c-orange: #ffa94d;
+  --c-yellow: #ffd43b;
+  --c-green: #69db7c;
+  --c-cyan: #66d9e8;
+  --c-blue: #74c0fc;
+  --c-magenta: #f783ac;
+}
+.tok-comment { color: #a8a8a8; font-style: italic; }
+.tok-propertyName { color: #ffffff; }
+.tok-punctuation { color: #d0d0d0; }
+.cm-cursor { border-left-width: 2px !important; }
+:focus-visible { outline: 2px solid var(--accent) !important; outline-offset: 1px; }

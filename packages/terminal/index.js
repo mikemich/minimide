@@ -46,7 +46,10 @@ export async function activate(mide) {
     };
   }
   const fontSize = () => mide.config.get('terminal.fontSize') || mide.config.get('editor.fontSize');
-  function applyOptions() {
+  // xterm measures the cell size when the font is set, so wait until the font has loaded.
+  const fontReady = () => document.fonts.load(`${fontSize()}px ${mide.config.get('editor.fontFamily')}`).catch(() => {});
+  async function applyOptions() {
+    await fontReady();
     for (const s of sessions) {
       s.term.options.theme = theme();
       s.term.options.fontFamily = mide.config.get('editor.fontFamily');
@@ -87,6 +90,10 @@ export async function activate(mide) {
     term.loadAddon(new WebLinksAddon((_e, url) => mide.shell.openExternal(url)));
     body.append(container);
     term.open(container);
+    // A bundled font may still be loading on first use; re-measure once it's ready.
+    if (!document.fonts.check(`${fontSize()}px ${mide.config.get('editor.fontFamily')}`)) {
+      fontReady().then(() => { term.options.fontFamily = 'monospace'; term.options.fontFamily = mide.config.get('editor.fontFamily'); fit(session); });
+    }
 
     const session = {
       id, term, fitAddon, container, command,

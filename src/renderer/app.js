@@ -10,6 +10,24 @@ import { h, basename } from './core/dom.js';
 import { registerCoreCommands, CORE_KEYMAP } from './core/core-commands.js';
 import { CORE_SCHEMA } from './core/schema.js';
 
+// ui.accentColor overrides the theme's accent and everything derived from it.
+// Inline styles on <html> beat the theme's :root rules, so this survives theme switches.
+const ACCENT_VARS = ['--accent', '--accent-fg', '--cursor', '--selection', '--bg-selected-focus', '--bracket-match'];
+function applyAccent(root, color) {
+  if (!color || !CSS.supports('color', color)) { for (const v of ACCENT_VARS) root.removeProperty(v); return; }
+  const probe = document.createElement('canvas').getContext('2d');
+  probe.fillStyle = color;
+  const s = probe.fillStyle; // "#rrggbb", or "rgba(…)" for translucent colors
+  const [r, g, b] = s.startsWith('#') ? s.slice(1).match(/../g).map((x) => parseInt(x, 16)) : s.match(/[\d.]+/g).map(Number);
+  const light = 0.2126 * r + 0.7152 * g + 0.0722 * b > 150;
+  root.setProperty('--accent', color);
+  root.setProperty('--accent-fg', light ? '#101216' : '#ffffff');
+  root.setProperty('--cursor', color);
+  root.setProperty('--selection', `color-mix(in srgb, ${color} 22%, transparent)`);
+  root.setProperty('--bg-selected-focus', `color-mix(in srgb, ${color} 17%, transparent)`);
+  root.setProperty('--bracket-match', `color-mix(in srgb, ${color} 28%, transparent)`);
+}
+
 class App {
   constructor() {
     this.version = '0.1.0';
@@ -84,6 +102,9 @@ class App {
     this.config.observe('editor.fontSize', (v) => root.setProperty('--editor-font-size', `${v}px`));
     this.config.observe('editor.lineHeight', (v) => root.setProperty('--editor-line-height', String(v)));
     this.config.observe('ui.fontSize', (v) => root.setProperty('--ui-font-size', `${v}px`));
+    this.config.observe('ui.fontFamily', (v) => (v ? root.setProperty('--ui-font', `${v}, -apple-system, system-ui, sans-serif`) : root.removeProperty('--ui-font')));
+    this.config.observe('editor.fontLigatures', (v) => root.setProperty('--editor-ligatures', v === false ? 'none' : 'contextual'));
+    this.config.observe('ui.accentColor', (v) => applyAccent(root, v));
     this.config.observe('ui.compactTabs', (v) => document.body.classList.toggle('compact-tabs', !!v));
   }
 

@@ -25,7 +25,6 @@
 .setting-reset:hover { opacity: 1; text-decoration: underline; }
 .settings-number { width: 120px; }
 .settings-select { width: auto; min-width: 200px; appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--fg-muted) 50%), linear-gradient(135deg, var(--fg-muted) 50%, transparent 50%); background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 30px; }
-.font-preview { padding: 14px 16px; border-radius: var(--radius); background: var(--bg-sidebar); border: 1px solid var(--border); font-family: var(--editor-font); font-size: var(--editor-font-size); line-height: var(--editor-line-height); color: var(--fg-strong); margin-bottom: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
 .switch { position: relative; display: inline-flex; flex: none; width: 36px; height: 20px; cursor: pointer; }
 .switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
@@ -78,3 +77,28 @@
 .hack-title { color: var(--fg-strong); font-weight: 600; }
 .hack-card p { color: var(--fg-muted); font-size: 0.93em; line-height: 1.45; flex: 1; margin: 6px 0 14px; }
 .setting-object { display: flex; align-items: center; gap: 10px; color: var(--fg-muted); }
+
+.settings-subhead { margin: 30px 0 12px; font-size: 1.05em; font-weight: 600; color: var(--fg-strong); }
+.settings-header + .settings-subhead { margin-top: 0; }
+.settings-desc { margin: -6px 0 14px; color: var(--fg-muted); }
+
+.font-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-bottom: 8px; }
+.font-card { display: flex; flex-direction: column; gap: 4px; padding: 10px 10px 12px; border-radius: var(--radius-lg); border: 1px solid var(--border-strong); background: var(--bg-sidebar); text-align: left; color: var(--fg); transition: border-color 0.15s, transform 0.15s; }
+.font-card:hover { transform: translateY(-1px); border-color: var(--fg-subtle); }
+.font-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.font-card-sample { padding: 10px 12px; margin-bottom: 6px; border-radius: var(--radius); background: var(--bg); color: var(--fg-strong); font-size: 12.5px; line-height: 1.55; white-space: pre; overflow: hidden; text-overflow: ellipsis; font-variant-ligatures: var(--editor-ligatures, contextual); }
+.font-card-system { font-family: "SF Mono", Menlo, Consolas, monospace; }
+.font-card-ui { font-size: 14px; white-space: normal; }
+.font-card-ui .dim { color: var(--fg-muted); font-size: 12.5px; margin-top: 3px; }
+.font-card-meta { display: flex; align-items: center; gap: 8px; padding: 0 4px; }
+.font-card-name { color: var(--fg-strong); font-weight: 500; }
+.font-card-tag { font-size: 0.75em; padding: 1px 6px; border-radius: 99px; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.font-card-desc { color: var(--fg-muted); font-size: 0.88em; padding: 0 4px; line-height: 1.4; }
+
+.accent-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.accent-chip { position: relative; width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 2px solid transparent; outline: 1px solid var(--border-strong); cursor: pointer; transition: transform 0.12s; }
+.accent-chip:hover { transform: scale(1.08); }
+.accent-chip.active { border-color: var(--bg); outline: 2px solid var(--fg-strong); }
+.accent-chip.theme-default { width: auto; padding: 0 12px; border-radius: 99px; background: var(--bg-sidebar); color: var(--fg); font-size: 0.9em; }
+.accent-custom { display: inline-flex; align-items: center; justify-content: center; background: conic-gradient(#f43f5e, #f59e0b, #84cc16, #14b8a6, #4c8dff, #a855f7, #f43f5e); color: #fff; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+.accent-custom input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }

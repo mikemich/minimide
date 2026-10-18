@@ -1,0 +1,50 @@
+/* Paper: ink on paper. Quiet, nearly monochrome syntax for focused writing. */
+:root {
+  color-scheme: light;
+  --bg: #f6f3ec;
+  --bg-sidebar: #efebe2;
+  --bg-tabbar: #ece7dd;
+  --bg-statusbar: #e7e1d5;
+  --bg-elevated: #fbf9f4;
+  --bg-input: #fffdf9;
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-selected: rgba(0, 0, 0, 0.065);
+  --bg-selected-focus: rgba(59, 91, 171, 0.14);
+  --fg: #36332e;
+  --fg-strong: #1a1815;
+  --fg-muted: #7b756b;
+  --fg-subtle: #aaa395;
+  --border: rgba(0, 0, 0, 0.075);
+  --border-strong: rgba(0, 0, 0, 0.13);
+  --accent: #3b5bab;
+  --accent-fg: #ffffff;
+  --selection: rgba(59, 91, 171, 0.18);
+  --selection-inactive: rgba(0, 0, 0, 0.07);
+  --cursor: #3b5bab;
+  --line-highlight: rgba(0, 0, 0, 0.03);
+  --gutter-fg: #aaa395;
+  --gutter-fg-active: #36332e;
+  --match: rgba(133, 106, 18, 0.25);
+  --match-border: rgba(133, 106, 18, 0.55);
+  --bracket-match: rgba(59, 91, 171, 0.2);
+  --shadow: 0 12px 40px rgba(20, 24, 40, 0.14), 0 2px 8px rgba(20, 24, 40, 0.08);
+  --scrollbar: rgba(0, 0, 0, 0.13);
+  --scrollbar-hover: rgba(0, 0, 0, 0.22);
+  --c-red: #a63d40;
+  --c-orange: #9a5a1e;
+  --c-yellow: #856a12;
+  --c-green: #4b6b2f;
+  --c-cyan: #2d6b70;
+  --c-blue: #3b5bab;
+  --c-magenta: #7a4a8c;
+}
+.tok-keyword, .tok-controlKeyword, .tok-modifier { color: #1a1815; font-weight: 600; }
+.tok-function { color: #3b5bab; }
+.tok-string, .tok-attributeValue { color: #4b6b2f; }
+.tok-typeName, .tok-className { color: #36332e; font-weight: 600; }
+.tok-propertyName { color: #36332e; }
+.tok-number, .tok-bool, .tok-atom, .tok-null, .tok-constant { color: #9a5a1e; }
+.tok-operator { color: #5c574e; }
+.tok-comment { color: #9e9789; font-style: italic; }
+.tok-punctuation { color: #7b756b; }
+.tok-tagName { color: #a63d40; }

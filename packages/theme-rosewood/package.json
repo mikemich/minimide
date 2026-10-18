@@ -1,0 +1,18 @@
+{
+  "name": "rosewood",
+  "displayName": "Rosewood",
+  "description": "Dusky purples and rose. Soft on the eyes at night.",
+  "version": "0.1.0",
+  "theme": "ui",
+  "main": false,
+  "styles": [
+    "theme.css"
+  ],
+  "swatches": [
+    "#1f1a24",
+    "#eb9fb6",
+    "#c4a7e7",
+    "#f6c177",
+    "#9ccfd8"
+  ]
+}

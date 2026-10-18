@@ -1,0 +1,18 @@
+{
+  "name": "cocoa",
+  "displayName": "Cocoa",
+  "description": "Creamy pastels on a deep mocha base, in the spirit of Catppuccin.",
+  "version": "0.1.0",
+  "theme": "ui",
+  "main": false,
+  "styles": [
+    "theme.css"
+  ],
+  "swatches": [
+    "#1e1e2e",
+    "#cba6f7",
+    "#89b4fa",
+    "#a6e3a1",
+    "#f9e2af"
+  ]
+}

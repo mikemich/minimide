@@ -262,7 +262,7 @@ body.compact-tabs { --tab-height: 30px; }
   font-family: var(--editor-font);
   font-size: var(--editor-font-size);
   line-height: var(--editor-line-height);
-  font-variant-ligatures: contextual;
+  font-variant-ligatures: var(--editor-ligatures, contextual);
 }
 .cm-editor .cm-content { padding: 8px 0 8px; caret-color: var(--cursor); }
 .cm-editor .cm-line { padding: 0 16px 0 6px; }

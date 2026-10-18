@@ -15,6 +15,10 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build and attach files to (e.g. v0.1.0)'
+        required: true
 
 permissions:
   contents: write
@@ -26,8 +30,12 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -36,20 +44,38 @@ jobs:
 
       - run: npm ci
 
-      - name: Package and publish
+      - name: Package
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          MAC_CERT_P12_BASE64: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           node build.mjs
           EXTRA=()
-          if [ "$RUNNER_OS" = "macOS" ] && [ -z "$CSC_LINK" ]; then
+          # electron-builder treats an empty CSC_LINK as a file path, so only set it when a certificate exists.
+          if [ -n "$MAC_CERT_P12_BASE64" ]; then
+            export CSC_LINK="$MAC_CERT_P12_BASE64" CSC_KEY_PASSWORD="$MAC_CERT_PASSWORD"
+          elif [ "$RUNNER_OS" = "macOS" ]; then
             echo "No signing certificate configured: building ad-hoc signed macOS app."
             EXTRA+=("-c.mac.identity=-")
           fi
-          npx electron-builder --publish always -c.publish.provider=github -c.publish.releaseType=draft "${EXTRA[@]}"
+          [ -n "$APPLE_ID" ] || unset APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
+          npx electron-builder --publish never "${EXTRA[@]}"
+
+      # Upload with gh instead of electron-builder's publisher, which refuses to add files
+      # to a release that has already been published.
+      - name: Attach to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --draft --title "Minimide ${TAG#v}" --notes "Release $TAG"
+          existing=$(gh release view "$TAG" --json assets -q '.assets[].name')
+          shopt -s nullglob
+          for f in release/*.dmg release/*.zip release/*.exe release/*.AppImage release/*.tar.gz release/*.deb; do
+            if grep -qxF "$(basename "$f")" <<<"$existing"; then echo "Already attached: $(basename "$f")"; continue; fi
+            gh release upload "$TAG" "$f"
+          done

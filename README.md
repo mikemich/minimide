@@ -20,7 +20,7 @@ you can change while it runs.
 
 </div>
 
-Minimide's core is about 4,000 lines of plain JavaScript, and the whole editor, all 27
+Minimide's core is about 4,000 lines of plain JavaScript, and the whole editor, all 42
 built-in packages included, is about 9,000. The file tree, git panel, terminal, language
 servers, Vim mode and every theme are packages built on the same API you get, and they
 reload the moment you save. Make it yours.
@@ -153,7 +153,8 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `vim-mode` | Full Vim emulation with `:w`, `:q`, `:wq`, `gt`, `jj` escape and relative numbers. *Off by default* |
 | `minimap` | A zoomed-out map of the file (`⌘K ⌘M`). *Off by default* |
 | `focus-mode` | Typewriter scrolling and paragraph dimming for writing. *Off by default* |
-| `nightfall`, `daylight`, `fjord`, `dune`, `midnight` | Themes (`Theme: Select Theme…` previews them live) |
+| `fonts` | 27 bundled open-source fonts for code and UI (JetBrains Mono, Fira Code, Cascadia Code, Geist, Iosevka, Monaspace, Inter…) with live previews in **Settings → Fonts**. Each font keeps its own license (SIL OFL or Ubuntu Font License) in `packages/fonts/licenses` |
+| `nightfall`, `midnight`, `fjord`, `daylight`, `dune`, `ember`, `grove`, `rosewood`, `nocturne`, `cocoa`, `harvest`, `metro`, `volcano`, `abyss`, `contrast`, `paper`, `glacier`, `blossom`, `solstice` | 19 themes, from true-black and high-contrast to paper and blossom (`Theme: Select Theme…` previews them live). Pick any accent color on top in **Settings → Themes** |
 
 Packages marked *off by default* are installed but switched off to keep the default
 editor simple. Turn them on in **Settings → Packages**.

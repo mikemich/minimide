@@ -1,0 +1,18 @@
+{
+  "name": "contrast",
+  "displayName": "High Contrast",
+  "description": "Maximum legibility: pure black, bright text and bold borders.",
+  "version": "0.1.0",
+  "theme": "ui",
+  "main": false,
+  "styles": [
+    "theme.css"
+  ],
+  "swatches": [
+    "#000000",
+    "#ffd60a",
+    "#f783ac",
+    "#74c0fc",
+    "#69db7c"
+  ]
+}

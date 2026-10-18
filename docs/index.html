@@ -79,6 +79,8 @@
     .theme .sw { display: flex; height: 54px; }
     .theme .sw i { flex: 1; } .theme .sw i:first-child { flex: 2.4; }
     .theme div:last-child { padding: 10px 12px; font-size: 14.5px; color: var(--strong); }
+    .fonts-card .sw { align-items: center; justify-content: center; gap: 18px; font-size: 24px; font-weight: 600; color: var(--strong); background: linear-gradient(135deg, #a5b4fc33, #c084fc33); }
+    .fonts-card .sw .mono { font-family: var(--mono); }
 
     .cta { text-align: center; padding: 110px 0 60px; }
     footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
@@ -124,7 +126,7 @@
       <p class="sub">Atom made hacking your tools feel fun. Editors have since grown into platforms nobody fully understands: you can configure them, but you can't really change them. Minimide is small enough to own.</p>
       <div class="grid3">
         <div class="card"><div class="num">~4<span>k</span></div><h3>Lines in the core</h3><p>Plain JavaScript. No framework, no build magic. Every line that runs is one you can read.</p></div>
-        <div class="card"><div class="num">27</div><h3>Built-in packages</h3><p>Tree view, git, terminal, language servers, Vim, themes, even settings: all on the same public API you get.</p></div>
+        <div class="card"><div class="num">42</div><h3>Built-in packages</h3><p>Tree view, git, terminal, language servers, Vim, themes, even settings: all on the same public API you get.</p></div>
         <div class="card"><div class="num">0<span>s</span></div><h3>Restarts to see a change</h3><p>Save a package, your stylesheet or keymap and it reloads instantly. Tweak the editor while you use it.</p></div>
       </div>
     </section>
@@ -173,14 +175,30 @@
 
     <section>
       <h2>Beautiful by default.</h2>
-      <p class="sub">Five themes built in. A theme is one CSS file of variables: write your own in minutes.</p>
+      <p class="sub">19 themes, 27 fonts and any accent color you like, built in. A theme is one CSS file of variables: write your own in minutes.</p>
       <img class="shot" src="screenshots/dark.png" alt="Minimide with the Nightfall theme: code, git panel and terminal" loading="lazy">
       <div class="themes">
         <div class="theme"><div class="sw"><i style="background:#1e2128"></i><i style="background:#6aa8ff"></i><i style="background:#c792ea"></i><i style="background:#a3d385"></i><i style="background:#f0b866"></i></div><div>Nightfall</div></div>
-        <div class="theme"><div class="sw"><i style="background:#000"></i><i style="background:#7df9ff"></i><i style="background:#ff6ac1"></i><i style="background:#5af78e"></i><i style="background:#f3f99d"></i></div><div>Midnight</div></div>
+        <div class="theme"><div class="sw"><i style="background:#000000"></i><i style="background:#7df9ff"></i><i style="background:#ff6ac1"></i><i style="background:#5af78e"></i><i style="background:#f3f99d"></i></div><div>Midnight</div></div>
         <div class="theme"><div class="sw"><i style="background:#2b303b"></i><i style="background:#88c0d0"></i><i style="background:#b48ead"></i><i style="background:#a3be8c"></i><i style="background:#ebcb8b"></i></div><div>Fjord</div></div>
         <div class="theme"><div class="sw"><i style="background:#fbfbfa"></i><i style="background:#2f6fed"></i><i style="background:#a33ea1"></i><i style="background:#3c8a2e"></i><i style="background:#b4690e"></i></div><div>Daylight</div></div>
         <div class="theme"><div class="sw"><i style="background:#f4ecdf"></i><i style="background:#b5532f"></i><i style="background:#7a4f9c"></i><i style="background:#5f7a2c"></i><i style="background:#a86a12"></i></div><div>Dune</div></div>
+        <div class="theme"><div class="sw"><i style="background:#1c1917"></i><i style="background:#ff8a4c"></i><i style="background:#f4c56b"></i><i style="background:#b8cc72"></i><i style="background:#82c8bb"></i></div><div>Ember</div></div>
+        <div class="theme"><div class="sw"><i style="background:#1a211d"></i><i style="background:#7fcf8f"></i><i style="background:#e3cc7f"></i><i style="background:#c5d98f"></i><i style="background:#79c7b8"></i></div><div>Grove</div></div>
+        <div class="theme"><div class="sw"><i style="background:#1f1a24"></i><i style="background:#eb9fb6"></i><i style="background:#c4a7e7"></i><i style="background:#f6c177"></i><i style="background:#9ccfd8"></i></div><div>Rosewood</div></div>
+        <div class="theme"><div class="sw"><i style="background:#22212c"></i><i style="background:#bd93f9"></i><i style="background:#ff79c6"></i><i style="background:#50fa7b"></i><i style="background:#f1fa8c"></i></div><div>Nocturne</div></div>
+        <div class="theme"><div class="sw"><i style="background:#1e1e2e"></i><i style="background:#cba6f7"></i><i style="background:#89b4fa"></i><i style="background:#a6e3a1"></i><i style="background:#f9e2af"></i></div><div>Cocoa</div></div>
+        <div class="theme"><div class="sw"><i style="background:#282624"></i><i style="background:#fabd2f"></i><i style="background:#fb4934"></i><i style="background:#b8bb26"></i><i style="background:#d3869b"></i></div><div>Harvest</div></div>
+        <div class="theme"><div class="sw"><i style="background:#1a1b26"></i><i style="background:#7aa2f7"></i><i style="background:#bb9af7"></i><i style="background:#9ece6a"></i><i style="background:#2ac3de"></i></div><div>Metro</div></div>
+        <div class="theme"><div class="sw"><i style="background:#272822"></i><i style="background:#a6e22e"></i><i style="background:#f92672"></i><i style="background:#e6db74"></i><i style="background:#66d9ef"></i></div><div>Volcano</div></div>
+        <div class="theme"><div class="sw"><i style="background:#0f1b2a"></i><i style="background:#3ecfcf"></i><i style="background:#6cb6ff"></i><i style="background:#5fe0e0"></i><i style="background:#8ee3a0"></i></div><div>Abyss</div></div>
+        <div class="theme"><div class="sw"><i style="background:#000000"></i><i style="background:#ffd60a"></i><i style="background:#f783ac"></i><i style="background:#74c0fc"></i><i style="background:#69db7c"></i></div><div>High Contrast</div></div>
+        <div class="theme"><div class="sw"><i style="background:#f6f3ec"></i><i style="background:#3b5bab"></i><i style="background:#4b6b2f"></i><i style="background:#7a4a8c"></i><i style="background:#856a12"></i></div><div>Paper</div></div>
+        <div class="theme"><div class="sw"><i style="background:#f6f9fc"></i><i style="background:#0e7490"></i><i style="background:#2563eb"></i><i style="background:#15803d"></i><i style="background:#9333ea"></i></div><div>Glacier</div></div>
+        <div class="theme"><div class="sw"><i style="background:#fdf7f8"></i><i style="background:#d6457e"></i><i style="background:#4a6fd1"></i><i style="background:#4f8a3a"></i><i style="background:#a845b8"></i></div><div>Blossom</div></div>
+        <div class="theme"><div class="sw"><i style="background:#fdf6e3"></i><i style="background:#268bd2"></i><i style="background:#859900"></i><i style="background:#2aa198"></i><i style="background:#b58900"></i></div><div>Solstice</div></div>
+        <div class="theme fonts-card"><div class="sw"><span>Aa</span><span class="mono">{ }</span></div><div>+ 27 fonts</div></div>
+      </div>
       </div>
     </section>
 

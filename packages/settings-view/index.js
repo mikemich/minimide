@@ -8,6 +8,7 @@ export function activate(mide) {
     { id: 'general', title: 'General', icon: 'gear' },
     { id: 'editor', title: 'Editor', icon: 'file' },
     { id: 'themes', title: 'Themes', icon: 'eye' },
+    { id: 'fonts', title: 'Fonts', icon: 'type' },
     { id: 'packages', title: 'Packages', icon: 'package' },
     { id: 'keybindings', title: 'Keybindings', icon: 'terminal' },
     { id: 'hack', title: 'Make It Yours', icon: 'plus' },
@@ -56,7 +57,7 @@ export function activate(mide) {
 
     renderContent() {
       const scroll = this.content.scrollTop;
-      const fn = { general: generalSection, editor: editorSection, themes: themesSection, packages: packagesSection, keybindings: keybindingsSection, hack: hackSection }[this.section];
+      const fn = { general: generalSection, editor: editorSection, themes: themesSection, fonts: fontsSection, packages: packagesSection, keybindings: keybindingsSection, hack: hackSection }[this.section];
       this.content.replaceChildren(fn(this));
       this.content.scrollTop = scroll;
     }
@@ -100,9 +101,13 @@ export function activate(mide) {
       h('div.setting-control', control(def)));
   }
 
+  // Shown in the Fonts and Themes sections instead of the generic lists.
+  const OWN_SECTION = new Set(['editor.fontFamily', 'editor.fontSize', 'editor.lineHeight', 'editor.fontLigatures', 'ui.fontFamily', 'ui.fontSize', 'ui.accentColor', 'core.theme']);
+  const defOf = (key) => mide.config.getSchema().find((d) => d.key === key);
+
   function settingsList(prefixes) {
     return mide.config.getSchema()
-      .filter((d) => !d.hidden && prefixes.some((p) => d.key.startsWith(p + '.')))
+      .filter((d) => !d.hidden && !OWN_SECTION.has(d.key) && prefixes.some((p) => d.key.startsWith(p + '.')))
       .map(settingRow);
   }
 
@@ -116,13 +121,71 @@ export function activate(mide) {
   }
 
   function editorSection() {
-    const fontPreview = h('div.font-preview', 'const greet = (name) => `Hello, ${name}!`; // 0O 1lI {}[] => !== ->');
-    return h('section', header('Editor', 'Typography, indentation and display.'), fontPreview, settingsList(['editor']));
+    return h('section', header('Editor', 'Indentation, wrapping and display. Fonts have their own section.'), settingsList(['editor']));
+  }
+
+  function fontsSection() {
+    const fonts = mide.services.get('fonts');
+    const rows = (keys) => keys.map(defOf).filter(Boolean).map(settingRow);
+    if (!fonts) {
+      return h('section', header('Fonts', 'Enable the Fonts package in Packages to get 27 bundled fonts with previews.'),
+        rows(['editor.fontFamily', 'editor.fontSize', 'editor.lineHeight', 'editor.fontLigatures', 'ui.fontFamily', 'ui.fontSize']));
+    }
+    const editorNow = fonts.currentEditor();
+    const uiNow = fonts.currentUi();
+    const code = ['const ok = (a, b) => {', '  return a !== b && a >= 0;', '}'];
+    const card = ({ family, title, detail, active, sample, onclick, tag }) =>
+      h('button.font-card', { class: active ? 'active' : '', onclick },
+        h('div.font-card-sample', { style: { fontFamily: family ? `"${family}"` : null } }, sample),
+        h('div.font-card-meta', h('span.font-card-name', title), tag ? h('span.font-card-tag', tag) : null),
+        h('div.font-card-desc', detail));
+    const codeSample = () => code.map((l) => h('div', l));
+    const systemMono = !editorNow || /^(SF Mono|Menlo|Consolas|monospace)$/.test(editorNow);
+    return h('section', header('Fonts', `${fonts.list().length} open-source fonts are built in. Click one to use it, or use any font installed on your computer.`),
+      h('h2.settings-subhead', 'Code'),
+      h('div.font-grid',
+        fonts.editorFonts().map((f) => card({ family: f.family, title: f.family, detail: f.description, active: f.family === editorNow,
+          sample: codeSample(), tag: f.ligatures ? 'ligatures' : '', onclick: () => fonts.setEditorFont(f.family) })),
+        card({ family: '', title: 'System Monospace', detail: 'SF Mono on macOS, Consolas on Windows.', active: systemMono,
+          sample: h('div.font-card-system', codeSample()), onclick: () => fonts.setEditorFont('') })),
+      rows(['editor.fontSize', 'editor.lineHeight', 'editor.fontLigatures']),
+      h('h2.settings-subhead', 'Interface'),
+      h('div.font-grid',
+        card({ family: '', title: 'System Font', detail: 'San Francisco on macOS, Segoe UI on Windows.', active: !uiNow,
+          sample: h('div.font-card-ui', h('div', 'Explorer   Search   Git'), h('div.dim', 'The quick brown fox, 1234')), onclick: () => fonts.setUiFont('') }),
+        fonts.uiFonts().map((f) => card({ family: f.family, title: f.family, detail: f.description, active: f.family === uiNow,
+          sample: h('div.font-card-ui', h('div', 'Explorer   Search   Git'), h('div.dim', 'The quick brown fox, 1234')), onclick: () => fonts.setUiFont(f.family) }))),
+      rows(['ui.fontSize']),
+      h('h2.settings-subhead', 'Custom'),
+      rows(['editor.fontFamily', 'ui.fontFamily']),
+      h('p.settings-note', 'Tip: ', h('a', { href: '#', onclick: (e) => { e.preventDefault(); mide.commands.run('fonts:select-editor-font'); } }, 'Select Editor Font'),
+        ' in the command palette previews each font live in your code.'));
+  }
+
+  // Accent presets, chosen to read well on both dark and light themes.
+  const ACCENTS = [
+    ['Blue', '#4c8dff'], ['Sky', '#38bdf8'], ['Teal', '#14b8a6'], ['Green', '#22c55e'], ['Lime', '#84cc16'], ['Amber', '#f59e0b'],
+    ['Orange', '#f97316'], ['Coral', '#ff6b6b'], ['Rose', '#f43f5e'], ['Pink', '#ec4899'], ['Purple', '#a855f7'], ['Indigo', '#6366f1'],
+  ];
+
+  function accentRow() {
+    const now = (mide.config.get('ui.accentColor') || '').toLowerCase();
+    const set = (v) => mide.config.set('ui.accentColor', v || undefined);
+    return h('div.accent-row',
+      h('button.accent-chip.theme-default', { class: !now ? 'active' : '', title: "Use the theme's own accent", onclick: () => set('') }, 'Theme'),
+      ACCENTS.map(([name, hex]) => h('button.accent-chip', { class: now === hex ? 'active' : '', title: name, style: { background: hex }, onclick: () => set(hex) })),
+      h('label.accent-chip.accent-custom', { title: 'Custom color', class: now && !ACCENTS.some(([, x]) => x === now) ? 'active' : '' },
+        h('input', { type: 'color', value: /^#[0-9a-f]{6}$/.test(now) ? now : '#4c8dff', onchange: (e) => set(e.target.value) }), '+'));
   }
 
   function themesSection() {
     const current = mide.config.get('core.theme');
-    return h('section', header('Themes', 'Themes are packages with a stylesheet of CSS variables — write your own in minutes.'),
+    const themes = mide.packages.list().filter((p) => p.theme);
+    return h('section', header('Themes', `${themes.length} themes built in. A theme is a package with one stylesheet of CSS variables: write your own in minutes.`),
+      h('h2.settings-subhead', 'Accent color'),
+      h('p.settings-desc', 'Recolor buttons, the cursor and selections on top of any theme.'),
+      accentRow(),
+      h('h2.settings-subhead', 'Theme'),
       h('div.theme-grid', mide.packages.list().filter((p) => p.theme).map((p) =>
         h('button.theme-card', { class: p.name === current ? 'active' : '', onclick: () => mide.packages.setTheme(p.name) },
           // Themes describe themselves with "swatches": [bg, accent, color, color, color] in package.json.

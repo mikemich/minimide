@@ -1,0 +1,18 @@
+{
+  "name": "glacier",
+  "displayName": "Glacier",
+  "description": "Cool, airy light theme with ice-blue and teal.",
+  "version": "0.1.0",
+  "theme": "ui",
+  "main": false,
+  "styles": [
+    "theme.css"
+  ],
+  "swatches": [
+    "#f6f9fc",
+    "#0e7490",
+    "#2563eb",
+    "#15803d",
+    "#9333ea"
+  ]
+}
