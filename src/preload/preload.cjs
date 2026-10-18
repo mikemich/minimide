@@ -80,5 +80,8 @@ contextBridge.exposeInMainWorld('native', {
 
 // Automated tests only (the main process passes --mide-test when launched in test mode).
 if (process.argv.includes('--mide-test')) {
-  contextBridge.exposeInMainWorld('mideTest', { answers: (kind, ...values) => ipcRenderer.invoke('test:answers', kind, values) });
+  contextBridge.exposeInMainWorld('mideTest', {
+    answers: (kind, ...values) => ipcRenderer.invoke('test:answers', kind, values),
+    capture: () => ipcRenderer.invoke('test:capture'),
+  });
 }

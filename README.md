@@ -1,13 +1,31 @@
+<div align="center">
+
+<img src="build/icon.png" width="96" alt="Minimide icon">
+
 # Minimide
 
 **The editor you can read in an afternoon.**
 
-Minimide is a small, beautiful code editor in the spirit of Atom. The whole thing is
-about 6,000 lines of plain JavaScript. Every feature, from the file tree to language
-servers, is a package built on the same API you get, and packages reload the moment
-you save. Make it yours.
+A small, beautiful code editor in the spirit of Atom. Every feature is a package
+you can change while it runs.
 
-![Minimide with the Nightfall theme](docs/screenshots/dark.png)
+[![MIT license](https://img.shields.io/badge/license-MIT-6aa8ff)](LICENSE)
+![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon%20%7C%20Intel-c792ea)
+![Core](https://img.shields.io/badge/core-~4k%20lines-a3d385)
+[![Download](https://img.shields.io/badge/download-latest-f0b866)](https://github.com/mikemich/minimide/releases/latest)
+
+<a href="docs/media/minimide-demo.mp4"><img src="docs/media/minimide-demo.gif" alt="Creating a package in Minimide: type one line, save, and it's live" width="840"></a>
+
+*Create a package, add a feature in one line, save: it's live. No restart.*
+
+</div>
+
+Minimide's core is about 4,000 lines of plain JavaScript, and the whole editor, all 27
+built-in packages included, is about 9,000. The file tree, git panel, terminal, language
+servers, Vim mode and every theme are packages built on the same API you get, and they
+reload the moment you save. Make it yours.
+
+![Minimide with the Nightfall theme: code, git panel and terminal](docs/screenshots/dark.png)
 
 ## Why
 
@@ -18,7 +36,7 @@ configure them, but you can't really change them.
 
 Minimide picks up Atom's idea, small enough to own:
 
-- **Readable.** The core is about 3,500 lines; the rest is packages. No framework and no
+- **Readable.** The core is about 4,000 lines; the rest is packages. No framework and no
   build magic. You can read every line that runs.
 - **Everything is a package.** The tree view, search, git, the language-server client,
   the settings screen and every theme use the same public API yours will. There's no
@@ -31,7 +49,11 @@ Minimide picks up Atom's idea, small enough to own:
 
 ## Getting started
 
-Run from source (downloadable builds are coming to the [Releases page](https://github.com/mikemich/minimide/releases)):
+**Download** the latest Mac build from the [Releases page](https://github.com/mikemich/minimide/releases/latest)
+(`-arm64.dmg` for Apple Silicon, plain `.dmg` for Intel). The app isn't notarized yet, so
+the first time you open it, allow it in **System Settings → Privacy & Security → Open Anyway**.
+
+Or run from source (Node 20+):
 
 ```bash
 npm install

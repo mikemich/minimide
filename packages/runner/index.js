@@ -65,7 +65,8 @@ export function activate(mide) {
     if (!template) return null;
     const name = base.replace(/\.[^.]+$/, '');
     const vars = {
-      file: quote(path), dir: quote(dir), base: quote(base), name: quote(name), root: quote(root),
+      // Running from the file's own folder, the short name reads better: `node 'app.js'`.
+      file: quote(cwd === dir ? base : path), dir: quote(dir), base: quote(base), name: quote(name), root: quote(root),
       out: quote(`${mide.user.platform === 'win32' ? '%TEMP%' : '/tmp'}/minimide-run-${name}`),
     };
     const command = template.replace(/\{(file|dir|base|name|root|out)\}/g, (_, k) => vars[k]);

@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Minimide: the editor you can read in an afternoon</title>
+  <meta name="description" content="A small, beautiful code editor in the spirit of Atom. Every feature is a package you can change while it runs. Free and open source.">
+  <meta property="og:title" content="Minimide: the editor you can read in an afternoon">
+  <meta property="og:description" content="A small, beautiful, hackable code editor. Every feature is a package you can change while it runs.">
+  <meta property="og:image" content="https://mikemich.github.io/minimide/media/poster.jpg">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="icon.png">
+  <style>
+    :root {
+      --bg: #12141a; --bg2: #191c23; --card: #1e2128; --line: rgba(255,255,255,.08);
+      --fg: #c9ced8; --strong: #f2f4f8; --muted: #8a92a3; --accent: #7cb4ff; --violet: #c792ea;
+      --green: #a3d385; --amber: #f0c674; --radius: 16px;
+      --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+      --mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+    .brand { display: flex; align-items: center; gap: 10px; color: var(--strong); font-weight: 650; font-size: 18px; }
+    .brand img { width: 30px; height: 30px; }
+    .nav-links { display: flex; gap: 22px; font-size: 15px; }
+    .nav-links a { color: var(--muted); }
+    .nav-links a:hover { color: var(--strong); text-decoration: none; }
+
+    .hero { text-align: center; padding: 64px 0 36px; position: relative; }
+    .hero::before { content: ''; position: absolute; inset: -80px 0 auto; height: 460px; z-index: -1;
+      background: radial-gradient(600px 260px at 50% 30%, rgba(124,180,255,.18), transparent 70%), radial-gradient(500px 220px at 62% 40%, rgba(199,146,234,.14), transparent 70%); }
+    .eyebrow { display: inline-block; padding: 5px 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 14px; margin-bottom: 26px; }
+    h1 { font-size: clamp(40px, 7vw, 72px); line-height: 1.04; letter-spacing: -.035em; color: var(--strong); margin: 0 0 20px; font-weight: 750; }
+    h1 .grad { background: linear-gradient(110deg, var(--accent), var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .lede { font-size: clamp(18px, 2.2vw, 21px); max-width: 680px; margin: 0 auto 34px; color: var(--muted); }
+    .ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 12px; font-weight: 600; font-size: 16px; border: 1px solid var(--line); color: var(--strong); background: var(--card); transition: transform .15s, background .15s; }
+    .btn:hover { text-decoration: none; transform: translateY(-1px); background: #262a33; }
+    .btn.primary { background: linear-gradient(135deg, #7cb4ff, #9d8cf5); color: #0d1120; border: 0; }
+    .btn.primary:hover { filter: brightness(1.06); }
+    .small { font-size: 14px; color: var(--muted); margin-top: 14px; }
+
+    .demo { margin: 52px auto 0; max-width: 1040px; border-radius: 18px; overflow: hidden; border: 1px solid var(--line);
+      box-shadow: 0 40px 120px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.03); background: #000; }
+    .demo video { display: block; width: 100%; height: auto; }
+
+    section { padding: 96px 0 0; }
+    h2 { font-size: clamp(30px, 4vw, 42px); letter-spacing: -.025em; color: var(--strong); margin: 0 0 14px; line-height: 1.15; }
+    .sub { color: var(--muted); max-width: 640px; margin: 0 0 40px; font-size: 18px; }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .card { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; }
+    .card h3 { margin: 0 0 8px; color: var(--strong); font-size: 19px; }
+    .card p { margin: 0; color: var(--muted); font-size: 16px; }
+    .num { font: 700 34px var(--mono); color: var(--strong); margin-bottom: 6px; letter-spacing: -.02em; }
+    .num span { color: var(--accent); }
+
+    .split { display: grid; grid-template-columns: 1fr 1.15fr; gap: 40px; align-items: center; }
+    pre { margin: 0; background: #0d0f14; border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 24px; overflow-x: auto; font: 14.5px/1.65 var(--mono); color: #d6dbe4; }
+    .k { color: #c792ea; } .f { color: #7cb4ff; } .s { color: #a3d385; } .c { color: #5f6779; font-style: italic; } .p { color: #ff9cac; }
+    .steps { list-style: none; padding: 0; margin: 24px 0 0; counter-reset: s; }
+    .steps li { counter-increment: s; padding-left: 44px; position: relative; margin-bottom: 16px; color: var(--fg); }
+    .steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 8px; background: var(--card); border: 1px solid var(--line); display: grid; place-items: center; font: 600 14px var(--mono); color: var(--accent); }
+
+    .features { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .feature { background: var(--bg2); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+    .feature b { display: block; color: var(--strong); font-size: 16px; margin-bottom: 4px; }
+    .feature span { color: var(--muted); font-size: 14.5px; line-height: 1.5; display: block; }
+
+    .shot { border-radius: var(--radius); border: 1px solid var(--line); width: 100%; display: block; box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+    .themes { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 28px; }
+    .theme { border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--bg2); }
+    .theme .sw { display: flex; height: 54px; }
+    .theme .sw i { flex: 1; } .theme .sw i:first-child { flex: 2.4; }
+    .theme div:last-child { padding: 10px 12px; font-size: 14.5px; color: var(--strong); }
+
+    .cta { text-align: center; padding: 110px 0 60px; }
+    footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+    code { font-family: var(--mono); font-size: .92em; background: var(--card); padding: 2px 6px; border-radius: 6px; color: var(--strong); }
+
+    @media (max-width: 880px) {
+      .grid3, .split { grid-template-columns: 1fr; }
+      .features { grid-template-columns: repeat(2, 1fr); }
+      .themes { grid-template-columns: repeat(3, 1fr); }
+      .nav-links a:not(.gh) { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <a class="brand" href="#"><img src="icon.png" alt="">Minimide</a>
+      <div class="nav-links">
+        <a href="#why">Why</a>
+        <a href="#hack">Hack it</a>
+        <a href="#features">Features</a>
+        <a class="gh" href="https://github.com/mikemich/minimide">GitHub ↗</a>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <span class="eyebrow">Free &amp; open source · MIT</span>
+      <h1>The editor you can<br><span class="grad">read in an afternoon.</span></h1>
+      <p class="lede">A small, beautiful code editor in the spirit of Atom. Every feature is a package, and you can change any of them while it runs.</p>
+      <div class="ctas">
+        <a class="btn primary" href="https://github.com/mikemich/minimide/releases/latest">Download for Mac</a>
+        <a class="btn" href="https://github.com/mikemich/minimide">Read the source ↗</a>
+      </div>
+      <p class="small">Apple Silicon &amp; Intel · Windows and Linux builds from source</p>
+      <div class="demo">
+        <video src="media/minimide-demo.mp4" poster="media/poster.jpg" autoplay muted loop playsinline aria-label="Creating a package in Minimide: type one line, save, and it's live"></video>
+      </div>
+    </header>
+
+    <section id="why">
+      <h2>Your editor should be yours.</h2>
+      <p class="sub">Atom made hacking your tools feel fun. Editors have since grown into platforms nobody fully understands: you can configure them, but you can't really change them. Minimide is small enough to own.</p>
+      <div class="grid3">
+        <div class="card"><div class="num">~4<span>k</span></div><h3>Lines in the core</h3><p>Plain JavaScript. No framework, no build magic. Every line that runs is one you can read.</p></div>
+        <div class="card"><div class="num">27</div><h3>Built-in packages</h3><p>Tree view, git, terminal, language servers, Vim, themes, even settings: all on the same public API you get.</p></div>
+        <div class="card"><div class="num">0<span>s</span></div><h3>Restarts to see a change</h3><p>Save a package, your stylesheet or keymap and it reloads instantly. Tweak the editor while you use it.</p></div>
+      </div>
+    </section>
+
+    <section id="hack">
+      <div class="split">
+        <div>
+          <h2>A new feature is a few lines.</h2>
+          <p class="sub" style="margin-bottom:0">Packages are plain ES modules with access to commands, keybindings, settings, panels, the terminal, language servers and CodeMirror itself.</p>
+          <ol class="steps">
+            <li>Run <b>Packages: Create New Package</b> from the command palette.</li>
+            <li>Write some code. The full API is documented in one page.</li>
+            <li>Save. It's live, and everything cleans itself up when you turn it off.</li>
+          </ol>
+        </div>
+<pre><span class="c">// ~/.minimide/packages/word-goal/index.js</span>
+<span class="k">export function</span> <span class="f">activate</span>(<span class="p">mide</span>) {
+  <span class="k">const</span> label = mide.ui.<span class="f">h</span>(<span class="s">'span'</span>);
+  mide.statusBar.<span class="f">addItem</span>({ element: label, align: <span class="s">'right'</span> });
+
+  mide.workspace.<span class="f">onDidUpdateEditor</span>((editor) =&gt; {
+    <span class="k">const</span> words = editor.<span class="f">getText</span>().<span class="f">split</span>(<span class="s">/\s+/</span>).length;
+    label.textContent = <span class="s">`✍️ ${words} / 500`</span>;
+  });
+
+  mide.commands.<span class="f">add</span>(<span class="s">'word-goal:reset'</span>, <span class="s">'Reset Goal'</span>, () =&gt;
+    mide.notify.<span class="f">success</span>(<span class="s">'Fresh start!'</span>));
+}</pre>
+      </div>
+    </section>
+
+    <section id="features">
+      <h2>Small, not bare.</h2>
+      <p class="sub">Simple by default, with power tools a keystroke away.</p>
+      <div class="features">
+        <div class="feature"><b>Language servers</b><span>Completions with auto-import, diagnostics, hover, go to definition, rename, code actions.</span></div>
+        <div class="feature"><b>Real terminal</b><span>Tabs, your own shell, clickable <code>file:line</code> output.</span></div>
+        <div class="feature"><b>One-key run</b><span>F5 runs Python, JS/TS, Go, Rust, C/C++ and more. ⌘⇧B runs tasks.</span></div>
+        <div class="feature"><b>Git panel</b><span>Stage, commit, push, pull, side-by-side diffs, blame and gutter markers.</span></div>
+        <div class="feature"><b>Command palette</b><span>Every action by name, plus a fuzzy file finder with <code>file:42</code>.</span></div>
+        <div class="feature"><b>Vim mode</b><span>Motions, registers, macros, <code>:w</code> and <code>:q</code>. Off until you want it.</span></div>
+        <div class="feature"><b>Snippets</b><span>Tab-expand built-ins, or paste your VS Code snippet files.</span></div>
+        <div class="feature"><b>And more</b><span>Sticky scroll, minimap, image viewer, Markdown preview, project-wide replace.</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Beautiful by default.</h2>
+      <p class="sub">Five themes built in. A theme is one CSS file of variables: write your own in minutes.</p>
+      <img class="shot" src="screenshots/dark.png" alt="Minimide with the Nightfall theme: code, git panel and terminal" loading="lazy">
+      <div class="themes">
+        <div class="theme"><div class="sw"><i style="background:#1e2128"></i><i style="background:#6aa8ff"></i><i style="background:#c792ea"></i><i style="background:#a3d385"></i><i style="background:#f0b866"></i></div><div>Nightfall</div></div>
+        <div class="theme"><div class="sw"><i style="background:#000"></i><i style="background:#7df9ff"></i><i style="background:#ff6ac1"></i><i style="background:#5af78e"></i><i style="background:#f3f99d"></i></div><div>Midnight</div></div>
+        <div class="theme"><div class="sw"><i style="background:#2b303b"></i><i style="background:#88c0d0"></i><i style="background:#b48ead"></i><i style="background:#a3be8c"></i><i style="background:#ebcb8b"></i></div><div>Fjord</div></div>
+        <div class="theme"><div class="sw"><i style="background:#fbfbfa"></i><i style="background:#2f6fed"></i><i style="background:#a33ea1"></i><i style="background:#3c8a2e"></i><i style="background:#b4690e"></i></div><div>Daylight</div></div>
+        <div class="theme"><div class="sw"><i style="background:#f4ecdf"></i><i style="background:#b5532f"></i><i style="background:#7a4f9c"></i><i style="background:#5f7a2c"></i><i style="background:#a86a12"></i></div><div>Dune</div></div>
+      </div>
+    </section>
+
+    <div class="cta">
+      <h2>Make it yours.</h2>
+      <p class="sub" style="margin:0 auto 30px">Download it, read it, change it. Then show us what you built.</p>
+      <div class="ctas">
+        <a class="btn primary" href="https://github.com/mikemich/minimide/releases/latest">Download for Mac</a>
+        <a class="btn" href="https://github.com/mikemich/minimide/blob/master/docs/PLUGINS.md">Plugin API ↗</a>
+      </div>
+    </div>
+
+    <footer>
+      <span>Minimide · MIT licensed · made by <a href="https://github.com/mikemich">@mikemich</a></span>
+      <span><a href="https://github.com/mikemich/minimide">GitHub</a> · <a href="https://github.com/mikemich/minimide/issues">Issues</a> · <a href="https://github.com/mikemich/minimide/releases">Releases</a></span>
+    </footer>
+  </div>
+</body>
+</html>

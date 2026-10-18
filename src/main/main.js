@@ -195,9 +195,11 @@ const procs = new Map(); // `${wcId}:${id}` -> ChildProcess
 const ptys = new Map(); // `${wcId}:${id}` -> IPty
 
 function createWindow(projectPath, { restore = false } = {}) {
+  // Test mode: MINIMIDE_WINDOW=1440x810 sets the window size (used for demo recordings).
+  const [testW, testH] = (SCREENSHOT && process.env.MINIMIDE_WINDOW || '').split('x').map(Number);
   const win = new BrowserWindow({
-    width: 1280,
-    height: 820,
+    width: testW || 1280,
+    height: testH || 820,
     minWidth: 520,
     minHeight: 360,
     show: false,
@@ -385,6 +387,13 @@ function registerIpc() {
   const testAnswers = { confirm: [], saveAs: [], openFolder: [], openFile: [] };
   const scripted = (kind) => (SCREENSHOT && testAnswers[kind].length ? { value: testAnswers[kind].shift() } : null);
   if (SCREENSHOT) handle('test:answers', (_e, kind, values) => { testAnswers[kind].push(...values); });
+  // Test mode: capture the window as numbered JPEG frames in $MINIMIDE_FRAMES (for demo videos).
+  let frameNo = 0;
+  if (SCREENSHOT && process.env.MINIMIDE_FRAMES) handle('test:capture', async (event) => {
+    const img = await event.sender.capturePage();
+    const sized = img.getSize().width > 1920 ? img.resize({ width: 1920, quality: 'best' }) : img;
+    await fs.writeFile(path.join(process.env.MINIMIDE_FRAMES, `frame-${String(frameNo++).padStart(5, '0')}.jpg`), sized.toJPEG(92));
+  });
 
   handle('dialog:openFolder', async (event) => {
     const s = scripted('openFolder'); if (s) return s.value;
