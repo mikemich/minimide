@@ -9,6 +9,7 @@ import { selectList, prompt, notify, Dock, StatusBar, closeModal } from './core/
 import { h, basename } from './core/dom.js';
 import { registerCoreCommands, CORE_KEYMAP } from './core/core-commands.js';
 import { CORE_SCHEMA } from './core/schema.js';
+import { bindThemedAppIcon, renderAppIcon } from './core/app-icon.js';
 
 // ui.accentColor overrides the theme's accent and everything derived from it.
 // Inline styles on <html> beat the theme's :root rules, so this survives theme switches.
@@ -95,6 +96,8 @@ class App {
 
     await this.runInitScript();
     document.body.classList.add('ready');
+    bindThemedAppIcon(this);
+    this.renderAppIcon = renderAppIcon;
     // Daily update check (skipped in automated test runs).
     if (this.config.get('core.checkForUpdates') !== false && !window.mideTest && Date.now() - (this.state.lastUpdateCheck || 0) > 24 * 3600 * 1000) {
       setTimeout(() => this.checkForUpdates({ manual: false }), 8000);

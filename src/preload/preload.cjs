@@ -93,6 +93,7 @@ contextBridge.exposeInMainWorld('native', {
     toggleDevTools: call('window:toggleDevTools'),
     reload: call('window:reload'),
     onCommand: (fn) => on('app:command', fn),
+    setAppIcon: call('window:setAppIcon'),
     onRequestClose: (fn) => on('app:request-close', fn),
     onOpenPath: (fn) => on('app:open-path', fn),
   },

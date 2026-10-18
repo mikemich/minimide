@@ -102,7 +102,7 @@ export function activate(mide) {
   }
 
   // Shown in the Fonts and Themes sections instead of the generic lists.
-  const OWN_SECTION = new Set(['editor.fontFamily', 'editor.fontSize', 'editor.lineHeight', 'editor.fontLigatures', 'ui.fontFamily', 'ui.fontSize', 'ui.accentColor', 'core.theme']);
+  const OWN_SECTION = new Set(['editor.fontFamily', 'editor.fontSize', 'editor.lineHeight', 'editor.fontLigatures', 'ui.fontFamily', 'ui.fontSize', 'ui.accentColor', 'ui.themedAppIcon', 'core.theme']);
   const defOf = (key) => mide.config.getSchema().find((d) => d.key === key);
 
   function settingsList(prefixes) {
@@ -168,6 +168,17 @@ export function activate(mide) {
     ['Orange', '#f97316'], ['Coral', '#ff6b6b'], ['Rose', '#f43f5e'], ['Pink', '#ec4899'], ['Purple', '#a855f7'], ['Indigo', '#6366f1'],
   ];
 
+  function appIconRow() {
+    const img = h('img.app-icon-preview', { alt: 'App icon', width: 64, height: 64 });
+    // Give a just-switched theme's stylesheet a moment to apply before drawing.
+    setTimeout(async () => { const url = await mide.ui.renderAppIcon(); if (url) img.src = url; }, 250);
+    const def = defOf('ui.themedAppIcon');
+    return h('div.app-icon-row', img, h('div.app-icon-text',
+      h('div.setting-title', 'App icon'),
+      h('div.setting-desc', 'The Dock icon follows your theme, accent color and editor font.')),
+      def ? h('div.setting-control', control(def)) : null);
+  }
+
   function accentRow() {
     const now = (mide.config.get('ui.accentColor') || '').toLowerCase();
     const set = (v) => mide.config.set('ui.accentColor', v || undefined);
@@ -185,6 +196,7 @@ export function activate(mide) {
       h('h2.settings-subhead', 'Accent color'),
       h('p.settings-desc', 'Recolor buttons, the cursor and selections on top of any theme.'),
       accentRow(),
+      appIconRow(),
       h('h2.settings-subhead', 'Theme'),
       h('div.theme-grid', mide.packages.list().filter((p) => p.theme).map((p) =>
         h('button.theme-card', { class: p.name === current ? 'active' : '', onclick: () => mide.packages.setTheme(p.name) },

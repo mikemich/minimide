@@ -1,5 +1,5 @@
 // Minimide main process: windows, the mide:// protocol, and the native bridge.
-import { app, BrowserWindow, Menu, protocol, ipcMain, dialog, shell, clipboard, nativeTheme, session, net } from 'electron';
+import { app, BrowserWindow, Menu, protocol, ipcMain, dialog, shell, clipboard, nativeTheme, session, net, nativeImage } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import fss from 'node:fs';
@@ -697,6 +697,17 @@ function registerIpc() {
     clearTimeout(BrowserWindow.fromWebContents(event.sender)?.__closeTimer);
   });
   handle('window:toggleDevTools', (event) => event.sender.toggleDevTools());
+  // The renderer draws an icon in the theme's colors; null puts the stock icon back.
+  handle('window:setAppIcon', (event, dataUrl) => {
+    let img = typeof dataUrl === 'string' && dataUrl.startsWith('data:image/png;base64,') ? nativeImage.createFromDataURL(dataUrl) : null;
+    if (!img || img.isEmpty()) {
+      const stock = app.isPackaged && process.platform === 'darwin' ? path.join(process.resourcesPath, 'icon.icns') : path.join(ROOT, 'build/icon.png');
+      img = nativeImage.createFromPath(stock);
+      if (img.isEmpty()) return;
+    }
+    if (process.platform === 'darwin') app.dock?.setIcon(img);
+    else BrowserWindow.fromWebContents(event.sender)?.setIcon(img);
+  });
   handle('window:reload', (event) => event.sender.reload());
 }
 

@@ -12,6 +12,7 @@ export const CORE_SCHEMA = {
   'ui.fontSize': { type: 'number', default: 13, title: 'UI Font Size' },
   'ui.fontFamily': { type: 'string', default: '', title: 'UI Font', description: 'Font for menus, panels and tabs. Empty uses the system font.' },
   'ui.accentColor': { type: 'string', default: '', title: 'Accent Color', description: 'Overrides the theme\'s accent (buttons, cursor, selection), e.g. #ff7a59. Empty uses the theme\'s own.' },
+  'ui.themedAppIcon': { type: 'boolean', default: true, title: 'Themed App Icon', description: 'Color the Dock (or taskbar) icon to match the theme, accent and editor font.' },
   'ui.compactTabs': { type: 'boolean', default: false, title: 'Compact Tabs' },
   'editor.fontFamily': { type: 'string', default: '"JetBrains Mono", "SF Mono", "Fira Code", Menlo, Consolas, monospace', title: 'Font Family' },
   'editor.fontSize': { type: 'number', default: 14, title: 'Font Size' },

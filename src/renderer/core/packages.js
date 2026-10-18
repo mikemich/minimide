@@ -374,6 +374,8 @@ export class PackageManager extends Emitter {
         contextMenu: (items) => window.native.menu.popup(items),
         fuzzyFilter, fuzzyMatch, highlightMatches,
         setWelcomeTip: (tip) => track(app.addWelcomeTip(tip)),
+        /** PNG data URL of the app icon drawn in the current theme's colors. */
+        renderAppIcon: () => app.renderAppIcon?.() ?? null,
       },
       notify: app.ui.notify,
       sidebar: {
