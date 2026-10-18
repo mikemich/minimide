@@ -84,6 +84,7 @@
 
     .cta { text-align: center; padding: 110px 0 60px; }
     footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+    .install { margin-top: 14px; } .install code { font-size: 13px; padding: 8px 12px; user-select: all; white-space: nowrap; display: inline-block; max-width: 100%; overflow-x: auto; vertical-align: middle; }
     code { font-family: var(--mono); font-size: .92em; background: var(--card); padding: 2px 6px; border-radius: 6px; color: var(--strong); }
 
     @media (max-width: 880px) {
@@ -115,7 +116,8 @@
         <a class="btn primary" href="https://github.com/mikemich/minimide/releases/latest">Download for Mac</a>
         <a class="btn" href="https://github.com/mikemich/minimide">Read the source ↗</a>
       </div>
-      <p class="small">Apple Silicon &amp; Intel · Windows and Linux builds from source</p>
+      <p class="small">macOS (Apple Silicon &amp; Intel) · Windows · Linux · free and open source</p>
+      <p class="install"><code>curl -fsSL https://mikemich.github.io/minimide/install.sh | sh</code></p>
       <div class="demo">
         <video src="media/minimide-demo.mp4" poster="media/poster.jpg" autoplay muted loop playsinline aria-label="Creating a package in Minimide: type one line, save, and it's live"></video>
       </div>
@@ -125,7 +127,7 @@
       <h2>Your editor should be yours.</h2>
       <p class="sub">Atom made hacking your tools feel fun. Editors have since grown into platforms nobody fully understands: you can configure them, but you can't really change them. Minimide is small enough to own.</p>
       <div class="grid3">
-        <div class="card"><div class="num">~4<span>k</span></div><h3>Lines in the core</h3><p>Plain JavaScript. No framework, no build magic. Every line that runs is one you can read.</p></div>
+        <div class="card"><div class="num">~5<span>k</span></div><h3>Lines in the core</h3><p>Plain JavaScript. No framework, no build magic. Every line that runs is one you can read.</p></div>
         <div class="card"><div class="num">42</div><h3>Built-in packages</h3><p>Tree view, git, terminal, language servers, Vim, themes, even settings: all on the same public API you get.</p></div>
         <div class="card"><div class="num">0<span>s</span></div><h3>Restarts to see a change</h3><p>Save a package, your stylesheet or keymap and it reloads instantly. Tweak the editor while you use it.</p></div>
       </div>

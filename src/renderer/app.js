@@ -77,6 +77,8 @@ class App {
 
     window.native.fs.watch(this.userInfo.dir, 'user');
     window.native.fs.onChange((paths, key) => { if (key === 'user') this.onUserFilesChanged(paths); });
+    window.native.fs.onWatchLimited((root, count) => this.ui.notify.warn('Not every folder is being watched',
+      `This project has more than ${count.toLocaleString()} folders, so changes made outside Minimide in some of them won't show up until you reopen the folder. To watch more, raise the limit: sudo sysctl fs.inotify.max_user_watches=524288`));
     window.native.window.onCommand((id) => this.commands.run(id));
     window.native.window.onRequestClose(() => this.requestClose());
     window.native.window.onOpenPath((p) => this.workspace.open(p));
@@ -93,6 +95,10 @@ class App {
 
     await this.runInitScript();
     document.body.classList.add('ready');
+    // Daily update check (skipped in automated test runs).
+    if (this.config.get('core.checkForUpdates') !== false && !window.mideTest && Date.now() - (this.state.lastUpdateCheck || 0) > 24 * 3600 * 1000) {
+      setTimeout(() => this.checkForUpdates({ manual: false }), 8000);
+    }
   }
 
   // --- appearance ----------------------------------------------------------
@@ -106,6 +112,48 @@ class App {
     this.config.observe('editor.fontLigatures', (v) => root.setProperty('--editor-ligatures', v === false ? 'none' : 'contextual'));
     this.config.observe('ui.accentColor', (v) => applyAccent(root, v));
     this.config.observe('ui.compactTabs', (v) => document.body.classList.toggle('compact-tabs', !!v));
+  }
+
+  // --- updates -------------------------------------------------------------
+  async checkForUpdates({ manual = true } = {}) {
+    const { notify } = this.ui;
+    const open = (url) => window.native.shell.openExternal(url);
+    let info;
+    try { info = await window.native.updates.check(); } catch (err) {
+      if (manual) notify.error("Couldn't check for updates", String(err.message).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''));
+      return;
+    }
+    this.state.lastUpdateCheck = Date.now();
+    this.persistState();
+    if (!info.available) { if (manual) notify.success("You're up to date", `Minimide ${info.current} is the latest version.`); return; }
+    if (await window.native.updates.staged() === info.version) return this.updateReady(info.version);
+    notify.info(`Minimide ${info.version} is available`, `You have ${info.current}.`, {
+      timeout: 0,
+      actions: [
+        info.canInstall ? { label: 'Update and Restart', run: () => this.installUpdate(info) } : { label: 'Download', run: () => open(info.url) },
+        { label: "What's New", run: () => open(info.url) },
+      ],
+    });
+  }
+
+  async installUpdate(info) {
+    const label = h('span', `Downloading ${info.version}…`);
+    const item = this.statusBar.addItem({ id: 'update-progress', element: label, align: 'right', priority: 1 });
+    const off = window.native.updates.onProgress((f) => { label.textContent = `Downloading ${info.version}… ${Math.round(f * 100)}%`; });
+    try {
+      await window.native.updates.prepare(info);
+      this.updateReady(info.version);
+    } catch (err) {
+      this.ui.notify.error("Couldn't update Minimide", String(err.message).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''), {
+        actions: [{ label: 'Open Releases Page', run: () => window.native.shell.openExternal(info.url) }],
+      });
+    } finally { off(); item.dispose(); }
+  }
+
+  updateReady(version) {
+    this.ui.notify.success(`Minimide ${version} is ready`, "Restart to finish updating. If you don't, it's installed the next time you quit.", {
+      timeout: 0, actions: [{ label: 'Restart Now', run: () => window.native.updates.restart() }],
+    });
   }
 
   // --- project -------------------------------------------------------------
@@ -140,9 +188,27 @@ class App {
     return this.fileCache.promise;
   }
 
-  invalidateFileCache() {
-    // Any change may be an add, delete or rename: re-list lazily on the next finder open.
-    this.fileCache = null;
+  // Patch the cached file list instead of re-listing the whole project (slow on big repos).
+  // A large burst (a branch switch, npm install…) just drops the cache and re-lists lazily.
+  async invalidateFileCache(paths) {
+    const cache = this.fileCache;
+    if (!cache) return;
+    if (!cache.set || !paths || paths.length > 300) { this.fileCache = null; return; }
+    const ignored = new Set(this.config.get('core.ignoredNames') || []);
+    for (const p of paths) {
+      if (!p.startsWith(cache.root + '/')) continue;
+      if (p.slice(cache.root.length + 1).split('/').some((s) => ignored.has(s))) continue;
+      const stat = await window.native.fs.stat(p).catch(() => null);
+      if (this.fileCache !== cache) return;
+      if (stat?.isFile) cache.set.add(p);
+      else if (!stat) {
+        cache.set.delete(p);
+        // A deleted or renamed folder takes its files with it.
+        const prefix = p + '/';
+        for (const f of cache.set) if (f.startsWith(prefix)) cache.set.delete(f);
+      } else if (stat.isDir) { this.fileCache = null; return; } // a new folder: re-list to pick up its contents
+    }
+    cache.promise = Promise.resolve([...cache.set]);
   }
 
   // --- processes -----------------------------------------------------------
@@ -249,6 +315,8 @@ class App {
       for (const dirName of names) {
         await this.packages.discover();
         const pkg = [...this.packages.packages.values()].find((p) => p.meta.dir.endsWith(`/${dirName}`));
+        // The package manager just put this folder in place and activated it; don't reload it again.
+        if (pkg && (this.packages.justInstalled.get(pkg.meta.name) || 0) > Date.now()) continue;
         if (pkg && !this.packages.isDisabled(pkg.meta.name) && (!this.packages.isTheme(pkg) || pkg.active)) {
           clearTimeout(this.reloadTimers?.[dirName]);
           this.reloadTimers = { ...this.reloadTimers, [dirName]: setTimeout(async () => {

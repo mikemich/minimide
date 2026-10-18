@@ -1,5 +1,5 @@
 // Minimide main process: windows, the mide:// protocol, and the native bridge.
-import { app, BrowserWindow, Menu, protocol, ipcMain, dialog, shell, clipboard, nativeTheme, session } from 'electron';
+import { app, BrowserWindow, Menu, protocol, ipcMain, dialog, shell, clipboard, nativeTheme, session, net } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import fss from 'node:fs';
@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { spawn, execFile } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { Worker } from 'node:worker_threads';
+import { createPackageManager } from './package-manager.js';
+import { createUpdater } from './updater.js';
 
 // node-pty is native and optional: without it the terminal falls back gracefully.
 let pty = null;
@@ -100,8 +102,18 @@ async function readPackageDir(dir, builtin) {
 }
 
 let packageIndex = new Map();
+let builtinNames = new Set();
+const packageManager = createPackageManager({
+  userDir: USER_DIR, packagesDir: USER_PACKAGES, builtinNames: () => builtinNames,
+  trash: (p) => shell.trashItem(p), version: app.getVersion(),
+});
 async function listPackages() {
-  const all = [...await readPackageDir(BUILTIN_PACKAGES, true), ...await readPackageDir(USER_PACKAGES, false)];
+  const builtin = await readPackageDir(BUILTIN_PACKAGES, true);
+  builtinNames = new Set(builtin.map((p) => p.name));
+  // Packages installed with the package manager carry what the user agreed to (access, permissions).
+  const records = await packageManager.records();
+  const user = (await readPackageDir(USER_PACKAGES, false)).map((p) => ({ ...p, install: records[p.name] || null }));
+  const all = [...builtin, ...user];
   packageIndex = new Map(all.map((p) => [p.name, p])); // user packages override built-ins
   return [...packageIndex.values()];
 }
@@ -136,13 +148,16 @@ async function handleProtocol(request) {
   if (!file) return new Response('Not found', { status: 404 });
   try {
     const body = await fs.readFile(file);
-    return new Response(body, {
-      headers: {
-        'content-type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
-        'access-control-allow-origin': '*',
-        'cache-control': 'no-store',
-      },
-    });
+    const headers = {
+      'content-type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
+      'access-control-allow-origin': '*',
+      'cache-control': 'no-store',
+    };
+    // Sandboxed packages run in this worker. Its policy allows loading code from mide:// and
+    // nothing else: no fetch, WebSocket, beacons or remote scripts, so it has no way out
+    // except asking the editor, which checks the package's permissions.
+    if (url.host === 'app' && parts.join('/') === 'sandbox-worker.js') headers['content-security-policy'] = "default-src 'none'; script-src mide:";
+    return new Response(body, { headers });
   } catch {
     return new Response('Not found', { status: 404 });
   }
@@ -153,21 +168,57 @@ async function handleProtocol(request) {
 
 const DEFAULT_IGNORES = new Set(['.git', 'node_modules', '.DS_Store', '.hg', '.svn', 'dist', 'build', '.next', '__pycache__', '.venv', 'target']);
 
-async function walk(root, { ignored = DEFAULT_IGNORES, limit = 50000 } = {}) {
+const FILE_LIMIT = 250000;
+
+// Lists files breadth-first, reading several directories at once (much faster on cold disks).
+async function walk(root, { ignored = DEFAULT_IGNORES, limit = FILE_LIMIT } = {}) {
   const files = [];
-  const stack = [root];
-  while (stack.length && files.length < limit) {
-    const dir = stack.pop();
-    let entries;
-    try { entries = await fs.readdir(dir, { withFileTypes: true }); } catch { continue; }
-    for (const e of entries) {
-      if (ignored.has(e.name)) continue;
-      const full = path.join(dir, e.name);
-      if (e.isDirectory()) stack.push(full);
-      else if (e.isFile()) files.push(full);
-    }
+  let queue = [root];
+  while (queue.length && files.length < limit) {
+    const batch = queue.splice(0, 32);
+    const listings = await Promise.all(batch.map((dir) => fs.readdir(dir, { withFileTypes: true }).catch(() => [])));
+    listings.forEach((entries, i) => {
+      for (const e of entries) {
+        if (ignored.has(e.name)) continue;
+        const full = path.join(batch[i], e.name);
+        if (e.isDirectory()) queue.push(full);
+        else if (e.isFile() && files.length < limit) files.push(full);
+      }
+    });
   }
   return files;
+}
+
+// Linux: Node's recursive fs.watch adds an inotify watch for every directory, including
+// node_modules, and fails with ENOSPC on big projects. Watch only directories we care about,
+// stop at a budget, and add watches for directories created later.
+const LINUX_WATCH_BUDGET = 20000;
+function watchTree(root, ignored, onEvent, onLimit) {
+  const dirs = new Map(); // dir -> FSWatcher
+  let closed = false;
+  let limited = false;
+  const add = async (dir) => {
+    if (closed || dirs.has(dir)) return;
+    if (dirs.size >= LINUX_WATCH_BUDGET) { if (!limited) { limited = true; onLimit(dirs.size); } return; }
+    try {
+      const w = fss.watch(dir, (_type, name) => {
+        if (!name) return;
+        const full = path.join(dir, name);
+        onEvent(full);
+        if (!ignored.has(name)) fs.stat(full).then((s) => { if (s.isDirectory()) add(full); }, () => { dirs.get(full)?.close(); dirs.delete(full); });
+      });
+      w.on('error', () => { w.close(); dirs.delete(dir); });
+      dirs.set(dir, w);
+    } catch (err) {
+      if (err.code === 'ENOSPC' && !limited) { limited = true; onLimit(dirs.size); }
+      return;
+    }
+    let entries = [];
+    try { entries = await fs.readdir(dir, { withFileTypes: true }); } catch {}
+    for (const e of entries) if (e.isDirectory() && !ignored.has(e.name)) await add(path.join(dir, e.name));
+  };
+  add(root);
+  return { close() { closed = true; for (const w of dirs.values()) w.close(); dirs.clear(); } };
 }
 
 const SEARCH_WORKER = path.join(ROOT, 'src/main/search-worker.cjs');
@@ -177,9 +228,22 @@ let searchWorkerSource = null;
 async function searchProject(root, query, { regex = false, caseSensitive = false, ignored, maxResults = 2000 } = {}, timeoutMs = 15000) {
   searchWorkerSource ??= await fs.readFile(SEARCH_WORKER, 'utf8'); // read via fs so it also works inside app.asar
   const worker = new Worker(searchWorkerSource, { eval: true, workerData: { root, query, regex, caseSensitive, ignored: ignored || [...DEFAULT_IGNORES], maxResults } });
+  const results = [];
   return new Promise((resolve) => {
-    const timer = setTimeout(() => { worker.terminate(); resolve({ error: 'Search took too long and was stopped. If you used a regular expression, try a simpler one.', results: [] }); }, timeoutMs);
-    worker.once('message', (r) => { clearTimeout(timer); worker.terminate(); resolve(r); });
+    // On timeout keep what was found so far; a stuck regex is the usual cause, a huge cold repo the other.
+    const timer = setTimeout(() => {
+      worker.terminate();
+      resolve({ results, truncated: true, timedOut: true, notice: regex
+        ? `Search stopped after ${timeoutMs / 1000}s. Showing what was found so far; a simpler regular expression may help.`
+        : `Search stopped after ${timeoutMs / 1000}s. Showing what was found so far; narrow it with a folder filter.` });
+    }, timeoutMs);
+    worker.on('message', (m) => {
+      if (m.partial) { results.push(...m.partial); return; }
+      clearTimeout(timer);
+      worker.terminate();
+      if (m.error) return resolve({ error: m.error, results: [] });
+      resolve({ results, truncated: m.truncated, notice: m.filesLimited ? `Searched the first ${m.searched.toLocaleString()} files only. Use a folder filter to search the rest.` : undefined });
+    });
     worker.once('error', (err) => { clearTimeout(timer); resolve({ error: err.message, results: [] }); });
   });
 }
@@ -193,6 +257,9 @@ let quitting = false;
 const watchers = new Map(); // `${webContents.id}:${key}` -> FSWatcher
 const procs = new Map(); // `${wcId}:${id}` -> ChildProcess
 const ptys = new Map(); // `${wcId}:${id}` -> IPty
+// Exits we're still waiting for. node-pty aborts the process if an exit arrives while Node is
+// shutting down, so quitting waits for these first (see will-quit).
+const pendingPtyExits = new Set();
 
 function createWindow(projectPath, { restore = false } = {}) {
   // Test mode: MINIMIDE_WINDOW=1440x810 sets the window size (used for demo recordings).
@@ -303,6 +370,9 @@ function sendCommand(id) {
   focusedWin()?.webContents.send('app:command', id);
 }
 
+const updater = createUpdater({ devBuild: DEV_BUILD });
+let restartAfterUpdate = false;
+
 // ---------------------------------------------------------------------------
 // IPC
 
@@ -342,6 +412,7 @@ function registerIpc() {
   handle('fs:copy', (_e, from, to) => fs.cp(from, to, { recursive: true, errorOnExist: true, force: false }));
   handle('fs:rename', (_e, a, b) => fs.rename(a, b));
   handle('fs:trash', (_e, p) => shell.trashItem(p));
+  handle('fs:realpath', (_e, p) => fs.realpath(p).catch(() => null));
   handle('fs:watch', (event, root, key = 'project') => {
     const id = `${event.sender.id}:${key}`;
     watchers.get(id)?.close();
@@ -349,17 +420,30 @@ function registerIpc() {
     if (!root) return;
     try {
       let timer = null;
+      let firstAt = 0;
       const changed = new Set();
-      const w = fss.watch(root, { recursive: true }, (_type, filename) => {
-        if (!filename || filename.split(path.sep).some((s) => s === '.git' || s === 'node_modules')) return;
-        changed.add(path.join(root, filename));
+      const flush = () => {
+        timer = null;
+        if (!event.sender.isDestroyed()) event.sender.send('fs:changed', [...changed], key);
+        changed.clear();
+      };
+      const onEvent = (full) => {
+        if (path.relative(root, full).split(path.sep).some((s) => s === '.git' || s === 'node_modules')) return;
+        if (!changed.size) firstAt = Date.now();
+        changed.add(full);
         clearTimeout(timer);
-        timer = setTimeout(() => {
-          if (!event.sender.isDestroyed()) event.sender.send('fs:changed', [...changed], key);
-          changed.clear();
-        }, 120);
-      });
-      w.on('error', () => {});
+        // Debounce, but never hold changes back for more than half a second (e.g. during a build).
+        timer = setTimeout(flush, Date.now() - firstAt > 500 ? 0 : 120);
+      };
+      let w;
+      if (process.platform === 'linux') {
+        w = watchTree(root, DEFAULT_IGNORES, onEvent, (count) => {
+          if (!event.sender.isDestroyed()) event.sender.send('fs:watchLimited', root, count);
+        });
+      } else {
+        w = fss.watch(root, { recursive: true }, (_type, filename) => { if (filename) onEvent(path.join(root, filename)); });
+        w.on('error', () => {});
+      }
       watchers.set(id, w);
     } catch (err) {
       console.warn('[watch]', err.message);
@@ -536,6 +620,8 @@ function registerIpc() {
     delete env.ELECTRON_RUN_AS_NODE;
     let cwd = opts.cwd && safeIsDir(opts.cwd) ? opts.cwd : os.homedir();
     const term = pty.spawn(shell, args, { name: 'xterm-256color', cols: opts.cols || 80, rows: opts.rows || 24, cwd, env });
+    const exited = new Promise((resolve) => term.onExit(resolve)).then(() => pendingPtyExits.delete(exited));
+    pendingPtyExits.add(exited);
     try { ptys.get(key)?.kill(); } catch {}
     ptys.set(key, term);
     // Coalesce output so a flood (e.g. `cat bigfile`) doesn't drown the IPC channel.
@@ -563,6 +649,34 @@ function registerIpc() {
   // user dir, packages & state
   handle('user:info', () => ({ appRoot: ROOT, dir: USER_DIR, packagesDir: USER_PACKAGES, platform: process.platform, home: os.homedir(), shell: USER_SHELL, version: app.getVersion() }));
   handle('packages:list', () => listPackages());
+  handle('update:check', () => updater.check());
+  handle('update:prepare', (event, info) => updater.prepare(info, (fraction) => {
+    if (!event.sender.isDestroyed()) event.sender.send('update:progress', fraction);
+  }));
+  handle('update:staged', () => updater.stagedVersion());
+  // Quit through the normal path (so unsaved changes are still confirmed); will-quit applies it.
+  handle('update:restart', () => { restartAfterUpdate = true; app.quit(); });
+  handle('pkgmgr:stage', (_e, source) => packageManager.stage(source));
+  handle('pkgmgr:install', (_e, id, grant) => packageManager.install(id, grant));
+  handle('pkgmgr:discard', (_e, id) => packageManager.discard(id));
+  handle('pkgmgr:uninstall', (_e, name) => packageManager.uninstall(name));
+  handle('pkgmgr:grant', (_e, name, permissions, access) => packageManager.grant(name, permissions, access));
+  handle('pkgmgr:checkUpdates', () => packageManager.checkUpdates());
+  handle('pkgmgr:search', (_e, query) => packageManager.search(query));
+  handle('pkgmgr:permissions', () => packageManager.PERMISSIONS);
+  // Network access for sandboxed packages that were granted "network". http(s) only, size- and time-limited.
+  handle('net:fetch', async (_e, url, opts = {}) => {
+    const u = new URL(url);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error('Only http and https URLs can be fetched.');
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30000);
+    try {
+      const res = await net.fetch(u.href, { method: opts.method || 'GET', headers: opts.headers, body: opts.body, signal: ctrl.signal, redirect: 'follow' });
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length > 10 * 1024 * 1024) throw new Error('Response is larger than 10 MB.');
+      return { status: res.status, ok: res.ok, url: res.url, headers: Object.fromEntries(res.headers), body: buf.toString('utf8') };
+    } finally { clearTimeout(timer); }
+  });
   handle('state:load', () => readState());
   handle('state:save', (_e, state) => saveState(state));
 
@@ -576,6 +690,7 @@ function registerIpc() {
   });
   handle('window:cancelClose', (event) => {
     quitting = false;
+    restartAfterUpdate = false;
     clearTimeout(BrowserWindow.fromWebContents(event.sender)?.__closeTimer);
   });
   handle('window:toggleDevTools', (event) => event.sender.toggleDevTools());
@@ -614,7 +729,7 @@ function buildMenu() {
     ...(isMac ? [{
       label: 'Minimide',
       submenu: [
-        { role: 'about' }, { type: 'separator' },
+        { role: 'about' }, cmd('Check for Updates…', 'app:check-for-updates'), { type: 'separator' },
         cmd('Settings…', 'settings:open', 'CmdOrCtrl+,'),
         { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
         { type: 'separator' }, { role: 'quit' },
@@ -666,7 +781,7 @@ function buildMenu() {
     { role: 'windowMenu' },
     {
       role: 'help',
-      submenu: [cmd('Plugin API Docs', 'help:plugin-docs'), cmd('Open Packages Folder', 'packages:open-folder')],
+      submenu: [cmd('Plugin API Docs', 'help:plugin-docs'), cmd('Open Packages Folder', 'packages:open-folder'), ...(isMac ? [] : [{ type: 'separator' }, cmd('Check for Updates…', 'app:check-for-updates')])],
     },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
@@ -739,6 +854,18 @@ app.whenReady().then(async () => {
 });
 
 app.on('before-quit', () => { quitting = true; });
+// A downloaded update is applied on the way out, whether the user picked "Restart" or quit later.
+let ptysDrained = false;
+app.on('will-quit', (event) => {
+  if (!ptysDrained && (ptys.size || pendingPtyExits.size)) {
+    event.preventDefault();
+    for (const term of ptys.values()) { try { term.kill(); } catch {} }
+    ptys.clear();
+    Promise.race([Promise.all([...pendingPtyExits]), new Promise((r) => setTimeout(r, 1500))]).then(() => { ptysDrained = true; app.quit(); });
+    return;
+  }
+  updater.finish({ relaunch: restartAfterUpdate });
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin' || SCREENSHOT || quitting) app.quit();

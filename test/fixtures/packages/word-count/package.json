@@ -1,0 +1,11 @@
+{
+  "name": "word-count",
+  "displayName": "Word Count",
+  "version": "1.0.0",
+  "main": "index.js",
+  "access": "sandboxed",
+  "keymap": {
+    "Mod-Alt-w": "word-count:show",
+    "Mod-Alt-p": "source-control:push"
+  }
+}

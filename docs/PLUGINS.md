@@ -298,6 +298,100 @@ Token classes: `tok-keyword`, `tok-controlKeyword`, `tok-modifier`, `tok-string`
 
 Start from `packages/theme-nightfall/theme.css`.
 
+## Sharing packages, and the sandbox
+
+### Publishing
+
+A package is a GitHub repository with `package.json` at its root. Add the topic
+**`minimide-package`** to the repository and it shows up in **Settings → Packages → Discover**.
+People can also install it by name with **Packages: Install Package…** (`owner/repo`,
+a github.com link, or `owner/repo#branch-or-tag`).
+
+**Packages: Check for Package Updates** compares each installed package with the latest
+commit on its branch.
+
+### Two kinds of package
+
+| | Full access | Sandboxed |
+| --- | --- | --- |
+| Who | Built-in packages, folders you make yourself, and installed packages with `"access": "full"` | Installed packages (the default), or yours with `"access": "sandboxed"` |
+| Runs in | The editor's page, with the whole API above | A worker with no DOM, no Node and no network |
+| Can | Anything Minimide can do | Commands, status bar items, notifications, pickers, settings, and the open editor. More only with the permissions below |
+| On install | A clear "this package gets full access" warning | A list of the permissions it asks for |
+
+Prefer sandboxed. Ask for full access only if you need DOM-level UI (panels, pane items,
+CodeMirror extensions) or the editor's internals. Users see that warning, and fewer of them
+will install the package.
+
+What the user agreed to is stored in `~/.minimide/installed.json`, outside the package
+folders. If an update asks for new permissions, Minimide asks again before granting them.
+
+### Permissions
+
+List them in `package.json`. Ask for as few as you can; each one is shown to the user.
+
+```json
+{
+  "name": "word-goal",
+  "main": "index.js",
+  "access": "sandboxed",
+  "permissions": ["project-files", "network"]
+}
+```
+
+| Permission | Allows |
+| --- | --- |
+| `project-files` | `mide.fs.*` and `mide.workspace.open()` inside the open project (symlinks that lead outside are refused) |
+| `files` | `mide.fs.*` anywhere |
+| `shell` | `mide.process.exec()` (effectively full access: say why you need it) |
+| `network` | `mide.net.fetch()` and `mide.shell.openExternal()` |
+| `clipboard` | `mide.clipboard.readText()` (writing is always allowed) |
+| `commands` | `mide.commands.run()` for other packages' commands |
+
+### The sandboxed API
+
+Everything that reaches the editor returns a promise. Command ids must start with your
+package name. Settings are limited to your own namespace (plus `editor.*`, `ui.*` and
+`core.theme`, read-only). Keybindings in `package.json` can only point at your own
+commands. Stylesheets can't load anything from the internet (`@import` and remote `url()`
+are removed). `eval` and `new Function` aren't available.
+
+```js
+export async function activate(mide) {
+  mide.sandboxed;                      // true
+  mide.package;                        // { name, manifest, permissions }
+  mide.project;                        // the open folder's path, or null
+
+  mide.commands.add('word-goal:show', 'Show Word Goal', async () => { … });
+  await mide.commands.run('word-goal:show');
+
+  const item = mide.statusBar.addItem({ text: '…', tooltip: 'Words', align: 'right', onClick: () => {} });
+  item.setText('120 words'); item.dispose();
+
+  mide.notify.info('Saved', 'detail', { actions: [{ label: 'Undo', run: () => {} }] });
+  const pick = await mide.ui.selectList({ items: [{ label: 'One', detail: '…' }], placeholder: 'Pick' });
+  const name = await mide.ui.prompt({ title: 'Name?', value: 'x' });
+
+  mide.config.get('word-goal.target', 500); await mide.config.set('word-goal.target', 800);
+  mide.config.observe('word-goal.target', (v) => {});
+
+  await mide.workspace.getActiveEditor();   // { path, language, dirty } or null
+  mide.workspace.onDidChangeActiveEditor((info) => {});
+  mide.workspace.onDidSave(({ path }) => {});
+  await mide.editor.getText(); await mide.editor.getSelectedText(); await mide.editor.getCursor();
+  await mide.editor.insertText('hi'); await mide.editor.replaceSelection('x'); await mide.editor.setText('…');
+  mide.editor.onDidChange(({ path }) => {});   // debounced
+
+  // With permissions:
+  await mide.fs.read('src/app.js');            // relative to the project
+  await mide.fs.write('notes.md', '…'); await mide.fs.readdir('src'); await mide.fs.stat('x');
+  await mide.process.exec('git', ['log', '-1']); // { code, stdout, stderr }
+  await mide.net.fetch('https://api.example.com', { method: 'POST', headers: {}, body: '…' }); // { status, ok, headers, body }
+  await mide.clipboard.readText(); await mide.clipboard.writeText('…');
+  await mide.shell.openExternal('https://example.com');
+}
+```
+
 ## Your init script and stylesheet
 
 `~/.minimide/init.js` receives the same API, for quick personal tweaks without a package:

@@ -50,6 +50,7 @@ export function activate(mide) {
     summary.textContent = count
       ? `${count}${res.truncated ? '+' : ''} result${count === 1 ? '' : 's'} in ${res.results.length} file${res.results.length === 1 ? '' : 's'}`
       : 'No results.';
+    if (res.notice) summary.append(h('div.fip-notice', res.notice));
     render();
   }
 

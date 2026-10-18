@@ -190,7 +190,10 @@ export function activate(mide) {
     entry.sub = doc.on('path', () => { untrack(doc); track(doc); });
     tracked.set(doc, entry);
     const client = await ensureClient(server);
-    if (!client || tracked.get(doc) !== entry || !doc.primaryView()) { renderStatus(); return; }
+    if (tracked.get(doc) !== entry) { renderStatus(); return; }
+    // No editor shows it yet (a running server answers before the view exists): forget it, so
+    // the item-added call below tracks it again and sends didOpen.
+    if (!client || !doc.primaryView()) { entry.sub.dispose(); tracked.delete(doc); renderStatus(); return; }
     entry.client = client;
     entry.version = 1;
     client.notify('textDocument/didOpen', { textDocument: { uri: entry.uri, languageId: entry.languageId, version: 1, text: doc.getText() } });
@@ -214,8 +217,8 @@ export function activate(mide) {
   mide.workspace.onDidCloseDocument((doc) => untrack(doc));
   mide.workspace.onDidOpenItem((item) => {
     if (item.type !== 'editor') return;
-    track(item.document);
-    setTimeout(() => applyDiagnostics(item.document), 0);
+    // After the view is attached, so track() can send didOpen.
+    setTimeout(() => { track(item.document); applyDiagnostics(item.document); }, 0);
   });
   mide.workspace.onDidSave((editor) => {
     const doc = editor.document;

@@ -1,0 +1,53 @@
+name: Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    name: e2e (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xvfb libgtk-3-0 libnss3 libgbm1 libxss1 libasound2t64 libglib2.0-bin \
+            build-essential python3
+
+      - run: npm ci
+
+      # Optional: lets the lspPaths suite (and LSP completions in newPackages) run instead of skipping.
+      - name: Install TypeScript language server
+        run: npm install -g typescript typescript-language-server
+
+      - name: Test (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1920x1080x24" npm test
+
+      - name: Test (macOS)
+        if: runner.os == 'macOS'
+        run: npm test
+
+      - name: Upload logs and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output-${{ matrix.os }}
+          path: test/output/
+          if-no-files-found: ignore

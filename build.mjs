@@ -10,6 +10,8 @@ async function copyStatic() {
   await fs.mkdir(out, { recursive: true });
   await fs.copyFile('src/renderer/index.html', `${out}/index.html`);
   await fs.cp('src/renderer/styles', `${out}/styles`, { recursive: true });
+  // Runs sandboxed packages; served with its own strict CSP (see handleProtocol in main.js).
+  await fs.copyFile('src/renderer/sandbox-worker.js', `${out}/sandbox-worker.js`);
   // Vendor libraries for built-in packages that run outside the bundle.
   const vendor = 'packages/markdown-preview/vendor';
   await fs.mkdir(vendor, { recursive: true });

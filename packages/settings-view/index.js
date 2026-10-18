@@ -197,19 +197,81 @@ export function activate(mide) {
   }
 
   function packagesSection(view) {
+    view.pkgTab ??= 'installed';
+    const tabs = h('div.pkg-tabs',
+      ['installed', 'discover'].map((t) => h('button.pkg-tab', { class: view.pkgTab === t ? 'active' : '', onclick: () => { view.pkgTab = t; view.renderContent(); } },
+        t === 'installed' ? 'Installed' : 'Discover')));
+    const intro = header('Packages', 'Everything in Minimide is a package — including the tree view and this screen.');
+    if (view.pkgTab === 'discover') return h('section', intro, tabs, discoverTab(view));
+
     const search = h('input.input.settings-search', { type: 'text', placeholder: 'Filter packages', value: view.filter, oninput: (e) => { view.filter = e.target.value; renderList(); } });
     const list = h('div.package-list');
     const renderList = () => {
       const q = view.filter.toLowerCase();
-      const pkgs = mide.packages.list().filter((p) => !p.theme && (!q || p.name.includes(q) || (p.manifest.description || '').toLowerCase().includes(q)));
+      // Your own and installed packages first, then the built-in ones.
+      const pkgs = mide.packages.list().filter((p) => !p.theme && (!q || p.name.includes(q) || (p.manifest.description || '').toLowerCase().includes(q)))
+        .sort((a, b) => (a.builtin - b.builtin) || (a.manifest.displayName || a.name).localeCompare(b.manifest.displayName || b.name));
       list.replaceChildren(...pkgs.map((p) => packageCard(p, view)));
     };
     renderList();
-    return h('section', header('Packages', 'Everything in Minimide is a package — including the tree view and this screen.'),
+    return h('section', intro, tabs,
       h('div.settings-toolbar', search,
+        h('button.btn', { onclick: () => mide.commands.run('packages:install') }, 'Install…'),
         h('button.btn', { onclick: () => mide.commands.run('packages:create') }, icon('plus', 14), 'New Package'),
         h('button.btn', { onclick: () => mide.commands.run('packages:open-folder') }, 'Open Folder')),
       list);
+  }
+
+  // Packages are GitHub repositories tagged with the "minimide-package" topic.
+  function discoverTab(view) {
+    const results = h('div.discover-grid');
+    const status = h('p.settings-note.discover-status');
+    let seq = 0;
+    const run = async () => {
+      const mine = ++seq;
+      status.textContent = 'Searching GitHub…';
+      try {
+        const items = await mide.packages.search(view.discoverQuery || '');
+        if (mine !== seq) return;
+        view.discoverCache = items;
+        render(items);
+      } catch (err) {
+        if (mine !== seq) return;
+        status.textContent = String(err.message).replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
+      }
+    };
+    const render = (items) => {
+      status.textContent = items.length ? '' : 'No packages found. Publish yours by adding the "minimide-package" topic to its GitHub repository.';
+      results.replaceChildren(...items.map((r) => h('div.discover-card',
+        h('div.discover-head', h('span.discover-name', r.name), h('span.discover-stars', `★ ${r.stars}`)),
+        h('div.discover-owner', r.owner),
+        h('div.discover-desc', r.description || 'No description.'),
+        h('div.discover-actions',
+          h('button.btn.small', { onclick: () => mide.shell.openExternal(r.url) }, 'View'),
+          r.installed ? h('span.badge', 'installed') : h('button.btn.small.primary', {
+            onclick: async (e) => { e.target.disabled = true; const done = await mide.packages.install(r.fullName); if (done) { r.installed = true; render(items); } else e.target.disabled = false; },
+          }, 'Install')))));
+    };
+    let timer = null;
+    const input = h('input.input.settings-search', {
+      type: 'text', placeholder: 'Search packages on GitHub', value: view.discoverQuery || '',
+      oninput: (e) => { view.discoverQuery = e.target.value; clearTimeout(timer); timer = setTimeout(run, 450); },
+      onkeydown: (e) => { if (e.key === 'Enter') { clearTimeout(timer); run(); } },
+    });
+    if (view.discoverCache) render(view.discoverCache); else run();
+    return h('div',
+      h('div.settings-toolbar', input, h('button.btn', { onclick: () => mide.commands.run('packages:install-from-folder') }, 'Install from Folder…')),
+      h('p.settings-desc.discover-note', 'Installed packages run in a sandbox: they can only touch your files, run programs or use the internet if you allow it when you install them.'),
+      status, results);
+  }
+
+  function accessBadge(p) {
+    if (p.builtin) return h('span.badge', 'built-in');
+    if (!p.install) return p.sandboxed ? h('span.badge.sandbox', { title: 'Your own package, opted into the sandbox' }, 'local · sandboxed') : h('span.badge.user', { title: 'A folder in your packages directory, trusted as your own code' }, 'local');
+    const perms = p.install.permissions || [];
+    return p.sandboxed
+      ? h('span.badge.sandbox', { title: perms.length ? `Allowed: ${perms.join(', ')}` : 'No extra permissions' }, perms.length ? `sandboxed · ${perms.length} permission${perms.length === 1 ? '' : 's'}` : 'sandboxed')
+      : h('span.badge.full', { title: 'Runs with full access to your computer' }, 'full access');
   }
 
   function packageCard(p, view) {
@@ -219,12 +281,16 @@ export function activate(mide) {
       h('div.package-main',
         h('div.package-info',
           h('div.package-name', p.manifest.displayName || p.name,
-            p.builtin ? h('span.badge', 'built-in') : h('span.badge.user', 'user'),
+            accessBadge(p),
             p.manifest.version ? h('span.package-version', `v${p.manifest.version}`) : null),
           h('div.package-desc', p.error ? `Error: ${p.error}` : p.manifest.description || '')),
         h('div.package-actions',
           settings.length ? h('button.btn.small', { onclick: () => { view.expanded = open ? null : p.name; view.renderContent(); } }, open ? 'Hide settings' : 'Settings') : null,
           p.active ? h('button.icon-btn', { title: 'Reload package', onclick: () => mide.packages.reload(p.name) }, icon('refresh', 14)) : null,
+          p.install ? h('button.icon-btn', { title: 'Uninstall', onclick: async () => {
+            const choice = await mide.ui.confirm({ message: `Uninstall "${p.manifest.displayName || p.name}"?`, detail: 'Its folder is moved to the Trash.', buttons: ['Uninstall', 'Cancel'] });
+            if (choice === 0) { await mide.packages.uninstall(p.name); mide.notify.success(`Uninstalled ${p.name}`); }
+          } }, icon('trash', 14)) : null,
           h('label.switch', { title: p.disabled ? 'Enable' : 'Disable' },
             h('input', { type: 'checkbox', checked: !p.disabled, onchange: (e) => mide.packages.setEnabled(p.name, e.target.checked) }),
             h('span.switch-track')))),

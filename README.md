@@ -11,7 +11,7 @@ you can change while it runs.
 
 [![MIT license](https://img.shields.io/badge/license-MIT-6aa8ff)](LICENSE)
 ![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon%20%7C%20Intel-c792ea)
-![Core](https://img.shields.io/badge/core-~4k%20lines-a3d385)
+![Core](https://img.shields.io/badge/core-~5k%20lines-a3d385)
 [![Download](https://img.shields.io/badge/download-latest-f0b866)](https://github.com/mikemich/minimide/releases/latest)
 
 <a href="docs/media/minimide-demo.mp4"><img src="docs/media/minimide-demo.gif" alt="Creating a package in Minimide: type one line, save, and it's live" width="840"></a>
@@ -20,8 +20,8 @@ you can change while it runs.
 
 </div>
 
-Minimide's core is about 4,000 lines of plain JavaScript, and the whole editor, all 42
-built-in packages included, is about 9,000. The file tree, git panel, terminal, language
+Minimide's core is about 5,000 lines of plain JavaScript, and the whole editor, all 42
+built-in packages included, is about 10,000. The file tree, git panel, terminal, language
 servers, Vim mode and every theme are packages built on the same API you get, and they
 reload the moment you save. Make it yours.
 
@@ -36,7 +36,7 @@ configure them, but you can't really change them.
 
 Minimide picks up Atom's idea, small enough to own:
 
-- **Readable.** The core is about 4,000 lines; the rest is packages. No framework and no
+- **Readable.** The core is about 5,000 lines; the rest is packages. No framework and no
   build magic. You can read every line that runs.
 - **Everything is a package.** The tree view, search, git, the language-server client,
   the settings screen and every theme use the same public API yours will. There's no
@@ -49,9 +49,20 @@ Minimide picks up Atom's idea, small enough to own:
 
 ## Getting started
 
-**Download** the latest Mac build from the [Releases page](https://github.com/mikemich/minimide/releases/latest)
-(`-arm64.dmg` for Apple Silicon, plain `.dmg` for Intel). The app isn't notarized yet, so
-the first time you open it, allow it in **System Settings → Privacy & Security → Open Anyway**.
+**macOS or Linux**, in one line (downloads the latest release and checks its SHA-256):
+
+```bash
+curl -fsSL https://mikemich.github.io/minimide/install.sh | sh
+```
+
+**Or download** from the [Releases page](https://github.com/mikemich/minimide/releases/latest):
+`-arm64.dmg` for Apple Silicon, plain `.dmg` for Intel, `Setup-…-x64.exe` for Windows,
+`.AppImage` for Linux. The builds aren't signed yet, so a downloaded app needs one extra
+click the first time: **System Settings → Privacy & Security → Open Anyway** on a Mac, or
+**More info → Run anyway** in Windows SmartScreen. The install script avoids this.
+
+Minimide checks for updates once a day and can update itself (**Check for Updates…**
+in the app menu). Turn that off with `core.checkForUpdates`.
 
 Or run from source (Node 20+):
 
@@ -208,6 +219,19 @@ Everything personal lives in `~/.minimide/`:
 | `init.js` | JavaScript run at startup with the full package API. |
 | `snippets.json` | Your snippets in VS Code's format. Or drop VS Code snippet files into `snippets/`. |
 | `packages/` | Your packages. **Packages: Create New Package…** scaffolds one. |
+| `installed.json` | Packages you installed, and the permissions you gave them. |
+
+### Sharing packages
+
+Install other people's packages from **Settings → Packages → Discover**, or with
+**Packages: Install Package…** and a GitHub `owner/repo`. To publish yours, push it to GitHub
+and add the `minimide-package` topic.
+
+Installed packages run **sandboxed**: in a separate worker with no access to your files,
+programs or the internet. A package that needs more asks for specific permissions
+(`project-files`, `network`, …), and you see them before you install it. A package that
+asks for full access gets a clear warning. Packages you write yourself are trusted like
+the rest of your code. See [Sharing packages, and the sandbox](docs/PLUGINS.md#sharing-packages-and-the-sandbox).
 
 The full API is in [docs/PLUGINS.md](docs/PLUGINS.md) (or **Help → Plugin API Docs** in the app).
 
@@ -230,7 +254,7 @@ package registers, so it can be disabled, enabled or reloaded at runtime without
 
 ## Roadmap ideas
 
-Debug adapter (DAP) package · minimap · package installation from git URLs · auto-update.
+Debug adapter (DAP) package · signed and notarized builds · a sandboxed API for panels.
 
 ## License
 

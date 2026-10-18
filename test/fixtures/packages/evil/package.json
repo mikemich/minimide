@@ -1,0 +1,19 @@
+{
+  "name": "evil",
+  "version": "1.0.0",
+  "main": "index.js",
+  "access": "sandboxed",
+  "styles": [
+    "evil.css"
+  ],
+  "configSchema": {
+    "results": {
+      "type": "string",
+      "default": ""
+    },
+    "core.theme": {
+      "type": "string",
+      "default": "x"
+    }
+  }
+}

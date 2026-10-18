@@ -15,6 +15,7 @@ import { fuzzyFilter, fuzzyMatch, highlightMatches } from './fuzzy.js';
 import { registerLanguage, detectLanguage } from './editor.js';
 import { prettyBinding } from './keymap.js';
 import { convertSnippet } from './snippet.js';
+import { SandboxedPackage, loadSandboxedStyles } from './sandbox.js';
 
 // Popular CodeMirror add-ons, bundled against the editor's own CodeMirror (two copies
 // don't mix) and loaded only when a package asks for them.
@@ -50,6 +51,7 @@ export class PackageManager extends Emitter {
     super();
     this.app = app;
     this.packages = new Map(); // name -> { meta, active, module, subscriptions, styleEls, error }
+    this.justInstalled = new Map(); // name -> time until which hot reload leaves it alone
     this.services = new Services();
   }
 
@@ -86,13 +88,58 @@ export class PackageManager extends Emitter {
     }
   }
 
+  /**
+   * Built-in packages and folders you made yourself are trusted like the rest of your code.
+   * Packages installed with the package manager run sandboxed unless you granted full access;
+   * a local package can opt in with "access": "sandboxed" (handy for testing one).
+   */
+  isSandboxed(pkg) {
+    const { meta } = pkg;
+    if (meta.builtin) return false;
+    if (meta.install) return meta.install.access !== 'full';
+    return meta.manifest.access === 'sandboxed';
+  }
+
+  /** The permissions a sandboxed package may use: what it asks for, limited to what you granted. */
+  async sandboxPermissions(pkg) {
+    const { manifest, install } = pkg.meta;
+    const asked = (Array.isArray(manifest.permissions) ? manifest.permissions : []).filter((p) => typeof p === 'string');
+    if (!install) return asked;
+    if (manifest.access === 'full') {
+      throw new Error('Its latest version asks for full access to your computer. Reinstall it from Settings → Packages to review and allow that.');
+    }
+    const extra = asked.filter((p) => !install.permissions.includes(p));
+    if (!extra.length) return asked;
+    const labels = await window.native.pkgmgr.permissions();
+    const choice = await window.native.dialog.confirm({
+      type: 'warning',
+      message: `"${manifest.displayName || pkg.meta.name}" wants new permissions`,
+      detail: `Since you installed it, it has started asking to:\n\n${extra.map((p) => `• ${labels[p] || p}`).join('\n')}\n\nIf you don't allow this, it keeps running with the permissions you already gave it.`,
+      buttons: ['Allow', "Don't Allow"],
+    });
+    if (choice === 0) {
+      pkg.meta.install = await window.native.pkgmgr.grant(pkg.meta.name, asked);
+      return asked;
+    }
+    return asked.filter((p) => install.permissions.includes(p));
+  }
+
   async activate(name) {
     const pkg = this.packages.get(name);
     if (!pkg || pkg.active) return;
+    // Installing also triggers the hot-reload watcher; make concurrent activations share one attempt.
+    if (pkg.activating) return pkg.activating;
+    pkg.activating = this.activateNow(pkg).finally(() => { pkg.activating = null; });
+    return pkg.activating;
+  }
+
+  async activateNow(pkg) {
+    const name = pkg.meta.name;
     const { manifest } = pkg.meta;
     const url = `mide://pkg/${encodeURIComponent(name)}/~${Date.now()}/`; // fresh module graph per activation
-    const api = this.createApi(pkg);
     pkg.error = null;
+    if (this.isSandboxed(pkg)) return this.activateSandboxed(pkg, url);
+    const api = this.createApi(pkg);
     try {
       if (manifest.configSchema) pkg.subscriptions.push(this.app.config.register(prefixSchema(manifest.configSchema, name), name));
       if (manifest.keymap) pkg.subscriptions.push(this.app.keymap.add(manifest.keymap, name));
@@ -110,6 +157,89 @@ export class PackageManager extends Emitter {
       this.app.ui.notify.error(`Package "${name}" failed to activate`, err.message);
       this.cleanup(pkg);
     }
+    this.emit('changed');
+  }
+
+  async activateSandboxed(pkg, url) {
+    const { manifest, name } = pkg.meta;
+    try {
+      const permissions = await this.sandboxPermissions(pkg);
+      // Settings and keybindings are limited to the package's own namespace.
+      if (manifest.configSchema) {
+        const own = Object.fromEntries(Object.entries(manifest.configSchema).filter(([k]) => !k.includes('.') || k.startsWith(`${name}.`)));
+        pkg.subscriptions.push(this.app.config.register(prefixSchema(own, name), name));
+      }
+      if (manifest.keymap) {
+        const own = Object.fromEntries(Object.entries(manifest.keymap).filter(([, cmd]) => typeof cmd === 'string' && cmd.startsWith(`${name}:`)));
+        pkg.subscriptions.push(this.app.keymap.add(own, name));
+      }
+      for (const style of manifest.styles || []) pkg.styleEls.push(await loadSandboxedStyles(url, style, name));
+      if (manifest.main !== false && (manifest.main || !this.isTheme(pkg))) {
+        const sandbox = new SandboxedPackage(this.app, pkg, permissions);
+        pkg.subscriptions.push(sandbox);
+        await sandbox.start(url + (manifest.main || 'index.js'));
+      }
+      pkg.active = true;
+      pkg.sandboxed = true;
+      this.emit('activated', name);
+    } catch (err) {
+      console.error(`[packages] failed to activate ${name}`, err);
+      pkg.error = err;
+      this.app.ui.notify.error(`Package "${name}" failed to activate`, err.message);
+      this.cleanup(pkg);
+    }
+    this.emit('changed');
+  }
+
+  // --- installing ----------------------------------------------------------
+  /** Download, show what it asks for, and install. Returns the package name, or null if cancelled. */
+  async install(source) {
+    const { notify } = this.app.ui;
+    const progress = notify.info('Downloading package…', String(source), { timeout: 0 });
+    let staged;
+    try { staged = await window.native.pkgmgr.stage(source); } catch (err) { progress.close(); notify.error('Couldn\'t install the package', cleanIpcError(err)); return null; }
+    progress.close();
+    const labels = await window.native.pkgmgr.permissions();
+    const from = staged.source.replace(/^github:/, 'github.com/').replace(/^folder:/, '');
+    const update = staged.existing ? ' (update)' : '';
+    let detail;
+    let buttons;
+    if (staged.access === 'full') {
+      detail = `From ${from}\n\nThis package asks for FULL ACCESS. It would run with the same rights as Minimide: it could read and change any file, run any program and use the internet.\n\nOnly install it if you trust the author.`;
+      buttons = ['Install with Full Access', 'Cancel'];
+    } else {
+      const perms = staged.permissions.map((p) => `• ${labels[p]}`);
+      detail = `From ${from}\n\nIt runs in a sandbox. ${!staged.hasCode ? 'It contains no code (styles and settings only).'
+        : perms.length ? `Besides editing the open file and adding commands, it asks to:\n\n${perms.join('\n')}` : 'It can add commands and status bar items and work with the open file, but it can\'t see your other files, run programs or use the internet.'}`;
+      if (staged.unknownPermissions.length) detail += `\n\nIgnored unknown permissions: ${staged.unknownPermissions.join(', ')}`;
+      buttons = ['Install', 'Cancel'];
+    }
+    const choice = await window.native.dialog.confirm({ type: staged.access === 'full' ? 'warning' : 'question', message: `Install "${staged.displayName}"${staged.version ? ` ${staged.version}` : ''}${update}?`, detail, buttons });
+    if (choice !== 0) { window.native.pkgmgr.discard(staged.id); return null; }
+    try {
+      if (this.packages.get(staged.name)?.active) await this.deactivate(staged.name);
+      this.justInstalled.set(staged.name, Date.now() + 3000);
+      await window.native.pkgmgr.install(staged.id, { permissions: staged.permissions });
+      await this.discover();
+      this.packages.get(staged.name).meta.install ??= { access: staged.access, permissions: staged.permissions };
+      await this.activate(staged.name);
+      const pkg = this.packages.get(staged.name);
+      if (pkg?.active) notify.success(`Installed ${staged.displayName}`, pkg.sandboxed ? 'Running in a sandbox.' : 'Running with full access.');
+      this.emit('changed');
+      return staged.name;
+    } catch (err) {
+      notify.error('Couldn\'t install the package', cleanIpcError(err));
+      return null;
+    }
+  }
+
+  async uninstall(name) {
+    await this.deactivate(name);
+    await window.native.pkgmgr.uninstall(name);
+    this.packages.delete(name);
+    await this.discover();
+    // A user package can shadow a built-in one; bring the built-in back.
+    if (this.packages.get(name)?.meta.builtin && !this.isDisabled(name)) await this.activate(name);
     this.emit('changed');
   }
 
@@ -271,11 +401,16 @@ export class PackageManager extends Emitter {
         get: (svc) => this.services.get(svc),
       },
       packages: {
-        list: () => [...this.packages.values()].map((p) => ({ name: p.meta.name, manifest: p.meta.manifest, builtin: p.meta.builtin, active: p.active, disabled: this.isDisabled(p.meta.name), theme: this.isTheme(p), error: p.error?.message })),
+        list: () => [...this.packages.values()].map((p) => ({ name: p.meta.name, manifest: p.meta.manifest, builtin: p.meta.builtin, active: p.active, disabled: this.isDisabled(p.meta.name), theme: this.isTheme(p), error: p.error?.message, install: p.meta.install || null, sandboxed: this.isSandboxed(p) })),
         setEnabled: (n, e) => this.setEnabled(n, e),
         reload: (n) => this.reload(n),
         setTheme: (n) => app.config.set('core.theme', n),
         onDidChange: (fn) => track(this.on('changed', fn)),
+        install: (source) => this.install(source),
+        uninstall: (n) => this.uninstall(n),
+        search: (q) => window.native.pkgmgr.search(q),
+        checkUpdates: () => window.native.pkgmgr.checkUpdates(),
+        permissionLabels: () => window.native.pkgmgr.permissions(),
       },
       fs: {
         ...window.native.fs,
@@ -310,6 +445,8 @@ export class PackageManager extends Emitter {
     };
   }
 }
+
+const cleanIpcError = (err) => String(err?.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
 
 function prefixSchema(schema, pkgName) {
   const out = {};

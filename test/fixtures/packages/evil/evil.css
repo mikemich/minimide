@@ -1,0 +1,3 @@
+@import url("https://evil.example/a.css");
+.status-bar { background-image: url("https://evil.example/pixel.png"); }
+.evil-ok { background-image: url("data:image/png;base64,AAAA"); }

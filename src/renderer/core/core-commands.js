@@ -243,6 +243,46 @@ export function registerCoreCommands(app) {
         onSelect: async (it) => { await app.packages.reload(it.label); ui.notify.info(`Reloaded ${it.label}`); },
       }),
     },
+    'app:check-for-updates': { title: 'Check for Updates…', run: () => app.checkForUpdates({ manual: true }) },
+    'packages:install': {
+      title: 'Install Package…',
+      run: async (source) => {
+        source ??= await ui.prompt({ title: 'Install a package from GitHub', placeholder: 'owner/name or https://github.com/owner/name' });
+        if (source) await app.packages.install(source);
+      },
+    },
+    'packages:install-from-folder': {
+      title: 'Install Package from Folder…',
+      run: async () => {
+        const dir = await window.native.dialog.openFolder();
+        if (dir) await app.packages.install(dir);
+      },
+    },
+    'packages:check-for-updates': {
+      title: 'Check for Package Updates',
+      run: async () => {
+        let updates;
+        try { updates = await window.native.pkgmgr.checkUpdates(); } catch (err) { return ui.notify.error("Couldn't check for updates", err.message); }
+        const ready = updates.filter((u) => !u.error);
+        if (!ready.length) return ui.notify.info(updates.length ? "Couldn't check some packages" : 'All installed packages are up to date', updates.map((u) => `${u.name}: ${u.error}`).join('\n') || undefined);
+        ui.notify.info(`${ready.length} package update${ready.length === 1 ? '' : 's'} available`, ready.map((u) => u.name).join(', '), {
+          timeout: 0,
+          actions: [{ label: 'Update All', run: async () => { for (const u of ready) await app.packages.install(u.source); } }],
+        });
+      },
+    },
+    'packages:uninstall': {
+      title: 'Uninstall Package…',
+      run: () => ui.selectList({
+        id: 'uninstall-package', placeholder: 'Uninstall a package',
+        items: [...app.packages.packages.values()].filter((p) => !p.meta.builtin).map((p) => ({ label: p.meta.name, detail: p.meta.install ? `from ${p.meta.install.source.replace(/^github:/, '')}` : 'local folder' })),
+        emptyMessage: 'No packages installed. Built-in packages can be turned off in Settings → Packages.',
+        onSelect: async (it) => {
+          const choice = await window.native.dialog.confirm({ message: `Uninstall "${it.label}"?`, detail: 'Its folder is moved to the Trash.', buttons: ['Uninstall', 'Cancel'] });
+          if (choice === 0) { await app.packages.uninstall(it.label); ui.notify.success(`Uninstalled ${it.label}`); }
+        },
+      }),
+    },
     'theme:select': {
       title: 'Select Theme…',
       run: () => {

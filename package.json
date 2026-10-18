@@ -1,7 +1,7 @@
 {
   "name": "minimide",
   "productName": "Minimide",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A small, beautiful, hackable editor.",
   "author": "mikemich",
   "license": "MIT",
@@ -20,6 +20,7 @@
     "watch": "node build.mjs --watch",
     "start": "node build.mjs && electron .",
     "dev": "node build.mjs && electron . --dev",
+    "test": "node test/run.mjs",
     "dist": "node build.mjs && electron-builder",
     "dist:mac": "node build.mjs && electron-builder --mac -c.mac.identity=-",
     "dist:dir": "node build.mjs && electron-builder --dir",
@@ -54,7 +55,7 @@
   "build": {
     "appId": "dev.minimide.app",
     "productName": "Minimide",
-    "copyright": "Copyright \u00a9 2026 mikemich",
+    "copyright": "Copyright © 2026 mikemich",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -159,7 +160,9 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "buildUniversalInstaller": false,
+      "artifactName": "Minimide-Setup-${version}-${arch}.${ext}"
     },
     "linux": {
       "target": [
@@ -181,6 +184,11 @@
       "onlyLoadAppFromAsar": true,
       "enableEmbeddedAsarIntegrityValidation": true,
       "enableCookieEncryption": true
-    }
+    },
+    "electronLanguages": [
+      "en",
+      "en-US",
+      "en-GB"
+    ]
   }
 }

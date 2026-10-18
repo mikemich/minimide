@@ -1,0 +1,11 @@
+{
+  "name": "proj-reader",
+  "displayName": "Project Reader",
+  "version": "1.0.0",
+  "main": "index.js",
+  "access": "sandboxed",
+  "keymap": {},
+  "permissions": [
+    "project-files"
+  ]
+}
