@@ -7,7 +7,7 @@ export const DEFAULT_SERVERS = {
   typescript: { displayName: 'TypeScript',
     command: [['typescript-language-server', '--stdio']],
     extensions: ['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'mts', 'cts'],
-    install: 'npm i -g typescript typescript-language-server',
+    install: 'npm i -g typescript@5 typescript-language-server',
   },
   python: { displayName: 'Python',
     command: [['pyright-langserver', '--stdio'], ['basedpyright-langserver', '--stdio'], ['pylsp']],

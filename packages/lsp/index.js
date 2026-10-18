@@ -99,7 +99,16 @@ export function activate(mide) {
         setTimeout(trackAll, 0); // attach files that lost their server (e.g. after a crash)
       } catch (err) {
         log(server.name, `failed to start: ${err.message}`, 'stderr');
-        mide.notify.error(`${server.name} language server failed to start`, err.message, { actions: [{ label: 'Show Log', run: showLog }] });
+        // TypeScript 7 is a native rewrite without the tsserver that typescript-language-server drives.
+        if (/Could not find a valid TypeScript installation/i.test(err.message)) {
+          const fix = 'npm i -g typescript@5 typescript-language-server';
+          mide.notify.error('TypeScript language server needs TypeScript 5', `It couldn't find a TypeScript it can use. TypeScript 7 no longer includes the tsserver it relies on. Install TypeScript 5 next to it:\n${fix}`, {
+            timeout: 0,
+            actions: [{ label: 'Copy Command', run: () => mide.clipboard.write(fix) }, { label: 'Show Log', run: showLog }],
+          });
+        } else {
+          mide.notify.error(`${server.name} language server failed to start`, err.message, { actions: [{ label: 'Show Log', run: showLog }] });
+        }
         client.stop();
         if (live.get(server.name) === client) live.delete(server.name);
         if (clients.get(server.name) === promise) clients.delete(server.name);

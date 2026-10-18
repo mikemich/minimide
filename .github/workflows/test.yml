@@ -34,7 +34,7 @@ jobs:
 
       # Optional: lets the lspPaths suite (and LSP completions in newPackages) run instead of skipping.
       - name: Install TypeScript language server
-        run: npm install -g typescript typescript-language-server
+        run: npm install -g typescript@5 typescript-language-server
 
       - name: Test (Linux)
         if: runner.os == 'Linux'

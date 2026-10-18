@@ -183,7 +183,7 @@ needs the server to be on your `PATH`; if it's missing, Minimide shows the insta
 
 | Server | Languages | Install |
 | --- | --- | --- |
-| `typescript-language-server` | TS / JS / JSX / TSX | `npm i -g typescript typescript-language-server` |
+| `typescript-language-server` | TS / JS / JSX / TSX | `npm i -g typescript@5 typescript-language-server` (TypeScript 7 doesn't work with it yet) |
 | `pyright-langserver` (or `pylsp`) | Python | `npm i -g pyright` |
 | `rust-analyzer` | Rust | `rustup component add rust-analyzer` |
 | `gopls` | Go | `go install golang.org/x/tools/gopls@latest` |
