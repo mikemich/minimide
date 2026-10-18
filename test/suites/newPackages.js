@@ -29,8 +29,9 @@
   const inv = await ws.open(root + '/inventory.js');
   await wait(300);
   inv.view.scrollDOM.scrollTop = inv.view.lineBlockAt(inv.view.state.doc.line(40).from).top;
-  await wait(400);
-  out.sticky = [...document.querySelectorAll('.pane.active .editor-item:not([hidden]) .cm-sticky-line')].map((l) => l.textContent.trim().replace(/\s+/g, ' '));
+  // Wait for the header to render (slow CI machines can take more than a few frames).
+  const stickyLines = () => [...document.querySelectorAll('.pane.active .editor-item:not([hidden]) .cm-sticky-line')].map((l) => l.textContent.trim().replace(/\s+/g, ' '));
+  out.sticky = (await until(() => (stickyLines().length >= 4 ? stickyLines() : null), 5000)) || stickyLines();
 
   // --- snippets: Tab expansion + completion list (the TypeScript server, when installed, serves .js)
   const scratch = await ws.open(root + '/new.js');

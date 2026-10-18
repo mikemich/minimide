@@ -351,9 +351,12 @@ function createWindow(projectPath, { restore = false } = {}) {
           } catch (err) { console.log('[eval error]', err.message); }
           await new Promise((r) => setTimeout(r, 700));
         }
-        const img = await win.webContents.capturePage();
-        await fs.writeFile(SCREENSHOT, img.toPNG());
-        console.log(`[screenshot] wrote ${SCREENSHOT}`);
+        // Quit even if the capture fails (it can, on virtual displays in CI).
+        try {
+          const img = await win.webContents.capturePage();
+          await fs.writeFile(SCREENSHOT, img.toPNG());
+          console.log(`[screenshot] wrote ${SCREENSHOT}`);
+        } catch (err) { console.log(`[screenshot] failed: ${err.message}`); }
         win.__forceClose = true;
         app.quit();
       }, Number(process.env.MINIMIDE_SCREENSHOT_DELAY || 2500));
