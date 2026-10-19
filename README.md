@@ -244,6 +244,38 @@ the rest of your code. See [Sharing packages, and the sandbox](docs/PLUGINS.md#s
 
 The full API is in [docs/PLUGINS.md](docs/PLUGINS.md) (or **Help → Plugin API Docs** in the app).
 
+## Convert a VS Code theme
+
+`scripts/vscode-theme.mjs` turns any VS Code color theme file into a Minimide theme package.
+It accepts JSON with comments and trailing commas (JSONC), which is the format VS Code themes
+use in the wild.
+
+```bash
+node scripts/vscode-theme.mjs path/to/your-theme.json
+# writes packages/theme-<slug>/package.json and theme.css
+```
+
+To write into a different directory:
+
+```bash
+node scripts/vscode-theme.mjs path/to/your-theme.json --out /tmp/my-themes
+```
+
+The script maps VS Code `colors` keys (`editor.background`, `sideBar.background`,
+`terminal.ansi*`, …) to Minimide's CSS variables, and maps `tokenColors` scopes
+(`comment`, `string`, `keyword`, `entity.name.function`, …) to the `.tok-*` syntax
+classes. Colors that aren't present in the VS Code theme are derived from `bg` and `fg`
+so every variable is always defined. The `type` field (`"dark"` / `"light"`) sets
+`color-scheme` automatically.
+
+You can also import the converter directly:
+
+```js
+import { parseJsonc, convertTheme } from './scripts/vscode-theme.mjs';
+const vsTheme = parseJsonc(await fs.readFile('my-theme.json', 'utf-8'));
+const { slug, packageJson, themeCss } = convertTheme(vsTheme);
+```
+
 ## Architecture
 
 ```
