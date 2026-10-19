@@ -73,6 +73,10 @@
     .feature b { display: block; color: var(--strong); font-size: 16px; margin-bottom: 4px; }
     .feature span { color: var(--muted); font-size: 14.5px; line-height: 1.5; display: block; }
 
+    .port { margin-top: 26px; padding: 20px 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+    .port p { margin: 0 0 12px; color: var(--muted); font-size: 16px; } .port p b { color: var(--strong); }
+    .port code { display: block; overflow-x: auto; white-space: nowrap; padding: 10px 12px; font-size: 13.5px; }
+    .safe-note { margin-top: 22px; font-size: 16px; } .safe-note a { color: var(--strong); }
     .icons { display: flex; align-items: center; gap: 28px; margin-top: 28px; }
     .icons img { width: 56%; max-width: 620px; height: auto; border-radius: 14px; flex: none; }
     .icons p { margin: 0; color: var(--muted); font-size: 17px; line-height: 1.55; }
@@ -102,7 +106,7 @@
         <a href="#hack">Hack it</a>
         <a href="#features">Features</a>
         <a href="#themes">Themes</a>
-        <a href="#safe">Sandbox</a>
+        <a href="#safe">Security</a>
         <a class="gh" href="https://github.com/mikemich/minimide">GitHub ↗</a>
       </div>
     </nav>
@@ -185,16 +189,24 @@
         <img src="media/theme-icons.png" alt="Minimide's app icon in each of the 19 themes" loading="lazy">
         <p><b>Even the icon is yours.</b> The Dock icon is drawn from your theme, accent color and editor font, and changes the moment you switch.</p>
       </div>
+      <div class="port">
+        <p><b>Bring your VS Code theme.</b> One command turns a VS Code color theme into a Minimide theme, syntax colors and all.</p>
+        <code>node scripts/vscode-theme.mjs your-theme.json --out ~/.minimide/packages</code>
+      </div>
     </section>
 
     <section id="safe">
       <h2>Safe to share.</h2>
-      <p class="sub">Install other people's packages without handing them your computer. Atom's packages could do anything; Minimide's run in a sandbox.</p>
+      <p class="sub">Open other people's code and install other people's packages without handing them your computer. Atom trusted every folder and every package; Minimide asks first.</p>
       <div class="grid3">
-        <div class="card"><h3>Sandboxed by default</h3><p>Installed packages run in an isolated worker with no access to your files, programs or the internet.</p></div>
-        <div class="card"><h3>You approve permissions</h3><p>A package that needs more asks for it, like “read files in this project” or “use the network”, and you see the list before installing.</p></div>
+        <div class="card"><h3>Workspace trust</h3><p>The first time you open a folder, Minimide asks whether you trust it. Until you do, git and language servers stay off, because a downloaded repo's settings can make them run commands.</p></div>
+        <div class="card"><h3>Sandboxed packages</h3><p>Installed packages run in an isolated worker with no access to your files, programs or the internet. Their styles can recolor the editor but can't fake its UI.</p></div>
+        <div class="card"><h3>You approve permissions</h3><p>A package that needs more asks for it, like “read files in this project” or “use the network”, and you see the list before installing. New permissions after an update need a new yes.</p></div>
         <div class="card"><h3>Install from GitHub</h3><p>Browse <b>Settings → Packages → Discover</b> or install any <code>owner/repo</code>. Publish yours with the <code>minimide-package</code> topic.</p></div>
+        <div class="card"><h3>Verified updates</h3><p>Every download is checked against the SHA-256 that GitHub publishes, and releases can't be changed once they're out.</p></div>
+        <div class="card"><h3>Tested like an attacker</h3><p>On every change, the test suite opens a booby-trapped repository and installs hostile packages, and checks that nothing gets out.</p></div>
       </div>
+      <p class="sub safe-note">Found a security problem? <a href="https://github.com/mikemich/minimide/security/advisories/new">Report it privately</a>.</p>
     </section>
 
     <div class="cta">

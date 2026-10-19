@@ -49,9 +49,10 @@ Minimide picks up Atom's idea, small enough to own:
   private back door.
 - **Change it while it runs.** Save a package and it reloads instantly. `init.js`,
   `styles.css`, `keymap.json` and `config.json` in `~/.minimide` do the same.
-- **Safe to share.** Atom's packages could do anything. Minimide's installed packages run
-  in a sandbox: no access to your files, programs or the internet unless you approve the
-  permissions they ask for. Install them from GitHub in a click.
+- **Safe to share.** Atom's packages could do anything, and opening a repo was blind trust.
+  Minimide's installed packages run in a sandbox: no access to your files, programs or the
+  internet unless you approve the permissions they ask for. Folders you haven't trusted open
+  in Restricted Mode, with git and language servers off. See [SECURITY.md](SECURITY.md).
 - **Simple by default.** A file tree, tabs, a command palette and a fuzzy finder, built
   on CodeMirror 6 with syntax highlighting for 100+ languages. Power tools such as LSP,
   split panes, multi-cursor and project-wide replace are there when you reach for them.
