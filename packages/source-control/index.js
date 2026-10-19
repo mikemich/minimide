@@ -8,13 +8,14 @@ export function activate(mide) {
   const diffs = new Set();
 
   // Never let git wait for a password prompt that nobody can see.
-  const git = (args, opts = {}) => mide.process.exec('git', args, { cwd: state.root || mide.workspace.project, timeout: 60000, env: { GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' }, ...opts });
+  // Background calls never run a repo's fsmonitor command; nothing runs at all until the folder is trusted.
+  const git = (args, opts = {}) => mide.process.exec('git', ['-c', 'core.fsmonitor=false', ...args], { cwd: state.root || mide.workspace.project, timeout: 60000, env: { GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' }, ...opts });
 
   // --- status --------------------------------------------------------------
   // The repo root derived from the project path itself (not `--show-toplevel`, which resolves
   // symlinks and then no longer matches the paths the editor uses).
   async function findRoot(project) {
-    const r = await mide.process.exec('git', ['rev-parse', '--show-cdup'], { cwd: project });
+    const r = await mide.process.exec('git', ['-c', 'core.fsmonitor=false', 'rev-parse', '--show-cdup'], { cwd: project });
     if (r.code !== 0) return null;
     const parts = project.split('/');
     for (const seg of r.stdout.trim().split('/').filter(Boolean)) if (seg === '..') parts.pop();
@@ -25,7 +26,7 @@ export function activate(mide) {
   async function refresh() {
     const seq = ++refreshSeq; // a newer refresh supersedes this one
     const project = mide.workspace.project;
-    if (!project) { state.root = null; return render(); }
+    if (!project || !mide.workspace.isTrusted(project)) { state.root = null; return render(); }
     const root = await findRoot(project);
     if (seq !== refreshSeq) return;
     if (!root) { state.root = null; return render(); }
@@ -181,6 +182,12 @@ export function activate(mide) {
     if (!mide.workspace.project) {
       lists.replaceChildren(h('div.sc-empty', 'Open a folder to use source control.'));
       branchEl.replaceChildren();
+      return;
+    }
+    if (!mide.workspace.isTrusted()) {
+      branchEl.replaceChildren();
+      lists.replaceChildren(h('div.sc-empty', h('p', 'Restricted Mode: git is off until you trust this folder, because a repository\'s settings can run commands.'),
+        h('button.btn.primary', { onclick: () => mide.workspace.requestTrust() }, 'Trust Folder…')));
       return;
     }
     if (!state.root) {
@@ -362,6 +369,7 @@ export function activate(mide) {
     },
   });
   mide.workspace.onDidChangeProject(() => { refresh(); });
+  mide.workspace.onDidChangeTrust(() => { refresh(); });
   mide.workspace.onDidSave(scheduleRefresh);
   mide.workspace.onDidChangeFiles(scheduleRefresh);
   const onFocus = () => scheduleRefresh();

@@ -48,6 +48,7 @@ contextBridge.exposeInMainWorld('native', {
     permissions: call('pkgmgr:permissions'),
   },
   net: { fetch: call('net:fetch') },
+  trust: { list: call('trust:list'), add: call('trust:add'), remove: call('trust:remove'), onChange: (fn) => on('trust:changed', fn) },
   updates: {
     check: call('update:check'),
     prepare: call('update:prepare'),

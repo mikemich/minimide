@@ -10,6 +10,7 @@ import { h, basename } from './core/dom.js';
 import { registerCoreCommands, CORE_KEYMAP } from './core/core-commands.js';
 import { CORE_SCHEMA } from './core/schema.js';
 import { bindThemedAppIcon, renderAppIcon } from './core/app-icon.js';
+import { Trust } from './core/trust.js';
 
 // ui.accentColor overrides the theme's accent and everything derived from it.
 // Inline styles on <html> beat the theme's :root rules, so this survives theme switches.
@@ -55,6 +56,8 @@ class App {
     this.bindAppearance();
 
     this.state = await window.native.state.load();
+    this.trust = new Trust(this);
+    await this.trust.init();
     const global = this.state.global || {};
     this.sidebar = new Dock(document.getElementById('sidebar'), { name: 'sidebar', axis: 'x', state: { visible: true, ...global.sidebar }, defaultSize: 260 });
     this.panel = new Dock(document.getElementById('panel'), { name: 'panel', axis: 'y', state: { visible: false, ...global.panel }, defaultSize: 240, minSize: 80 });
@@ -96,6 +99,7 @@ class App {
 
     await this.runInitScript();
     document.body.classList.add('ready');
+    this.bindRestrictedModeItem();
     bindThemedAppIcon(this);
     this.renderAppIcon = renderAppIcon;
     // Daily update check (skipped in automated test runs).
@@ -115,6 +119,25 @@ class App {
     this.config.observe('editor.fontLigatures', (v) => root.setProperty('--editor-ligatures', v === false ? 'none' : 'contextual'));
     this.config.observe('ui.accentColor', (v) => applyAccent(root, v));
     this.config.observe('ui.compactTabs', (v) => document.body.classList.toggle('compact-tabs', !!v));
+  }
+
+  // A status bar item while the project is in Restricted Mode; clicking it asks to trust it.
+  bindRestrictedModeItem() {
+    let item = null;
+    const update = () => {
+      const restricted = !!this.workspace.project && !this.trust.isTrusted();
+      if (restricted && !item) {
+        item = this.statusBar.addItem({
+          id: 'restricted-mode', element: h('span.restricted-mode', '⛉ Restricted Mode'), align: 'left', priority: 1,
+          tooltip: 'git and language servers are off for this folder. Click to trust it.',
+          onClick: () => this.trust.prompt(),
+        });
+      } else if (!restricted && item) { item.dispose(); item = null; }
+    };
+    this.trust.on('changed', update);
+    this.workspace.on('project-changed', update);
+    this.config.onDidChange('security.workspaceTrust', () => this.trust.emit('changed'));
+    update();
   }
 
   // --- updates -------------------------------------------------------------
@@ -168,6 +191,8 @@ class App {
     this.saveSession();
     this.fileCache = null;
     await this.workspace.setProject(root);
+    // Ask before git or a language server runs anything from this folder.
+    if (!this.trust.isTrusted(root)) await this.trust.prompt(root);
     this.state.recentProjects = [root, ...(this.state.recentProjects || []).filter((p) => p !== root)].slice(0, 12);
     this.state.lastProject = root;
     this.persistState();

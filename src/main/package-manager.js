@@ -14,15 +14,20 @@ import { execFile } from 'node:child_process';
 import { net } from 'electron';
 
 export const PERMISSIONS = {
-  'project-files': 'Read and change files in the open project',
-  files: 'Read and change any file on your computer',
-  shell: 'Run programs and commands on your computer',
+  'project-files': 'Read files in the open project',
+  'project-write': 'Change files in the open project (except git\'s and node_modules\' internals; tools can still run code from project files, so only allow this for packages you trust)',
+  files: 'Read and change any file on your computer (this is close to full access: it could change files that run code)',
+  shell: 'Run programs and commands on your computer (this is the same as full access)',
   network: 'Connect to the internet',
   clipboard: 'Read your clipboard',
   commands: 'Run other Minimide commands',
 };
 
 const NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+// Names the core uses for its own commands and settings ("core.theme", "settings:open"…). A
+// package with one of these names would pass the "own namespace only" checks for them.
+const RESERVED = new Set(['app', 'core', 'editor', 'ui', 'file', 'help', 'packages', 'package', 'pane', 'panel', 'pkg', 'project', 'settings',
+  'sidebar', 'tab', 'theme', 'window', 'workspace', 'user', 'native', 'mide', 'minimide', 'sandbox', 'update', 'updates', 'system', 'test']);
 const MAX_DOWNLOAD = 50 * 1024 * 1024;
 const MAX_FILES = 5000;
 const MAX_UNPACKED = 100 * 1024 * 1024;
@@ -127,6 +132,7 @@ export function createPackageManager({ userDir, packagesDir, builtinNames, trash
       const name = manifest.name;
       if (!NAME_RE.test(name || '')) throw new Error(`"${name}" isn't a valid package name (use lowercase letters, numbers and dashes).`);
       if (builtinNames().has(name)) throw new Error(`"${name}" is the name of a built-in package.`);
+      if (RESERVED.has(name)) throw new Error(`"${name}" is reserved for Minimide itself. Rename the package.`);
       if (manifest.main !== false && !manifest.theme) {
         const main = path.resolve(root, manifest.main || 'index.js');
         if (!main.startsWith(root + path.sep)) throw new Error('The package\'s "main" points outside the package.');

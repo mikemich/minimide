@@ -29,7 +29,13 @@ export function activate(mide) {
     render() {
       if (!this.editor.view) return;
       const html = marked.parse(this.editor.getText());
-      this.body.innerHTML = DOMPurify.sanitize(html, { USE_PROFILES: { html: true }, FORBID_TAGS: ['style', 'form', 'input', 'button'] });
+      // No inline styles (they could overlay fake UI) and no element that can load a remote file
+      // other than <img src>, which is checked below.
+      this.body.innerHTML = DOMPurify.sanitize(html, {
+        USE_PROFILES: { html: true },
+        FORBID_TAGS: ['style', 'form', 'input', 'button', 'picture', 'source', 'video', 'audio', 'track', 'link', 'meta'],
+        FORBID_ATTR: ['style', 'srcset', 'poster', 'background', 'ping', 'formaction', 'action', 'xlink:href'],
+      });
       // Remote images would tell their server when you opened this file, so they're opt-in.
       const remote = mide.config.get('markdown-preview.remoteImages');
       for (const img of this.body.querySelectorAll('img')) {

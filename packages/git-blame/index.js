@@ -31,15 +31,17 @@ export function activate(mide) {
   const roots = new Map(); // dir -> repo root | null
   async function repoRoot(dir) {
     if (!roots.has(dir)) {
-      roots.set(dir, mide.process.exec('git', ['rev-parse', '--show-toplevel'], { cwd: dir }).then((r) => (r.code === 0 ? r.stdout.trim() : null)));
+      roots.set(dir, mide.process.exec('git', ['-c', 'core.fsmonitor=false', 'rev-parse', '--show-toplevel'], { cwd: dir }).then((r) => (r.code === 0 ? r.stdout.trim() : null)));
     }
     return roots.get(dir);
   }
 
   async function blameLine(path, line) {
+    // Only in trusted folders: a repository's settings (e.g. a filter driver) can run commands.
+    if (!mide.workspace.isTrusted(path)) return null;
     const root = await repoRoot(mide.path.dirname(path));
     if (!root) return null;
-    const r = await mide.process.exec('git', ['blame', '--porcelain', '-L', `${line},${line}`, '--', path], { cwd: root, timeout: 5000 });
+    const r = await mide.process.exec('git', ['-c', 'core.fsmonitor=false', 'blame', '--no-textconv', '--porcelain', '-L', `${line},${line}`, '--', path], { cwd: root, timeout: 5000 });
     if (r.code !== 0) return null;
     const info = {};
     const lines = r.stdout.split('\n');

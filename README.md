@@ -238,7 +238,11 @@ and add the `minimide-package` topic.
 
 Installed packages run **sandboxed**: in a separate worker with no access to your files,
 programs or the internet. A package that needs more asks for specific permissions
-(`project-files`, `network`, …), and you see them before you install it. A package that
+(`project-files`, `network`, …), and you see them before you install it.
+
+Folders get the same care: the first time you open one, Minimide asks whether you trust it.
+Until you do, git and language servers stay off for it, because both can run code that comes
+with a repository (a command in its git settings, a TypeScript copy in `node_modules`). A package that
 asks for full access gets a clear warning. Packages you write yourself are trusted like
 the rest of your code. See [Sharing packages, and the sandbox](docs/PLUGINS.md#sharing-packages-and-the-sandbox).
 

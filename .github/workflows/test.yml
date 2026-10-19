@@ -5,6 +5,10 @@ on:
     branches: [master]
   pull_request:
 
+# Tests only read the repository.
+permissions:
+  contents: read
+
 jobs:
   test:
     name: e2e (${{ matrix.os }})
@@ -16,6 +20,8 @@ jobs:
         os: [macos-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -34,7 +40,7 @@ jobs:
 
       # Optional: lets the lspPaths suite (and LSP completions in newPackages) run instead of skipping.
       - name: Install TypeScript language server
-        run: npm install -g typescript@5 typescript-language-server
+        run: npm install -g typescript@5.9.3 typescript-language-server@6.0.2
 
       - name: Test (Linux)
         if: runner.os == 'Linux'

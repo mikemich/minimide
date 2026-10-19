@@ -67,7 +67,8 @@ export function activate(mide) {
     const vars = {
       // Running from the file's own folder, the short name reads better: `node 'app.js'`.
       file: quote(cwd === dir ? base : path), dir: quote(dir), base: quote(base), name: quote(name), root: quote(root),
-      out: quote(`${mide.user.platform === 'win32' ? '%TEMP%' : '/tmp'}/minimide-run-${name}`),
+      // A private per-session folder (not a guessable /tmp path another user could pre-create).
+      out: quote(`${mide.user.runDir || (mide.user.platform === 'win32' ? '%TEMP%' : '/tmp')}/${name}`),
     };
     const command = template.replace(/\{(file|dir|base|name|root|out)\}/g, (_, k) => vars[k]);
     return { command, cwd, title: base };

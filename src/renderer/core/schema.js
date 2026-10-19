@@ -5,6 +5,7 @@ export const CORE_SCHEMA = {
   'core.autoSave': { type: 'string', default: 'off', enum: ['off', 'onFocusChange', 'afterDelay'], title: 'Auto Save', description: 'Save files automatically.' },
   'core.autoSaveDelay': { type: 'number', default: 1000, title: 'Auto Save Delay (ms)', description: 'Used when Auto Save is "afterDelay".' },
   'core.ignoredNames': { type: 'array', default: ['.git', 'node_modules', '.DS_Store', '.hg', '.svn', '__pycache__', '.venv', '.next', 'dist', 'build', 'target'], title: 'Ignored Names', description: 'Hidden from the tree view, file finder and project search.' },
+  'security.workspaceTrust': { type: 'boolean', default: true, title: 'Workspace Trust', description: 'Ask before running git and language servers in a folder you haven\'t trusted yet. They can run code that comes with a folder.' },
   'core.checkForUpdates': { type: 'boolean', default: true, title: 'Check for Updates', description: 'Once a day, ask GitHub whether a newer Minimide has been released. Nothing but that request is sent.' },
   'core.hotReloadPackages': { type: 'boolean', default: true, title: 'Hot Reload Packages', description: 'Reload a package in ~/.minimide/packages when its files change.' },
   'core.disabledPackages': { type: 'array', default: [], title: 'Disabled Packages', hidden: true },

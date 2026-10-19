@@ -42,11 +42,11 @@ fetch() { # name dest
   [ $# -ge 3 ] || die "this release has no $1"
   say "Downloading $1"
   curl -fL --progress-bar "$3" -o "$2" || die "download failed"
-  if [ "${4:--}" != "-" ]; then
-    if command -v shasum >/dev/null 2>&1; then sum=$(shasum -a 256 "$2" | cut -d' ' -f1)
-    else sum=$(sha256sum "$2" | cut -d' ' -f1); fi
-    [ "$sum" = "$4" ] || die "checksum mismatch for $1 (expected $4, got $sum)"
-  fi
+  # Never install a file without the SHA-256 GitHub publishes for it.
+  [ "${4:--}" != "-" ] || die "GitHub didn't publish a checksum for $1, so it can't be verified"
+  if command -v shasum >/dev/null 2>&1; then sum=$(shasum -a 256 "$2" | cut -d' ' -f1)
+  else sum=$(sha256sum "$2" | cut -d' ' -f1); fi
+  [ "$sum" = "$4" ] || die "checksum mismatch for $1 (expected $4, got $sum)"
 }
 
 case "$(uname -s)" in

@@ -193,6 +193,9 @@ export function activate(mide) {
 
   async function track(doc) {
     if (disposed || !doc?.path || tracked.has(doc)) return;
+    // Servers can run code from the project (e.g. its own TypeScript in node_modules), so they
+    // only start for files in trusted folders.
+    if (!mide.workspace.isTrusted(doc.path)) { renderStatus(); return; }
     const server = serverForPath(servers, doc.path);
     if (!server) return;
     const entry = { server, path: doc.path, uri: toUri(doc.path), languageId: languageIdFor(doc.path, server), version: 0, client: null, opened: false };
@@ -831,7 +834,8 @@ export function activate(mide) {
     let state = 'off';
     const label = server.displayName || server.name;
     let text = label;
-    if (missing.has(server.name)) { state = 'missing'; text = `${label} (no server)`; }
+    if (!mide.workspace.isTrusted(path)) { state = 'off'; text = `${label} (restricted)`; }
+    else if (missing.has(server.name)) { state = 'missing'; text = `${label} (no server)`; }
     else if (client?.state === 'starting') { state = 'starting'; text = `${label} starting…`; }
     else if (client?.state === 'ready') {
       state = 'ready';
@@ -886,6 +890,7 @@ export function activate(mide) {
 
   mide.config.onDidChange('lsp.servers', (value) => { servers = resolveServers(value); restartAll(); });
   mide.workspace.onDidChangeProject(() => restartAll());
+  mide.workspace.onDidChangeTrust(() => restartAll());
   mide.subscriptions.add({
     dispose: () => {
       disposed = true;

@@ -82,7 +82,9 @@ export function createUpdater({ devBuild }) {
     }
     if (asset.size && got !== asset.size) throw new Error('The download was incomplete. Try again.');
     const digest = hash.digest('hex');
-    if (asset.digest && asset.digest.replace(/^sha256:/, '') !== digest) throw new Error('The download is corrupted (checksum mismatch). Try again.');
+    // GitHub publishes a SHA-256 for every release file; never install one without it.
+    if (!asset.digest) throw new Error('This release has no published checksum, so it can\'t be verified. Download it from the releases page instead.');
+    if (asset.digest.replace(/^sha256:/, '') !== digest) throw new Error('The download is corrupted (checksum mismatch). Try again.');
     return digest;
   }
 
