@@ -1,3 +1,7 @@
 @import url("https://evil.example/a.css");
 .status-bar { background-image: url("https://evil.example/pixel.png"); }
 .evil-ok { background-image: url("data:image/png;base64,AAAA"); }
+.evil-imageset { background-image: image-set("https://evil.example/is.png" 1x); }
+.evil-escaped { background: u\72l(https://evil.example/esc.png); }
+.evil-overlay { position: fixed; inset: 0; z-index: 99999; content: "Enter your password"; color: red; }
+:root { --evil-leak: url(https://evil.example/var.png); --evil-ok: #ff0000; }

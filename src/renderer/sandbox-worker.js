@@ -15,10 +15,20 @@ let project = null;
 let pkg = null;
 let mod = null;
 
-// The worker shares the editor's origin, so hide storage that would be shared with it.
-for (const key of ['indexedDB', 'caches']) {
-  try { Object.defineProperty(self, key, { value: undefined, configurable: false }); } catch {}
-}
+// Every sandboxed worker shares the editor's origin (mide://app), so anything origin-wide would be
+// a channel between packages (pooling permissions granted to different ones) or into the editor's
+// storage. Remove them before package code runs, on the prototypes too, so a saved getter can't
+// bring them back.
+const hide = (obj, key) => {
+  for (let o = obj; o; o = Object.getPrototypeOf(o)) {
+    if (Object.prototype.hasOwnProperty.call(o, key)) {
+      try { Object.defineProperty(o, key, { value: undefined, writable: false, configurable: false }); } catch {}
+    }
+  }
+  try { Object.defineProperty(obj, key, { value: undefined, writable: false, configurable: false }); } catch {}
+};
+for (const key of ['indexedDB', 'caches', 'BroadcastChannel', 'SharedWorker', 'Worker', 'webkitRequestFileSystem', 'webkitResolveLocalFileSystemURL']) hide(self, key);
+for (const key of ['storage', 'locks', 'serviceWorker']) hide(navigator, key);
 
 const call = (method, ...args) => new Promise((resolve, reject) => {
   const id = ++seq;

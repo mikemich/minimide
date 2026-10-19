@@ -125,8 +125,17 @@ const SUITES = [
       installWordCount: 'word-count', sandboxed: true, recordedAccess: 'sandboxed', statusShowsCount: true, commandEdited: true, foreignKeybindingDropped: true,
       installEvil: 'evil', evilGlobals: 'undefined,undefined,undefined,undefined,undefined', evilAllowed: [], foreignCommandRegistered: false,
       foreignConfigHidden: 'hidden', themeUnchanged: 'nightfall', foreignSchemaIgnored: 'nightfall', cssRemoteRemoved: true,
-      installReader: 'proj-reader', readerProject: true, readerDotDot: true, readerSymlink: true, readerWrite: true, readerExec: true,
-      uninstallClean: true, records: ['evil', 'proj-reader'],
+      installReader: 'proj-reader', readerProject: true, readerDotDot: true, readerSymlink: true, readerWrite: true, readerExec: true, readerGitConfig: true, readerNodeModules: true, 'viewer.read': 'ALLOWED', 'viewer.write': 'blocked',
+      cssNoFakeUi: true, cssKeepsSafeVars: true, evilChannels: 'undefined,undefined,undefined,undefined,undefined', floodThrottled: true, notifySpamCapped: true,
+      installReaper: 'file-reaper', reaperBlocked: [], reaperProjectWrite: 'ALLOWED', clobberOpenInit: 'blocked', initUntouched: true,
+      uninstallClean: true, records: ['evil', 'file-reaper', 'net-probe', 'proj-reader', 'proj-viewer'], netProbeRan: true, netLocalRefused: [], reservedNameRefused: true,
+    }),
+  },
+  {
+    name: 'trust', home: 'trusth', project: null, trust: false, timeout: 90,
+    expect: () => ({
+      restrictedStatus: true, markerAfterOpen: false, markerAfterBlame: false, scRestricted: true, lspRestricted: true,
+      trusted: true, gitBranchAfterTrust: true, markerAfterTrust: false, storedTrust: true, restrictedAfterUntrust: true,
     }),
   },
   {
@@ -228,7 +237,7 @@ function runSuite(suite, { electron, fixtures }) {
   const args = ['.', '--mide-test', '--disable-renderer-backgrounding', '--disable-background-timer-throttling', '--disable-backgrounding-occluded-windows'];
   // GitHub's Ubuntu runners can't use Chromium's sandbox (no SUID helper, user namespaces restricted).
   if (IS_LINUX && process.env.CI) args.push('--no-sandbox');
-  args.push(path.join(fixtures, suite.project));
+  if (suite.project) args.push(path.join(fixtures, suite.project));
   const env = {
     ...process.env,
     MINIMIDE_HOME: path.join(fixtures, suite.home),
@@ -236,6 +245,8 @@ function runSuite(suite, { electron, fixtures }) {
     MINIMIDE_EVAL: script,
     MINIMIDE_SCREENSHOT_DELAY: String(suite.delay ?? 2500),
     MINIMIDE_WINDOW: '1440x900',
+    // Suites trust every folder unless they test workspace trust itself.
+    ...(suite.trust === false ? {} : { MINIMIDE_TRUST_ALL: '1' }),
   };
   delete env.ELECTRON_RUN_AS_NODE;
   delete env.MINIMIDE_FRAMES;

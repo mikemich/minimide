@@ -346,6 +346,10 @@ export class PackageManager extends Emitter {
         onDidChangeActiveItem: (fn) => track(ws.on('active-item-changed', fn)),
         observeActiveItem: (fn) => { fn(ws.getActiveItem()); return track(ws.on('active-item-changed', fn)); },
         onDidChangeProject: (fn) => track(ws.on('project-changed', fn)),
+        /** Whether tools may run for this path (default: the project). See core/trust.js. */
+        isTrusted: (path) => app.trust.isTrusted(path),
+        onDidChangeTrust: (fn) => track(app.trust.on('changed', fn)),
+        requestTrust: () => app.trust.prompt(),
         onDidChangeFiles: (fn) => track(ws.on('files-changed', fn)),
         onDidUpdateEditor: (fn) => track(ws.on('editor-updated', fn)),
         onDidOpenItem: (fn) => track(ws.on('item-added', fn)),

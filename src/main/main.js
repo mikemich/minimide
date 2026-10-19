@@ -10,6 +10,8 @@ import { createRequire } from 'node:module';
 import { Worker } from 'node:worker_threads';
 import { createPackageManager } from './package-manager.js';
 import { createUpdater } from './updater.js';
+import dns from 'node:dns/promises';
+import net_ from 'node:net';
 
 // node-pty is native and optional: without it the terminal falls back gracefully.
 let pty = null;
@@ -23,7 +25,12 @@ const BUILTIN_PACKAGES = path.join(ROOT, 'packages');
 const DEV_BUILD = !app.isPackaged;
 const USER_DIR = (DEV_BUILD && process.env.MINIMIDE_HOME) || path.join(os.homedir(), '.minimide');
 const USER_PACKAGES = path.join(USER_DIR, 'packages');
-const DEV = process.argv.includes('--dev');
+const DEV = DEV_BUILD && process.argv.includes('--dev');
+// A packaged build never accepts debugging switches: another local program could use them to drive
+// Minimide (and inherit the file and folder access macOS has granted it).
+if (!DEV_BUILD && process.argv.some((a) => /^--(remote-debugging-(port|pipe)|inspect|inspect-brk|js-flags)(=|$)/.test(a))) app.exit(1);
+// Windows: never run a program that happens to sit in the current folder (a planted git.exe).
+if (process.platform === 'win32') process.env.NoDefaultCurrentDirectoryInExePath = '1';
 const SCREENSHOT = DEV_BUILD ? process.env.MINIMIDE_SCREENSHOT : undefined;
 // Apps launched from Finder/the Dock may not inherit $SHELL, so fall back to the user's login shell.
 const IS_WIN = process.platform === 'win32';
@@ -147,20 +154,75 @@ async function handleProtocol(request) {
   }
   if (!file) return new Response('Not found', { status: 404 });
   try {
+    // within() is lexical; also compare real paths so a symlink can't reach outside the base.
+    if (url.host !== 'app') {
+      const base = url.host === 'user' ? USER_DIR : packageIndex.get(decodeURIComponent(url.pathname.split('/')[1] || ''))?.dir;
+      const [realBase, realFile] = await Promise.all([fs.realpath(base), fs.realpath(file)]);
+      if (realFile !== realBase && !realFile.startsWith(realBase + path.sep)) return new Response('Not found', { status: 404 });
+    }
     const body = await fs.readFile(file);
     const headers = {
       'content-type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
-      'access-control-allow-origin': '*',
+      // Only Minimide's own page (and its workers) may load these cross-origin.
+      'access-control-allow-origin': 'mide://app',
       'cache-control': 'no-store',
     };
     // Sandboxed packages run in this worker. Its policy allows loading code from mide:// and
     // nothing else: no fetch, WebSocket, beacons or remote scripts, so it has no way out
     // except asking the editor, which checks the package's permissions.
-    if (url.host === 'app' && parts.join('/') === 'sandbox-worker.js') headers['content-security-policy'] = "default-src 'none'; script-src mide:";
+    // Each worker may load only its own package's files (?pkg=<name>).
+    if (url.host === 'app' && parts.join('/') === 'sandbox-worker.js') {
+      const pkg = url.searchParams.get('pkg') || '';
+      headers['content-security-policy'] = /^[a-z0-9][a-z0-9._-]{0,63}$/i.test(pkg)
+        ? `default-src 'none'; script-src mide://pkg/${encodeURIComponent(pkg)}/`
+        : "default-src 'none'";
+    }
     return new Response(body, { headers });
   } catch {
     return new Response('Not found', { status: 404 });
   }
+}
+
+// ---------------------------------------------------------------------------
+// Network access for sandboxed packages granted "network": public internet only. Loopback, private
+// networks, link-local and cloud metadata addresses are refused, every redirect is re-checked, and
+// the size cap applies while downloading.
+
+function isPublicAddress(ip) {
+  if (net_.isIPv4(ip)) {
+    const [a, b] = ip.split('.').map(Number);
+    return !(a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31)
+      || (a === 192 && b === 168) || (a === 192 && b === 0) || (a === 198 && (b === 18 || b === 19)) || a >= 224);
+  }
+  const v6 = ip.toLowerCase();
+  if (v6.startsWith('::ffff:')) return isPublicAddress(v6.slice(7));
+  return !(v6 === '::' || v6 === '::1' || v6.startsWith('fc') || v6.startsWith('fd') || v6.startsWith('fe8') || v6.startsWith('fe9') || v6.startsWith('fea') || v6.startsWith('feb') || v6.startsWith('ff'));
+}
+
+async function safeFetch(url, opts = {}) {
+  const MAX = 10 * 1024 * 1024;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 30000);
+  try {
+    let target = new URL(url);
+    for (let hop = 0; hop <= 5; hop++) {
+      if (target.protocol !== 'https:' && target.protocol !== 'http:') throw new Error('Only http and https URLs can be fetched.');
+      const host = target.hostname.replace(/^\[|\]$/g, '');
+      const addrs = net_.isIP(host) ? [{ address: host }] : await dns.lookup(host, { all: true });
+      if (!addrs.length || !addrs.every((a) => isPublicAddress(a.address))) throw new Error(`${target.hostname} is a local or private address.`);
+      const res = await net.fetch(target.href, { method: hop ? 'GET' : opts.method || 'GET', headers: opts.headers, body: hop ? undefined : opts.body, signal: ctrl.signal, redirect: 'manual' });
+      if (res.status >= 300 && res.status < 400 && res.headers.get('location')) { target = new URL(res.headers.get('location'), target); continue; }
+      const chunks = [];
+      let size = 0;
+      for await (const chunk of res.body || []) {
+        size += chunk.length;
+        if (size > MAX) { ctrl.abort(); throw new Error('Response is larger than 10 MB.'); }
+        chunks.push(chunk);
+      }
+      return { status: res.status, ok: res.ok, url: target.href, headers: Object.fromEntries(res.headers), body: Buffer.concat(chunks).toString('utf8') };
+    }
+    throw new Error('Too many redirects.');
+  } finally { clearTimeout(timer); }
 }
 
 // ---------------------------------------------------------------------------
@@ -388,6 +450,18 @@ function handle(channel, fn) {
   });
 }
 
+// Windows looks in the current folder before PATH, so a project could plant git.exe. Resolve bare
+// command names from PATH ourselves (elsewhere they're left to the OS, which only uses PATH).
+function resolveCommand(cmd) {
+  if (!IS_WIN || /[\\/]/.test(cmd)) return cmd;
+  const exts = path.extname(cmd) ? [''] : (process.env.PATHEXT || '.COM;.EXE;.BAT;.CMD').split(';');
+  for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+    if (!dir || !path.isAbsolute(dir)) continue;
+    for (const ext of exts) { const full = path.join(dir, cmd + ext); if (fss.existsSync(full)) return full; }
+  }
+  return cmd;
+}
+
 // Windows: run a command line through cmd.exe exactly as written (no libuv re-quoting).
 const winQuote = (a) => (/^[\w.\\/:=-]+$/.test(a) ? a : `"${String(a).replace(/"/g, '""')}"`);
 const winShell = (commandLine) => [process.env.COMSPEC || 'cmd.exe', ['/d', '/s', '/c', `"${commandLine}"`], { windowsVerbatimArguments: true, windowsHide: true }];
@@ -528,7 +602,7 @@ function registerIpc() {
 
   // processes
   handle('proc:exec', (_e, cmd, args = [], opts = {}) => new Promise((resolve) => {
-    execFile(cmd, args, { cwd: opts.cwd, timeout: opts.timeout ?? 30000, maxBuffer: 16 * 1024 * 1024, env: { ...process.env, ...opts.env } },
+    execFile(resolveCommand(cmd), args, { cwd: opts.cwd, timeout: opts.timeout ?? 30000, maxBuffer: 16 * 1024 * 1024, env: { ...process.env, ...opts.env } },
       (err, stdout, stderr) => resolve({ code: err ? (typeof err.code === 'number' ? err.code : 1) : 0, stdout, stderr: stderr || (err && !stdout ? String(err.message) : '') }));
   }));
   handle('proc:spawn', (event, id, command, opts = {}) => {
@@ -650,7 +724,25 @@ function registerIpc() {
   });
 
   // user dir, packages & state
-  handle('user:info', () => ({ appRoot: ROOT, dir: USER_DIR, packagesDir: USER_PACKAGES, platform: process.platform, home: os.homedir(), shell: USER_SHELL, version: app.getVersion() }));
+  handle('user:info', () => ({ appRoot: ROOT, dir: USER_DIR, packagesDir: USER_PACKAGES, platform: process.platform, home: os.homedir(), shell: USER_SHELL, version: app.getVersion(), runDir: RUN_DIR,
+    // Test runs only: treat every folder as trusted so suites don't stop at the trust prompt.
+    trustAll: DEV_BUILD && process.env.MINIMIDE_TRUST_ALL === '1' }));
+  // Workspace trust: folders whose tools (git, language servers) may run. Kept by the main process
+  // so every window sees the same list; each entry is stored as given and as its real path.
+  handle('trust:list', () => readTrusted());
+  handle('trust:add', async (_e, folder) => {
+    const list = await readTrusted();
+    const real = await fs.realpath(folder).catch(() => folder);
+    if (!list.some((t) => t.real === real)) list.push({ path: folder, real });
+    await writeTrusted(list);
+    return list;
+  });
+  handle('trust:remove', async (_e, folder) => {
+    const real = await fs.realpath(folder).catch(() => folder);
+    const list = (await readTrusted()).filter((t) => t.real !== real && t.path !== folder);
+    await writeTrusted(list);
+    return list;
+  });
   handle('packages:list', () => listPackages());
   handle('update:check', () => updater.check());
   handle('update:prepare', (event, info) => updater.prepare(info, (fraction) => {
@@ -668,18 +760,7 @@ function registerIpc() {
   handle('pkgmgr:search', (_e, query) => packageManager.search(query));
   handle('pkgmgr:permissions', () => packageManager.PERMISSIONS);
   // Network access for sandboxed packages that were granted "network". http(s) only, size- and time-limited.
-  handle('net:fetch', async (_e, url, opts = {}) => {
-    const u = new URL(url);
-    if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error('Only http and https URLs can be fetched.');
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 30000);
-    try {
-      const res = await net.fetch(u.href, { method: opts.method || 'GET', headers: opts.headers, body: opts.body, signal: ctrl.signal, redirect: 'follow' });
-      const buf = Buffer.from(await res.arrayBuffer());
-      if (buf.length > 10 * 1024 * 1024) throw new Error('Response is larger than 10 MB.');
-      return { status: res.status, ok: res.ok, url: res.url, headers: Object.fromEntries(res.headers), body: buf.toString('utf8') };
-    } finally { clearTimeout(timer); }
-  });
+  handle('net:fetch', (_e, url, opts = {}) => safeFetch(url, opts));
   handle('state:load', () => readState());
   handle('state:save', (_e, state) => saveState(state));
 
@@ -710,6 +791,21 @@ function registerIpc() {
   });
   handle('window:reload', (event) => event.sender.reload());
 }
+
+const TRUSTED_FILE = () => path.join(USER_DIR, 'trusted-folders.json');
+async function readTrusted() {
+  try { const v = JSON.parse(await fs.readFile(TRUSTED_FILE(), 'utf8')); return Array.isArray(v.folders) ? v.folders : []; } catch { return []; }
+}
+async function writeTrusted(list) {
+  const tmp = `${TRUSTED_FILE()}.${process.pid}.tmp`;
+  await fs.writeFile(tmp, JSON.stringify({ folders: list }, null, 2) + '\n');
+  await fs.rename(tmp, TRUSTED_FILE());
+  for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('trust:changed', list);
+}
+
+// A private folder for compiled programs the runner produces ({out}), instead of a guessable /tmp path.
+const RUN_DIR = fss.mkdtempSync(path.join(os.tmpdir(), 'minimide-run-'));
+app.on('will-quit', () => { try { fss.rmSync(RUN_DIR, { recursive: true, force: true }); } catch {} });
 
 // state.json is shared by every window: writes are queued, merged with what's on disk, and
 // written to a temp file then renamed, so concurrent quits can't leave it half-written.

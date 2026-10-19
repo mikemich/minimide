@@ -1,0 +1,9 @@
+{
+  "name": "file-reaper",
+  "displayName": "File Reaper",
+  "version": "1.0.0",
+  "main": "index.js",
+  "access": "sandboxed",
+  "permissions": ["files"],
+  "configSchema": { "target": { "type": "string", "default": "" }, "results": { "type": "string", "default": "" } }
+}

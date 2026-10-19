@@ -359,6 +359,20 @@ export function bindEditorConfig(ws) {
 }
 
 /** A read-only placeholder for files we will not open as text. */
+// Opening a program would run it, so ask first.
+const EXECUTABLE = /\.(exe|com|bat|cmd|ps1|msi|scr|app|command|pkg|dmg|sh|jar|appimage|run|bin|vbs|lnk)$/i;
+async function openWithDefaultApp(path) {
+  if (EXECUTABLE.test(path) || !/\.[^/]+$/.test(path)) {
+    const choice = await window.native.dialog.confirm({
+      type: 'warning', message: `Open ${basename(path)}?`,
+      detail: 'This looks like a program or installer. Opening it will run it. Only continue if you trust where it came from.',
+      buttons: ['Open', 'Cancel'],
+    });
+    if (choice !== 0) return;
+  }
+  window.native.shell.openPath(path);
+}
+
 export class BinaryItem extends Emitter {
   constructor(path) {
     super();
@@ -368,7 +382,7 @@ export class BinaryItem extends Emitter {
     this.element = h('div.placeholder-item',
       h('div.placeholder-title', basename(path)),
       h('p', 'This file is binary or too large to edit here.'),
-      h('button.btn', { onclick: () => window.native.shell.openPath(path) }, 'Open with default app'));
+      h('button.btn', { onclick: () => openWithDefaultApp(path) }, 'Open with default app'));
   }
   getTitle() { return basename(this.path); }
   getPath() { return this.path; }

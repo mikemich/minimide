@@ -6,6 +6,6 @@
   "access": "sandboxed",
   "keymap": {},
   "permissions": [
-    "project-files"
+    "project-write"
   ]
 }

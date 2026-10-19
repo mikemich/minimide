@@ -341,8 +341,9 @@ List them in `package.json`. Ask for as few as you can; each one is shown to the
 
 | Permission | Allows |
 | --- | --- |
-| `project-files` | `mide.fs.*` and `mide.workspace.open()` inside the open project (symlinks that lead outside are refused) |
-| `files` | `mide.fs.*` anywhere |
+| `project-files` | Read files in the open project: `mide.fs.read/readdir/stat`, `mide.workspace.open()` (symlinks that lead outside are refused) |
+| `project-write` | Also `mide.fs.write` in the project, except inside `.git/` and `node_modules/`. Language servers and build tools can run code from project files, so users see this as close to full access |
+| `files` | `mide.fs.*` anywhere, except Minimide's own folder (`~/.minimide`). Shown to users as close to full access |
 | `shell` | `mide.process.exec()` (effectively full access: say why you need it) |
 | `network` | `mide.net.fetch()` and `mide.shell.openExternal()` |
 | `clipboard` | `mide.clipboard.readText()` (writing is always allowed) |
@@ -351,10 +352,17 @@ List them in `package.json`. Ask for as few as you can; each one is shown to the
 ### The sandboxed API
 
 Everything that reaches the editor returns a promise. Command ids must start with your
-package name. Settings are limited to your own namespace (plus `editor.*`, `ui.*` and
-`core.theme`, read-only). Keybindings in `package.json` can only point at your own
-commands. Stylesheets can't load anything from the internet (`@import` and remote `url()`
-are removed). `eval` and `new Function` aren't available.
+package name, and names Minimide uses itself (`core`, `editor`, `ui`, `settings`…) are
+reserved. Settings are limited to your own namespace (plus `editor.*`, `ui.*` and
+`core.theme`, read-only). Keybindings in `package.json` can only point at your own commands.
+Prompts and pickers are labelled with your package's name. Calls are rate-limited, and at
+most 3 notifications are shown per 10 seconds. `eval` and `new Function` aren't available,
+and a package can only load its own files.
+
+Stylesheets go through the browser's CSS parser and keep only visual properties (colors,
+borders, shadows, fonts and so on, plus custom properties). Rules that position, hide or add
+content are dropped, so a package can't draw fake UI. Images and fonts must be `data:` URLs or
+files in your package; nothing loads from the internet. Themes work unchanged.
 
 ```js
 export async function activate(mide) {
@@ -391,6 +399,23 @@ export async function activate(mide) {
   await mide.shell.openExternal('https://example.com');
 }
 ```
+
+## Workspace trust
+
+git and language servers can run code that comes with a folder (a command in `.git/config`, a
+TypeScript copy in `node_modules`, a Rust build script). So the first time a folder is opened,
+Minimide asks whether to trust it; until then it's in **Restricted Mode**, and packages that run
+such tools should stay off. Check it with:
+
+```js
+mide.workspace.isTrusted();          // the open project; or pass a file path
+mide.workspace.onDidChangeTrust(() => { /* start or stop your tool */ });
+await mide.workspace.requestTrust(); // shows the prompt; resolves to true if trusted
+```
+
+The built-in git, source control, blame and language-server packages do this. Trusted folders
+are listed in `~/.minimide/trusted-folders.json` and managed with **Workspace: Manage Trusted
+Folders…**; set `security.workspaceTrust` to `false` to trust everything.
 
 ## Your init script and stylesheet
 

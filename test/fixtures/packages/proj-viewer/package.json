@@ -1,0 +1,9 @@
+{
+  "name": "proj-viewer",
+  "displayName": "Project Viewer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "access": "sandboxed",
+  "permissions": ["project-files"],
+  "configSchema": { "results": { "type": "string", "default": "" } }
+}

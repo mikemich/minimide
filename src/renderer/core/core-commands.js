@@ -243,6 +243,19 @@ export function registerCoreCommands(app) {
         onSelect: async (it) => { await app.packages.reload(it.label); ui.notify.info(`Reloaded ${it.label}`); },
       }),
     },
+    'workspace:trust-folder': {
+      title: 'Trust This Folder…',
+      run: () => (ws.project ? app.trust.prompt(ws.project) : ui.notify.info('Open a folder first.')),
+    },
+    'workspace:manage-trusted-folders': {
+      title: 'Manage Trusted Folders…',
+      run: () => ui.selectList({
+        id: 'trusted-folders', placeholder: 'Select a folder to stop trusting it',
+        items: app.trust.folders.map((t) => ({ label: t.path.split('/').pop() || t.path, detail: t.path, path: t.path })),
+        emptyMessage: 'No trusted folders yet.',
+        onSelect: async (it) => { await app.trust.untrust(it.path); ui.notify.info(`No longer trusting ${it.label}`); },
+      }),
+    },
     'app:check-for-updates': { title: 'Check for Updates…', run: () => app.checkForUpdates({ manual: true }) },
     'packages:install': {
       title: 'Install Package…',

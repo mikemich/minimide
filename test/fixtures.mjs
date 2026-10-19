@@ -135,6 +135,18 @@ function sbx(root) {
   fs.cpSync(path.join(REPO, 'test/fixtures/packages'), d, { recursive: true });
 }
 
+/** `evilrepo`: a repository whose .git/config would run a command on `git status` (core.fsmonitor). */
+function evilrepo(root) {
+  const d = path.join(root, 'evilrepo');
+  gitInit(d, 'Mallory', 'mallory@example.com');
+  write(path.join(d, 'a.txt'), 'hello\n');
+  write(path.join(d, 'main.ts'), 'export const x: number = 1;\n');
+  commitAll(d, 'init');
+  write(path.join(d, 'a.txt'), 'hello, changed\n');
+  // Leaves a marker file if git ever runs the repo's fsmonitor command.
+  git(d, 'config', 'core.fsmonitor', `echo PWNED >> '${path.join(root, 'evilrepo-marker.txt')}'; false`);
+}
+
 /** `large`: 55,000 source files (more than the old 50,000-file cap) and an ignored node_modules. */
 function large(root) {
   const d = path.join(root, 'large');
@@ -167,8 +179,9 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   qb(root);
   rproj(root);
   sbx(root);
+  evilrepo(root);
   large(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 

@@ -14,11 +14,13 @@ export function activate(mide) {
   const listeners = new Set();
   const headCache = new Map(); // abs path -> HEAD text | null
 
-  const git = (...args) => mide.process.exec('git', args, { cwd: repoRoot || mide.workspace.project });
+  // Background git calls never run a repo's fsmonitor command (and only run at all in trusted folders).
+  const SAFE = ['-c', 'core.fsmonitor=false'];
+  const git = (...args) => mide.process.exec('git', [...SAFE, ...args], { cwd: repoRoot || mide.workspace.project });
   // The repo root derived from the project path itself (not `--show-toplevel`, which resolves
   // symlinks and then no longer matches the paths the editor uses).
   async function findRoot(project) {
-    const r = await mide.process.exec('git', ['rev-parse', '--show-cdup'], { cwd: project });
+    const r = await mide.process.exec('git', [...SAFE, 'rev-parse', '--show-cdup'], { cwd: project });
     if (r.code !== 0) return null;
     const parts = project.split('/');
     for (const seg of r.stdout.trim().split('/').filter(Boolean)) if (seg === '..') parts.pop();
@@ -30,11 +32,11 @@ export function activate(mide) {
     const seq = ++refreshSeq; // a newer refresh supersedes this one (e.g. the project changed meanwhile)
     const project = mide.workspace.project;
     const clear = () => { repoRoot = null; branch = ''; statuses = new Map(); dirStatuses = new Map(); emit(); };
-    if (!project) return clear();
+    if (!project || !mide.workspace.isTrusted(project)) return clear();
     const root = await findRoot(project);
     if (seq !== refreshSeq) return;
     if (!root) return clear();
-    const inRoot = (...args) => mide.process.exec('git', args, { cwd: root });
+    const inRoot = (...args) => mide.process.exec('git', [...SAFE, ...args], { cwd: root });
     // --no-optional-locks: background status must not hold .git/index.lock while you stage or commit.
     const [b, s] = await Promise.all([inRoot('rev-parse', '--abbrev-ref', 'HEAD'), inRoot('--no-optional-locks', 'status', '--porcelain=v1', '-z')]);
     let nextBranch = b.code === 0 ? b.stdout.trim() : '';
@@ -226,6 +228,7 @@ export function activate(mide) {
   let refreshTimer = null;
   const scheduleRefresh = () => { clearTimeout(refreshTimer); refreshTimer = setTimeout(refresh, 400); };
   mide.workspace.onDidChangeProject(refresh);
+  mide.workspace.onDidChangeTrust(refresh);
   mide.workspace.onDidSave(scheduleRefresh);
   mide.workspace.onDidChangeFiles(scheduleRefresh);
   const onFocus = () => scheduleRefresh();

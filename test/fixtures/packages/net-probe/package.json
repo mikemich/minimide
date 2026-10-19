@@ -1,0 +1,8 @@
+{
+  "name": "net-probe",
+  "version": "1.0.0",
+  "main": "index.js",
+  "access": "sandboxed",
+  "permissions": ["network"],
+  "configSchema": { "results": { "type": "string", "default": "" } }
+}

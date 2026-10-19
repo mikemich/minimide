@@ -85,10 +85,13 @@ export class Config extends Emitter {
 
   /** register({ 'editor.fontSize': { type: 'number', default: 14, title, description } }, source) */
   register(schema, source = 'core') {
-    for (const [key, def] of Object.entries(schema)) this.schema.set(key, { ...def, key, source });
+    // A setting belongs to whoever registered it first: a package can't redefine (or, by
+    // unloading, delete) a core setting or another package's.
+    const mine = Object.keys(schema).filter((key) => { const owner = this.schema.get(key)?.source; return !owner || owner === source; });
+    for (const key of mine) this.schema.set(key, { ...schema[key], key, source });
     this.emit('schema');
     return new Disposable(() => {
-      for (const key of Object.keys(schema)) if (this.schema.get(key)?.source === source) this.schema.delete(key);
+      for (const key of mine) if (this.schema.get(key)?.source === source) this.schema.delete(key);
       this.emit('schema');
     });
   }

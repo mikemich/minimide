@@ -20,8 +20,10 @@ on:
         description: 'Release tag to build and attach files to (e.g. v0.1.0)'
         required: true
 
+# Building only needs to read the repository; a separate job with write access attaches the files,
+# so dependencies' install scripts never run next to a token that can change the release.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -30,12 +32,11 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
-    env:
-      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -65,17 +66,40 @@ jobs:
           [ -n "$APPLE_ID" ] || unset APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
           npx electron-builder --publish never "${EXTRA[@]}"
 
-      # Upload with gh instead of electron-builder's publisher, which refuses to add files
-      # to a release that has already been published.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.os }}
+          if-no-files-found: error
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+            release/*.AppImage
+            release/*.tar.gz
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      # Upload with gh (electron-builder's publisher refuses to add files to a published release).
       - name: Attach to release
         shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --draft --title "Minimide ${TAG#v}" --notes "Release $TAG"
           existing=$(gh release view "$TAG" --json assets -q '.assets[].name')
           shopt -s nullglob
-          for f in release/*.dmg release/*.zip release/*.exe release/*.AppImage release/*.tar.gz release/*.deb; do
+          for f in dist/*; do
             if grep -qxF "$(basename "$f")" <<<"$existing"; then echo "Already attached: $(basename "$f")"; continue; fi
             gh release upload "$TAG" "$f"
           done

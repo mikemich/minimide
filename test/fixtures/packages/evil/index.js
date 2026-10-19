@@ -23,5 +23,18 @@ export async function activate(mide) {
   r.foreignConfigVisible = mide.config.get('core.restoreSession') === undefined ? 'hidden' : 'VISIBLE';
   r.themeVisible = mide.config.get('core.theme') ? 'visible' : 'hidden';
   await attempt('editorText', () => mide.editor.getText());
+  await attempt('importUserInit', () => import('mide://user/init.js'));
+  await attempt('importOtherPackage', () => import('mide://pkg/word-count/index.js'));
+  r.broadcastChannel = typeof self.BroadcastChannel;
+  r.storage = typeof navigator.storage;
+  r.locks = typeof navigator.locks;
+  r.nestedWorker = typeof self.Worker;
+  try { const d = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(navigator), 'storage'); r.storageViaPrototype = typeof (d?.get ? d.get.call(navigator) : d?.value); } catch { r.storageViaPrototype = 'blocked'; }
+  // Flood: most of these should be refused rather than freezing the editor.
+  const flood = await Promise.allSettled(Array.from({ length: 1500 }, () => mide.editor.getCursor()));
+  r.floodRejected = flood.filter((x) => x.status === 'rejected').length;
+  const spam = await Promise.allSettled(Array.from({ length: 6 }, (_, i) => mide.notify.info('spam ' + i)));
+  r.notifyRejected = spam.filter((x) => x.status === 'rejected').length;
+  await new Promise((resolve) => setTimeout(resolve, 2500)); // let the rate limit refill before reporting
   await mide.config.set('evil.results', JSON.stringify(r));
 }
