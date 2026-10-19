@@ -1,0 +1,91 @@
+// A Dracula-inspired dark fixture for the vscode-theme converter tests.
+// Uses JSONC features: line comments, block comments, and trailing commas.
+{
+  "name": "Dark Night",
+  "type": "dark",
+  /* UI colors */
+  "colors": {
+    "editor.background": "#282a36",
+    "editor.foreground": "#f8f8f2",
+    "sideBar.background": "#21222c",
+    "editorGroupHeader.tabsBackground": "#21222c",
+    "statusBar.background": "#191a21",
+    "editorWidget.background": "#313342",
+    "input.background": "#1e1f29",
+    "list.hoverBackground": "#44475a55",
+    "list.inactiveSelectionBackground": "#44475a",
+    "list.activeSelectionBackground": "#6272a488",
+    "focusBorder": "#6272a4",
+    "button.background": "#6272a4",
+    "button.foreground": "#f8f8f2",
+    "editor.selectionBackground": "#44475a",
+    "editorCursor.foreground": "#f8f8f2",
+    "editorLineNumber.foreground": "#6272a4",
+    "editorLineNumber.activeForeground": "#f8f8f2",
+    "editor.lineHighlightBackground": "#ffffff05",
+    "editorGroup.border": "#ffffff10",
+    "terminal.ansiRed": "#ff5555",
+    "terminal.ansiGreen": "#50fa7b",
+    "terminal.ansiYellow": "#f1fa8c",
+    "terminal.ansiBlue": "#6272a4",
+    "terminal.ansiMagenta": "#bd93f9",
+    "terminal.ansiCyan": "#8be9fd", // trailing comma below
+  },
+  "tokenColors": [
+    {
+      "name": "Comment",
+      "scope": ["comment", "punctuation.definition.comment"],
+      "settings": { "foreground": "#6272a4", "fontStyle": "italic" }
+    },
+    {
+      "name": "String",
+      "scope": "string",
+      "settings": { "foreground": "#f1fa8c" }
+    },
+    {
+      "name": "Keyword",
+      "scope": ["keyword", "storage", "storage.type"],
+      "settings": { "foreground": "#ff79c6" }
+    },
+    {
+      "name": "Function",
+      "scope": ["entity.name.function", "support.function"],
+      "settings": { "foreground": "#50fa7b" }
+    },
+    {
+      "name": "Constant / number",
+      "scope": ["constant.numeric", "constant.language", "variable.other.constant"],
+      "settings": { "foreground": "#bd93f9" }
+    },
+    {
+      "name": "Tag",
+      "scope": "entity.name.tag",
+      "settings": { "foreground": "#ff79c6" }
+    },
+    {
+      "name": "Type / class",
+      "scope": ["entity.name.type", "entity.name.class", "support.class"],
+      "settings": { "foreground": "#8be9fd", "fontStyle": "italic" }
+    },
+    {
+      "name": "Property",
+      "scope": "support.type.property-name",
+      "settings": { "foreground": "#f8f8f2" }
+    },
+    {
+      "name": "Punctuation",
+      "scope": "punctuation",
+      "settings": { "foreground": "#f8f8f2" }
+    },
+    {
+      "name": "Operator",
+      "scope": "keyword.operator",
+      "settings": { "foreground": "#ff79c6" }
+    },
+    {
+      "name": "Self / this",
+      "scope": "variable.language",
+      "settings": { "foreground": "#bd93f9", "fontStyle": "italic" }
+    }, // trailing comma
+  ]
+}

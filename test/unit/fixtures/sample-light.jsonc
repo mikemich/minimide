@@ -1,0 +1,28 @@
+// Minimal light-theme fixture — only the essential colors defined.
+// Tests that fallbacks are derived sensibly from bg/fg/accent.
+{
+  "name": "Paper Light",
+  "type": "light",
+  "colors": {
+    "editor.background": "#fafafa",
+    "editor.foreground": "#24292e",
+    "focusBorder": "#0366d6",
+    "terminal.ansiRed": "#d73a49",
+    "terminal.ansiGreen": "#22863a",
+    "terminal.ansiBlue": "#0366d6",
+  },
+  "tokenColors": [
+    {
+      "scope": "comment",
+      "settings": { "foreground": "#6a737d", "fontStyle": "italic" }
+    },
+    {
+      "scope": "string",
+      "settings": { "foreground": "#032f62" }
+    },
+    {
+      "scope": ["keyword", "storage.type"],
+      "settings": { "foreground": "#d73a49" }
+    },
+  ]
+}
