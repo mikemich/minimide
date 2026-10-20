@@ -162,10 +162,12 @@ export class Pane extends Emitter {
 
   async tabContextMenu(item) {
     const path = item.getPath?.();
+    const at = this.items.indexOf(item);
     const choice = await window.native.menu.popup([
       { id: 'close', label: 'Close Tab' },
-      { id: 'others', label: 'Close Other Tabs' },
-      { id: 'right', label: 'Close Tabs to the Right' },
+      { id: 'others', label: 'Close Other Tabs', enabled: this.items.length > 1 },
+      { id: 'left', label: 'Close Tabs to the Left', enabled: at > 0 },
+      { id: 'right', label: 'Close Tabs to the Right', enabled: at < this.items.length - 1 },
       { id: 'all', label: 'Close All Tabs' },
       { type: 'separator' },
       { id: 'split', label: 'Split Right' },
@@ -179,6 +181,7 @@ export class Pane extends Emitter {
     switch (choice) {
       case 'close': return this.ws.closeItem(item);
       case 'others': for (const i of this.items.filter((x) => x !== item)) if (!await this.ws.closeItem(i)) break; return;
+      case 'left': for (const i of this.items.slice(0, idx)) if (!await this.ws.closeItem(i)) break; return;
       case 'right': for (const i of this.items.slice(idx + 1)) if (!await this.ws.closeItem(i)) break; return;
       case 'all': for (const i of [...this.items]) if (!await this.ws.closeItem(i)) break; return;
       case 'split': return this.ws.splitRight(this, item);

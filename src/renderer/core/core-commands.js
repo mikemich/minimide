@@ -127,6 +127,14 @@ export function registerCoreCommands(app) {
       title: 'Close Other Tabs',
       run: async () => { const keep = ws.getActiveItem(); for (const i of ws.activePane.items.filter((x) => x !== keep)) if (!await ws.closeItem(i)) break; },
     },
+    'tab:close-to-left': {
+      title: 'Close Tabs to the Left',
+      run: async () => { const p = ws.activePane, at = p.items.indexOf(ws.getActiveItem()); for (const i of p.items.slice(0, Math.max(0, at))) if (!await ws.closeItem(i)) break; },
+    },
+    'tab:close-to-right': {
+      title: 'Close Tabs to the Right',
+      run: async () => { const p = ws.activePane, at = p.items.indexOf(ws.getActiveItem()); if (at >= 0) for (const i of p.items.slice(at + 1)) if (!await ws.closeItem(i)) break; },
+    },
     'tab:close-all': { title: 'Close All Tabs', run: async () => { for (const i of ws.allItems()) if (!await ws.closeItem(i)) break; } },
     'tab:reopen-closed': {
       title: 'Reopen Closed Tab',
