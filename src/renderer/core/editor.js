@@ -42,6 +42,17 @@ import { h, basename } from './dom.js';
 const syncAnnotation = Annotation.define();
 
 export const languages = [...builtinLanguages];
+// Shell gets richer token types than the stock legacy mode (see shell-language.js).
+{
+  const i = languages.findIndex((l) => l.name === 'Shell');
+  if (i >= 0) {
+    const stock = languages[i];
+    languages[i] = LanguageDescription.of({
+      name: stock.name, alias: stock.alias, extensions: stock.extensions, filename: stock.filename,
+      load: () => import('./shell-language.js').then((m) => m.shellLanguage),
+    });
+  }
+}
 
 export function registerLanguage(desc) {
   const d = desc instanceof LanguageDescription ? desc : LanguageDescription.of(desc);
