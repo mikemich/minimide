@@ -1,4 +1,5 @@
-// Fuzzy Finder: Mod-P for files. Supports "file:line" to jump straight to a line.
+// Fuzzy Finder: Mod-P for files, the default search of the quick-open box. Supports "file:line"
+// to jump straight to a line.
 
 export function activate(mide) {
   const { h, fileIcon, highlightMatches } = mide.ui;
@@ -27,42 +28,43 @@ export function activate(mide) {
     return m ? { query: m[1], line: +m[2], col: m[3] ? +m[3] - 1 : 0 } : { query: q };
   };
 
-  function open(items, placeholder, id) {
-    mide.ui.selectList({
-      id,
-      placeholder,
-      items,
-      filterKey: (i) => i.rel,
-      maxItems: 80,
-      render: (i, indices) => renderPath(i.rel, indices),
-      emptyMessage: mide.workspace.project ? 'No matching files' : 'Open a folder to search its files',
-      transformQuery: (q) => parseQuery(q).query,
-      footer: (shown, total) => (total > shown ? `${shown} of ${total} files` : ''),
-      onSelect: (i, q) => {
-        const { line, col } = parseQuery(q);
-        mide.workspace.open(i.path, line ? { line, col } : {});
-      },
-    });
-  }
-
-  mide.commands.add('fuzzy-finder:toggle', 'Find File', async () => {
-    const root = mide.workspace.project;
-    const items = async () => {
-      if (!root) return recent.map((p) => ({ path: p, rel: p }));
-      const files = await mide.project.files();
-      const recentRank = new Map(recent.map((p, i) => [p, i]));
-      return files
-        .map((rel) => ({ rel, path: `${root}/${rel}` }))
-        .sort((a, b) => (recentRank.get(a.path) ?? 1e9) - (recentRank.get(b.path) ?? 1e9));
-    };
-    open(items, root ? `Search files in ${mide.path.basename(root)} (file:line works too)` : 'Search recent files', 'fuzzy-finder');
+  const fileSearch = (items) => ({
+    items,
+    filterKey: (i) => i.rel,
+    maxItems: 80,
+    render: (i, indices) => renderPath(i.rel, indices),
+    emptyMessage: () => (mide.workspace.project ? 'No matching files' : 'Open a folder to search its files'),
+    transformQuery: (q) => parseQuery(q).query,
+    footer: (shown, total) => (total > shown ? `${shown} of ${total} files` : ''),
+    onSelect: (i, q) => {
+      const { line, col } = parseQuery(q);
+      mide.workspace.open(i.path, line ? { line, col } : {});
+    },
   });
+
+  const projectFiles = async () => {
+    const root = mide.workspace.project;
+    if (!root) return recent.map((p) => ({ path: p, rel: p }));
+    const files = await mide.project.files();
+    const recentRank = new Map(recent.map((p, i) => [p, i]));
+    return files
+      .map((rel) => ({ rel, path: `${root}/${rel}` }))
+      .sort((a, b) => (recentRank.get(a.path) ?? 1e9) - (recentRank.get(b.path) ?? 1e9));
+  };
+  mide.ui.addQuickOpenMode({
+    ...fileSearch(projectFiles),
+    prefix: '', title: 'Files', order: 0,
+    description: 'Type a file name. name:42 opens it at line 42',
+    placeholder: () => (mide.workspace.project ? `Search files in ${mide.path.basename(mide.workspace.project)}` : 'Search recent files'),
+  });
+
+  mide.commands.add('fuzzy-finder:toggle', 'Find File', () => mide.ui.quickOpen(''));
 
   mide.commands.add('fuzzy-finder:toggle-open-tabs', 'Find Open Tab', () => {
     const items = mide.workspace.getItems()
       .filter((i) => i.getPath?.())
       .map((i) => ({ path: i.getPath(), rel: mide.workspace.relativePath(i.getPath()) }));
-    open(items, 'Search open tabs', 'fuzzy-finder-tabs');
+    mide.ui.selectList({ ...fileSearch(items), id: 'fuzzy-finder-tabs', placeholder: 'Search open tabs' });
   });
 
   mide.styles.add(`

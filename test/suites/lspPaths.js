@@ -50,13 +50,24 @@
   target.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: coords.left + 2, clientY: (coords.top + coords.bottom) / 2 }));
   out.hoverLinks = await until(() => { const l = [...document.querySelectorAll('.lsp-hover-link')].map((b) => b.textContent); return l.length && l; }, 6000);
 
-  // Symbols across the project.
+  // Symbols across the project: "#" in the quick-open box.
   await app.commands.run('lsp:go-to-workspace-symbol');
   const input = await until(() => document.querySelector('.select-list .select-input'));
-  if (input) { input.value = 'greetUser'; input.dispatchEvent(new Event('input')); }
+  if (input) { input.value = '#greetUser'; input.dispatchEvent(new Event('input')); }
   const rows = () => [...document.querySelectorAll('.select-item')].map((li) => `${li.querySelector('.select-label')?.textContent}|${li.querySelector('.select-detail')?.textContent}`);
   out.workspaceSymbol = await until(() => rows().some((r) => r.startsWith('greetUser|')) && rows(), 10000) || rows();
   app.ui.closeModal();
+  await wait(150);
+
+  // Symbols in the file: "@".
+  await ws.open(root + '/src ü (app)/my lib.ts');
+  await wait(300);
+  await app.commands.run('fuzzy-finder:toggle');
+  const box = await until(() => document.querySelector('.select-list .select-input'));
+  if (box) { box.value = '@greet'; box.dispatchEvent(new Event('input')); }
+  out.fileSymbol = await until(() => { const l = [...document.querySelectorAll('.select-item .select-label')].map((x) => x.textContent); return l.includes('greetUser') && document.querySelector('.select-mode')?.textContent; }, 8000);
+  app.ui.closeModal();
+  await wait(150);
 
   // A missing import gets a lightbulb; clicking it lists the fix.
   const nf = await ws.open(root + '/src ü (app)/needs import.ts');

@@ -713,29 +713,16 @@ export function activate(mide) {
   // ---------------------------------------------------------------------------
   // Symbols across the project, from every running server that can search them.
 
-  function goToWorkspaceSymbol() {
-    const searchable = [...live.values()].filter((c) => c.state === 'ready' && c.capabilities.workspaceSymbolProvider);
-    if (!searchable.length) return mide.notify.info('No running language server can search this project', 'Open a source file first, so its language server starts.');
+  function workspaceSymbolMode() {
+    const searchable = () => [...live.values()].filter((c) => c.state === 'ready' && c.capabilities.workspaceSymbolProvider);
     let asked = null;
     let results = [];
     let timer = null;
     let seq = 0;
-    const list = mide.ui.selectList({
-      id: 'lsp-workspace-symbols',
-      placeholder: 'Go to symbol in project',
-      items: [],
-      emptyMessage: 'Type a name to search',
-      // The servers do the matching, so show what they return as is.
-      onQuery: (q) => {
-        if (q !== asked) { asked = q; clearTimeout(timer); timer = setTimeout(() => search(q), 120); }
-        return results;
-      },
-      onSelect: (i) => openLocation(i.loc),
-    });
-    async function search(query) {
+    async function search(query, list) {
       const mine = ++seq;
-      const answers = await Promise.all(searchable.map((c) => c.request('workspace/symbol', { query }, { timeout: 5000 }).catch(() => null)));
-      if (mine !== seq || !list) return;
+      const answers = await Promise.all(searchable().map((c) => c.request('workspace/symbol', { query }, { timeout: 5000 }).catch(() => null)));
+      if (mine !== seq) return;
       results = answers.flat().filter((s) => s?.location?.uri).slice(0, 300).map((s) => {
         const range = s.location.range || { start: { line: 0, character: 0 } };
         const path = fromUri(s.location.uri);
@@ -746,9 +733,22 @@ export function activate(mide) {
           loc: { uri: s.location.uri, range },
         };
       });
-      list.setItems(results);
+      list.refresh();
     }
+    return {
+      prefix: '#', title: 'Project symbols', short: 'project symbols', order: 30,
+      description: 'Functions, classes and more across the project (needs a language server)',
+      items: () => { asked = null; results = []; return []; },
+      emptyMessage: () => (searchable().length ? 'Type a name to search' : 'No running language server can search this project. Open a source file first.'),
+      // The servers do the matching, so show what they return as is.
+      onQuery: (q, list) => {
+        if (q !== asked) { asked = q; clearTimeout(timer); if (searchable().length) timer = setTimeout(() => search(q, list), 120); }
+        return results;
+      },
+      onSelect: (i) => openLocation(i.loc),
+    };
   }
+  mide.ui.addQuickOpenMode(workspaceSymbolMode());
 
   // ---------------------------------------------------------------------------
   // A lightbulb at the end of the line when the server has a quick fix for a problem on it.
@@ -953,37 +953,37 @@ export function activate(mide) {
     });
   }
 
-  async function goToSymbol() {
-    const a = activeEntry();
-    if (!a) return mide.notify.info('No language server for this file');
-    const { editor, entry, caps } = a;
-    if (!caps.documentSymbolProvider) return mide.notify.info('Symbols are not available for this file');
-    const res = await entry.client.request('textDocument/documentSymbol', { textDocument: { uri: entry.uri } }).catch(() => null);
-    const symbols = [];
-    const walk = (list, container) => {
-      for (const s of list || []) {
-        if (s.location) symbols.push({ name: s.name, kind: s.kind, container: s.containerName, range: s.location.range });
-        else {
-          symbols.push({ name: s.name, kind: s.kind, container, range: s.selectionRange || s.range, detail: s.detail });
-          walk(s.children, container ? `${container}.${s.name}` : s.name);
+  // "@" in the quick-open box: symbols in the current file, in file order.
+  mide.ui.addQuickOpenMode({
+    prefix: '@', title: 'Symbols in file', short: 'symbols', order: 20,
+    description: 'Functions, classes and more in this file (needs a language server)',
+    emptyMessage: () => (activeEntry()?.caps.documentSymbolProvider ? 'No symbols found' : 'No language server for this file'),
+    items: async () => {
+      const a = activeEntry();
+      if (!a?.caps.documentSymbolProvider) return [];
+      const { editor, entry } = a;
+      const res = await entry.client.request('textDocument/documentSymbol', { textDocument: { uri: entry.uri } }).catch(() => null);
+      const symbols = [];
+      const walk = (list, container) => {
+        for (const s of list || []) {
+          if (s.location) symbols.push({ name: s.name, kind: s.kind, container: s.containerName, range: s.location.range });
+          else {
+            symbols.push({ name: s.name, kind: s.kind, container, range: s.selectionRange || s.range, detail: s.detail });
+            walk(s.children, container ? `${container}.${s.name}` : s.name);
+          }
         }
-      }
-    };
-    walk(res);
-    if (!symbols.length) return mide.notify.info('No symbols found');
-    symbols.sort((x, y) => x.range.start.line - y.range.start.line);
-    mide.ui.selectList({
-      id: 'lsp-symbols',
-      placeholder: 'Go to symbol in file',
-      items: symbols.map((s) => ({
-        label: s.name,
-        detail: [SYMBOL_KINDS[s.kind], s.container].filter(Boolean).join(' · '),
-        hint: `${s.range.start.line + 1}`,
-        sym: s,
-      })),
-      onSelect: ({ sym }) => editor.goToLine(sym.range.start.line + 1, sym.range.start.character),
-    });
-  }
+      };
+      walk(res);
+      symbols.sort((x, y) => x.range.start.line - y.range.start.line);
+      return symbols.map((sym) => ({
+        label: sym.name,
+        detail: [SYMBOL_KINDS[sym.kind], sym.container].filter(Boolean).join(' · '),
+        hint: `${sym.range.start.line + 1}`,
+        sym, editor,
+      }));
+    },
+    onSelect: ({ sym, editor }) => editor.goToLine(sym.range.start.line + 1, sym.range.start.character),
+  });
 
   // ---------------------------------------------------------------------------
   // Problems panel + status bar
@@ -1074,8 +1074,8 @@ export function activate(mide) {
     'lsp:find-references': { title: 'Find References', when: has('referencesProvider'), run: () => { const { view } = activeEntry(); navigate('textDocument/references', view, headOf(view), 'References'); } },
     'lsp:rename': { title: 'Rename Symbol', when: () => has('renameProvider')() && editorFocused(), run: rename },
     'lsp:format-document': { title: 'Format Document', when: has('documentFormattingProvider'), run: () => formatDocument(mide.workspace.getActiveEditor()).catch((err) => mide.notify.error('Format failed', err.message)) },
-    'lsp:go-to-symbol': { title: 'Go to Symbol in File', when: has('documentSymbolProvider'), run: goToSymbol },
-    'lsp:go-to-workspace-symbol': { title: 'Go to Symbol in Project', run: goToWorkspaceSymbol },
+    'lsp:go-to-symbol': { title: 'Go to Symbol in File', when: has('documentSymbolProvider'), run: () => mide.ui.quickOpen('@') },
+    'lsp:go-to-workspace-symbol': { title: 'Go to Symbol in Project', run: () => mide.ui.quickOpen('#') },
     'lsp:peek-definition': { title: 'Peek Definition', when: has('definitionProvider'), run: () => { const { view } = activeEntry(); peekDefinition(view, headOf(view)); } },
     'lsp:code-actions': { title: 'Code Actions / Quick Fix', when: has('codeActionProvider'), run: codeActions },
     'lsp:signature-help': { title: 'Show Signature Help', when: has('signatureHelpProvider'), run: () => { const { editor, entry } = activeEntry(); requestSignature(editor, entry); } },

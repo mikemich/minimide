@@ -452,6 +452,12 @@ body.compact-tabs { --tab-height: 30px; }
   outline: none; font-size: 1.08em; color: var(--fg-strong); user-select: text;
 }
 .select-input::placeholder { color: var(--fg-subtle); }
+.select-input-row { display: flex; align-items: center; border-bottom: 1px solid var(--border); }
+.select-input-row .select-input { flex: 1; min-width: 0; border-bottom: 0; }
+.select-mode {
+  flex: none; margin-right: 12px; padding: 2px 9px; border-radius: 999px; font-size: 0.8em; font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent);
+}
 .select-items { list-style: none; margin: 0; padding: 6px; overflow-y: auto; }
 .select-item { border-radius: var(--radius); padding: 6px 10px; color: var(--fg); }
 .select-item.selected { background: var(--bg-selected-focus); color: var(--fg-strong); }

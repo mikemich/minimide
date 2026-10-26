@@ -1,6 +1,6 @@
 // Core commands and their default keybindings. Packages add the rest.
 import { EditorSelection } from '@codemirror/state';
-import { copyLineDown, selectLine, cursorMatchingBracket, toggleComment } from '@codemirror/commands';
+import { copyLineDown, selectLine, cursorMatchingBracket, toggleComment, deleteLine, moveLineUp, moveLineDown } from '@codemirror/commands';
 import { basename } from './dom.js';
 import { isMac } from './keymap.js';
 import { showCheatSheet } from './cheat-sheet.js';
@@ -43,6 +43,9 @@ export const CORE_KEYMAP = {
   'Ctrl-m': 'editor:go-to-matching-bracket',
   'Mod-,': 'settings:open',
   'Mod-/': 'editor:toggle-comment',
+  'Mod-Shift-k': 'editor:delete-line',
+  'Alt-ArrowUp': 'editor:move-line-up',
+  'Alt-ArrowDown': 'editor:move-line-down',
   'Mod-k Mod-h': 'help:cheat-sheet',
   'Escape': 'core:cancel',
   // Back / forward after a jump, as in VS Code.
@@ -195,21 +198,13 @@ export function registerCoreCommands(app) {
     'editor:toggle-soft-wrap': { title: 'Toggle Soft Wrap', run: () => config.set('editor.softWrap', !config.get('editor.softWrap')) },
     'editor:toggle-line-numbers': { title: 'Toggle Line Numbers', run: () => config.set('editor.showLineNumbers', !config.get('editor.showLineNumbers')) },
     'editor:toggle-invisibles': { title: 'Toggle Invisibles', run: () => config.set('editor.showInvisibles', !config.get('editor.showInvisibles')) },
-    'editor:go-to-line': {
-      title: 'Go to Line…', when: hasEditor,
-      run: async () => {
-        const item = editor();
-        const { line } = item.getCursor();
-        const total = item.view.state.doc.lines;
-        const answer = await ui.prompt({ title: `Go to line (1–${total}). Use line:column to jump to a column.`, placeholder: String(line) });
-        if (!answer) return item.focus();
-        const [l, c] = answer.split(':').map((n) => parseInt(n, 10));
-        if (!Number.isNaN(l)) item.goToLine(l, Number.isNaN(c) ? 0 : c - 1);
-      },
-    },
+    'editor:go-to-line': { title: 'Go to Line…', when: hasEditor, run: () => app.quickOpen.open(':') },
     'editor:duplicate-lines': { title: 'Duplicate Lines', when: hasEditor, run: () => copyLineDown(view()) },
     'editor:select-line': { title: 'Select Line', when: hasEditor, run: () => selectLine(view()) },
     'editor:toggle-comment': { title: 'Toggle Comment', when: editorFocused, run: () => toggleComment(view()) },
+    'editor:delete-line': { title: 'Delete Line', when: editorFocused, run: () => deleteLine(view()) },
+    'editor:move-line-up': { title: 'Move Line Up', when: editorFocused, run: () => moveLineUp(view()) },
+    'editor:move-line-down': { title: 'Move Line Down', when: editorFocused, run: () => moveLineDown(view()) },
     'editor:go-to-matching-bracket': { title: 'Go to Matching Bracket', when: hasEditor, run: () => cursorMatchingBracket(view()) },
     'editor:upper-case': { title: 'Transform to Upper Case', when: hasEditor, run: transformSelection((s) => s.toUpperCase()) },
     'editor:lower-case': { title: 'Transform to Lower Case', when: hasEditor, run: transformSelection((s) => s.toLowerCase()) },

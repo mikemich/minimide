@@ -93,6 +93,7 @@ const SUITES = [
       ready: true, typeErrorFlagged: true, definitionOpened: (n) => Number.isInteger(n) && n >= 1, laterFileDiagnostics: true,
       backAfterDefinition: 'main app.ts',
       'peek.file': 'my lib.ts', 'peek.target': /function greetUser/, 'peek.closed': true, 'peek.stayedPut': 'main app.ts',
+      fileSymbol: 'Symbols in file',
       workspaceSymbol: (l) => Array.isArray(l) && l.some((x) => /^greetUser\|.*my lib\.ts:1$/.test(x)),
       lightbulb: true, quickFixMenu: (l) => Array.isArray(l) && l.some((x) => /import/i.test(x)),
       hoverLinks: (l) => Array.isArray(l) && l.includes('Go to Definition') && l.includes('Peek'),
@@ -172,6 +173,11 @@ const SUITES = [
       'holdCmd.notInstant': true, 'holdCmd.shown': true, 'holdCmd.tabBadges': true, 'holdCmd.sidebarBadge': true,
       'holdCmd.cursorCard': /^At the cursor: .*Comment \/ uncomment/, 'holdCmd.anywhereCard': true, 'holdCmd.hiddenOnRelease': true,
       'holdCmd.notForShortcuts': true,
+      // One box: ⌘P for files, ">" commands (with plain words), ":" line, "?" help.
+      'box.filesBadge': 'Files', 'box.paletteOpensOnPrefix': '>|Commands', 'box.removeLine': 'Editor: Delete Line',
+      'box.colors': (l) => Array.isArray(l) && l.includes('Theme: Select Theme…'), 'box.backToFiles': 'Files',
+      'box.line': 'Go to line 7', 'box.lineJumped': 7, 'box.help': (l) => Array.isArray(l) && l.includes('>  Commands') && l.includes(':  Go to line'),
+      'box.sameKeyCloses': true, 'box.deleteLineKey': 'const line8 = 8;',
     }),
   },
   {

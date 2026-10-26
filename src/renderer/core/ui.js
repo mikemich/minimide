@@ -43,37 +43,60 @@ export function isModalOpen(id) { return !!activeModal && (!id || activeModal.id
  *   filterKey?: (item) => string,          // default item.label
  *   render?: (item, indices) => Node,       // default label/detail/hint row
  *   onSelect: (item, query) => void,
- *   onQuery?: (query) => Item[] | null,     // dynamic items (overrides fuzzy filter when non-null)
+ *   onQuery?: (query, list) => Item[] | null, // dynamic items (overrides fuzzy filter when non-null)
  *   transformQuery?: (query) => string,     // rewrite the query before fuzzy filtering
+ *   alternateQueries?: (query) => string[], // more queries to try (synonyms), ranked with the main one
  *   onEnterWithoutMatch?: (query) => void,  // Enter when nothing matches (e.g. run a typed command)
  *   onHighlight?: (item) => void,
- *   placeholder?, initialQuery?, emptyMessage?, id?, maxItems?
+ *   placeholder?, initialQuery?, emptyMessage? (text or () => text), id?, maxItems?
+ *   modes?: [{ prefix, title, ...any of the above }], // one box, several searches: see below
  * })
  * Item: { label, detail?, hint?, icon?: Node, ... }
+ *
+ * With `modes`, what the query starts with picks the mode (">" for commands, "@" for symbols…; the
+ * mode with prefix "" is the default), and that mode sees the query without its prefix.
  */
 export function selectList(opts) {
   if (opts.id && isModalOpen(opts.id)) { closeModal(); return null; }
-  const filterKey = opts.filterKey || ((it) => it.label ?? String(it));
+  const modes = opts.modes?.length ? opts.modes : [{ ...opts, prefix: '' }];
+  const modeFor = (q) => modes.filter((m) => q.startsWith(m.prefix || '')).sort((a, b) => (b.prefix || '').length - (a.prefix || '').length)[0] || modes[0];
+  const keyOf = (m) => m.filterKey || ((it) => it.label ?? String(it));
   // Passthrough: Ctrl-N/Ctrl-P move the selection here instead of running New File / Find File.
   const input = h('input.select-input', { type: 'text', placeholder: opts.placeholder || 'Type to search…', spellcheck: false, dataset: { keymapPassthrough: '' } });
+  const badge = h('span.select-mode');
   const list = h('ol.select-items');
   const footer = h('div.select-footer');
-  const panel = h('div.select-list', input, list, footer);
-  let items = [];
+  const panel = h('div.select-list', h('div.select-input-row', input, opts.modes ? badge : null), list, footer);
+  const loaded = new Map(); // mode -> { items, loading }
+  let current = null;
   let filtered = [];
   let selected = 0;
-  let loading = true;
 
   let chosen = false;
   const modal = openModal(panel, { id: opts.id, onClose: () => { if (!chosen) opts.onCancel?.(); } });
 
-  const renderItem = (item, indices) => {
-    if (opts.render) return opts.render(item, indices);
+  // A mode's items load the first time the query switches to it.
+  const stateOf = (m) => {
+    if (!loaded.has(m)) {
+      const st = { items: [], loading: true };
+      loaded.set(m, st);
+      Promise.resolve(typeof m.items === 'function' ? m.items() : m.items).then((result) => {
+        st.items = result || [];
+        st.loading = false;
+        if (current === m) update();
+      }, () => { st.loading = false; if (current === m) update(); });
+    }
+    return loaded.get(m);
+  };
+  const queryFor = (m, q) => (m.prefix ? q.slice(m.prefix.length).trimStart() : q);
+
+  const renderItem = (m, item, indices) => {
+    if (m.render) return m.render(item, indices);
     const row = h('div.select-row');
     if (item.icon) row.append(item.icon.cloneNode ? item.icon.cloneNode(true) : item.icon);
     // Highlight matches inside the label even when filtering on a longer key (e.g. "detail label").
-    const label = item.label ?? filterKey(item);
-    const key = filterKey(item);
+    const label = item.label ?? keyOf(m)(item);
+    const key = keyOf(m)(item);
     const offset = key === label ? 0 : key.lastIndexOf(label);
     const labelIndices = offset < 0 ? [] : indices.filter((i) => i >= offset && i < offset + label.length).map((i) => i - offset);
     const text = h('div.select-text', h('div.select-label', highlightMatches(label, labelIndices)));
@@ -84,22 +107,38 @@ export function selectList(opts) {
   };
 
   const update = () => {
-    const q = input.value;
-    const dyn = opts.onQuery?.(q);
+    const m = modeFor(input.value);
+    current = m;
+    const st = stateOf(m);
+    const q = queryFor(m, input.value);
+    badge.textContent = m.title || '';
+    badge.hidden = !m.title;
+    const dyn = m.onQuery?.(q, handle);
     if (dyn) filtered = dyn.map((item) => ({ item, indices: [] }));
-    else filtered = fuzzyFilter(opts.transformQuery ? opts.transformQuery(q) : q, items, filterKey, opts.maxItems || 100);
+    else {
+      const max = m.maxItems || 100;
+      const main = m.transformQuery ? m.transformQuery(q) : q;
+      filtered = fuzzyFilter(main, st.items, keyOf(m), max);
+      const alts = ((main && m.alternateQueries?.(main)) || []).filter((alt) => alt !== main);
+      if (alts.length) {
+        // Rank every match together, keeping each item's best score.
+        const best = new Map(filtered.map((f) => [f.item, f]));
+        for (const alt of alts) for (const f of fuzzyFilter(alt, st.items, keyOf(m), max)) if (!(best.get(f.item)?.score >= f.score)) best.set(f.item, f);
+        filtered = [...best.values()].sort((a, b) => b.score - a.score).slice(0, max);
+      }
+    }
     selected = 0;
     list.replaceChildren(...filtered.map(({ item, indices }, i) => {
       const li = h('li.select-item', {
         onmousemove: () => { if (selected !== i) { selected = i; highlight(); } },
         onmousedown: (e) => { e.preventDefault(); choose(i); },
-      }, renderItem(item, indices));
+      }, renderItem(m, item, indices));
       return li;
     }));
     if (!filtered.length) {
-      list.append(h('li.select-empty', loading ? 'Loading…' : opts.emptyMessage || 'No matches'));
+      list.append(h('li.select-empty', st.loading && !dyn ? 'Loading…' : (typeof m.emptyMessage === 'function' ? m.emptyMessage() : m.emptyMessage) || 'No matches'));
     }
-    footer.textContent = filtered.length && opts.footer ? opts.footer(filtered.length, items.length) : '';
+    footer.textContent = filtered.length && m.footer ? m.footer(filtered.length, st.items.length) : '';
     footer.hidden = !footer.textContent;
     highlight();
   };
@@ -107,20 +146,20 @@ export function selectList(opts) {
   const highlight = () => {
     [...list.children].forEach((li, i) => li.classList.toggle('selected', i === selected));
     list.children[selected]?.scrollIntoView({ block: 'nearest' });
-    if (filtered[selected]) opts.onHighlight?.(filtered[selected].item);
+    if (filtered[selected]) current?.onHighlight?.(filtered[selected].item);
   };
 
   const choose = (i) => {
+    const m = current;
     const entry = filtered[i];
+    const q = queryFor(m, input.value);
     if (!entry) {
-      const q = input.value.trim();
-      if (q && opts.onEnterWithoutMatch) { chosen = true; modal.close(!opts.keepFocus); opts.onEnterWithoutMatch(q); }
+      if (q.trim() && m.onEnterWithoutMatch) { chosen = true; modal.close(!opts.keepFocus); m.onEnterWithoutMatch(q.trim()); }
       return;
     }
-    const q = input.value;
     chosen = true;
     modal.close(!opts.keepFocus);
-    opts.onSelect?.(entry.item, q);
+    m.onSelect?.(entry.item, q);
   };
 
   input.addEventListener('input', update);
@@ -134,21 +173,22 @@ export function selectList(opts) {
     else if (e.key === 'Escape') { e.preventDefault(); modal.close(); }
   });
 
-  if (opts.initialQuery) { input.value = opts.initialQuery; }
-  requestAnimationFrame(() => { input.focus(); input.select(); });
-
-  Promise.resolve(typeof opts.items === 'function' ? opts.items() : opts.items).then((result) => {
-    items = result || [];
-    loading = false;
-    update();
-  });
-  update();
-
-  return {
+  const handle = {
     close: () => modal.close(),
-    setItems: (next) => { items = next; update(); },
+    setItems: (next) => { if (current) stateOf(current).items = next; update(); },
+    refresh: () => update(),
+    setQuery: (q) => { input.value = q; update(); input.focus(); input.setSelectionRange(q.length, q.length); },
     get query() { return input.value; },
+    get mode() { return current; },
   };
+
+  if (opts.initialQuery) { input.value = opts.initialQuery; }
+  // Opened on a prefix ("> "): keep it and type after it. Otherwise select the text to replace it.
+  const onPrefix = !!opts.initialQuery && modes.some((m) => m.prefix && m.prefix === opts.initialQuery);
+  requestAnimationFrame(() => { input.focus(); if (onPrefix) input.setSelectionRange(input.value.length, input.value.length); else input.select(); });
+
+  update();
+  return handle;
 }
 
 // ---------------------------------------------------------------------------

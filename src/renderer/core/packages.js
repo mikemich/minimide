@@ -375,6 +375,10 @@ export class PackageManager extends Emitter {
       ui: {
         h, icon, fileIcon, registerIcon,
         selectList: (o) => app.ui.selectList(o),
+        /** Open the one search box, optionally on a mode's prefix ('>' commands, '@' symbols…). */
+        quickOpen: (prefix) => app.quickOpen.open(prefix),
+        /** A new kind of search in that box: { prefix, title, short?, description?, order?, ...selectList options }. */
+        addQuickOpenMode: (mode) => track(app.quickOpen.addMode(mode)),
         prompt: (o) => app.ui.prompt(o),
         confirm: (o) => window.native.dialog.confirm(o),
         contextMenu: (items) => window.native.menu.popup(items),

@@ -122,8 +122,8 @@ Forgot one? Hold `⌘` for a moment and every shortcut on screen gets a label: t
 
 | Key | Action |
 | --- | --- |
-| `⌘⇧P` | Command palette: every action lives here |
-| `⌘P` | Find file (`name:42` jumps to line 42) |
+| `⌘⇧P` | Command palette: every action lives here, and plain words work ("remove line" finds Delete Line) |
+| `⌘P` | One box for everything: files (`name:42` jumps to a line), or type `>` commands, `@` symbols in the file, `#` symbols in the project, `:` a line, `?` help |
 | `⌘E` | Find among open tabs |
 | `⌘⇧F` / `⌘⇧H` | Find / replace in project |
 | `⌘F` / `⌘D` / `⌘⇧L` | Find in file / add next match / select all matches |

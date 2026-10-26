@@ -210,6 +210,13 @@ mide.ui.selectList({
   onQuery: (q) => itemsOrNull,  // dynamic results
   transformQuery: (q) => q,     // rewrite before fuzzy filtering
 });
+// The ⌘P box: open it on a prefix, or add your own kind of search to it.
+mide.ui.quickOpen('>');
+mide.ui.addQuickOpenMode({
+  prefix: '!', title: 'Bookmarks', short: 'bookmarks', description: 'Jump to a bookmark',
+  items: () => bookmarks.map((b) => ({ label: b.name, detail: b.path, b })),
+  onSelect: (item) => mide.workspace.open(item.b.path, { line: item.b.line }),
+});
 const name = await mide.ui.prompt({ title: 'Name?', value: 'untitled', validate: (v) => v ? null : 'Required' });
 const choice = await mide.ui.confirm({ message: 'Sure?', buttons: ['Yes', 'No'] }); // index
 const picked = await mide.ui.contextMenu([{ id: 'a', label: 'A', accelerator: 'Cmd+Shift+A' }, { type: 'separator' }, { id: 'b', label: 'B' }, { role: 'copy' }]);

@@ -15,6 +15,7 @@ import { wordCompletion } from './core/word-completion.js';
 import { Navigation } from './core/navigation.js';
 import { editorContextMenu } from './core/editor-menu.js';
 import { bindKeyHints } from './core/key-hints.js';
+import { QuickOpen } from './core/quick-open.js';
 
 // ui.accentColor overrides the theme's accent and everything derived from it.
 // Inline styles on <html> beat the theme's :root rules, so this survives theme switches.
@@ -73,6 +74,7 @@ class App {
     this.workspace.addCompletionSource(wordCompletion(this));
     this.workspace.addEditorExtension(editorContextMenu(this));
     this.navigation = new Navigation(this.workspace);
+    this.quickOpen = new QuickOpen(this);
     this.workspace.renderWelcome = () => this.renderWelcome();
     this.workspace.updateEmptyState();
 

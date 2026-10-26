@@ -8,8 +8,8 @@ const mod = isMac ? '⌘' : 'Ctrl+';
 
 const SECTIONS = [
   ['Find your way', [
-    ['Go to a file', 'fuzzy-finder:toggle'],
-    ['Run any command', 'command-palette:toggle'],
+    ['Go to a file (then > @ # : for more)', 'fuzzy-finder:toggle'],
+    ['Run any command, in plain words', 'command-palette:toggle'],
     ['Go to a symbol in this file', 'lsp:go-to-symbol'],
     ['Go to a symbol in the project', 'lsp:go-to-workspace-symbol'],
     ['Go to line', 'editor:go-to-line'],
