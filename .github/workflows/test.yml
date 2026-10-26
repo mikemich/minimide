@@ -42,6 +42,9 @@ jobs:
       - name: Install TypeScript language server
         run: npm install -g typescript@5.9.3 typescript-language-server@6.0.2
 
+      - name: Theme contrast
+        run: npm run test:themes
+
       - name: Test (Linux)
         if: runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1920x1080x24" npm test

@@ -6,6 +6,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------------------
@@ -385,4 +386,7 @@ if (path.resolve(process.argv[1]) === path.resolve(__filename)) {
   await fs.writeFile(path.join(pkgDir, 'package.json'), JSON.stringify(packageJson, null, 2) + '\n', 'utf-8');
   await fs.writeFile(path.join(pkgDir, 'theme.css'), themeCss + '\n', 'utf-8');
   console.log(`Written: ${pkgDir}/package.json and theme.css`);
+  // VS Code themes often have faint secondary text; Minimide shows it in more places.
+  const contrast = spawnSync(process.execPath, [fileURLToPath(new URL('./theme-contrast.mjs', import.meta.url)), '--fix', path.join(pkgDir, 'theme.css')], { encoding: 'utf-8' });
+  if (contrast.stdout.trim()) console.log(`Made faint text readable:\n${contrast.stdout.trim()}`);
 }

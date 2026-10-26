@@ -3,8 +3,8 @@
 Releases are built by GitHub Actions from a `v*` tag and stay drafts until someone checks them.
 Published releases are immutable, so check before publishing.
 
-1. **Start from a green `master`.** `git status` is clean, and `npm test` and `npm run test:web`
-   pass (the Test workflow runs both on every push).
+1. **Start from a green `master`.** `git status` is clean, and `npm test`, `npm run test:web` and `npm run test:themes`
+   pass (the Test workflow runs them on every push).
 
 2. **Bump the version.**
 

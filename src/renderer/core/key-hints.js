@@ -76,14 +76,18 @@ function render(app) {
     const b = h('kbd.key-hint', text);
     layer.append(b);
     const { width, height } = b.getBoundingClientRect();
-    const left = Math.max(2, Math.min(window.innerWidth - width - 2, r.left + r.width / 2 - width / 2));
-    let top = r.top + r.height / 2 - height / 2;
-    // Buttons that sit close together (the sidebar icons): stack the labels instead of overlapping.
-    for (let moved = true; moved;) {
-      moved = false;
-      for (const p of placed) {
-        if (left < p.right + 2 && left + width + 2 > p.left && top < p.bottom + 2 && top + height + 2 > p.top) { top = p.bottom + 3; moved = true; }
-      }
+    const clampX = (x) => Math.max(2, Math.min(window.innerWidth - width - 2, x));
+    // Labels hang from the bottom edge of what they label (sit on top of it in the status bar),
+    // so they never cover a tab's name or an icon.
+    let left = clampX(r.left + r.width / 2 - width / 2);
+    let top = el.closest('#statusbar') ? r.top - height - 3 : r.bottom - height / 2;
+    const hits = (x, y) => placed.find((p) => x < p.right + 3 && x + width + 3 > p.left && y < p.bottom + 2 && y + height + 2 > p.top);
+    // Buttons close together (the sidebar icons): slide along first, stack only if that fails.
+    for (let p = hits(left, top); p;) {
+      const slid = clampX(p.right + 3);
+      if (slid - left <= width && !hits(slid, top)) { left = slid; break; }
+      top = p.bottom + 3;
+      p = hits(left, top);
     }
     b.style.left = `${left}px`;
     b.style.top = `${top}px`;

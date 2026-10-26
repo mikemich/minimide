@@ -80,5 +80,5 @@
 .lsp-peek-body .cm-gutters { background: var(--bg); }
 
 /* Quick fix lightbulb */
-.lsp-lightbulb { margin-left: 10px; cursor: pointer; font-size: 0.85em; opacity: 0.75; user-select: none; }
-.lsp-lightbulb:hover { opacity: 1; }
+.lsp-lightbulb { display: inline-flex; vertical-align: -2px; margin-left: 10px; padding: 1px; border-radius: 4px; cursor: pointer; color: var(--warn); opacity: 0.85; user-select: none; }
+.lsp-lightbulb:hover { opacity: 1; background: color-mix(in srgb, var(--warn) 18%, transparent); }
