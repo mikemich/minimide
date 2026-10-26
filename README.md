@@ -118,7 +118,7 @@ That's the whole loop. The full API is in [docs/PLUGINS.md](docs/PLUGINS.md).
 
 ## Everyday keys
 
-Forgot one? `⌘K ⌘H` opens a one-page cheat sheet, and right-clicking in the editor shows the code actions with their keys.
+Forgot one? Hold `⌘` for a moment and every shortcut on screen gets a label: tabs, sidebar, status bar, and what you can do at the cursor. `⌘K ⌘H` opens a one-page cheat sheet, and right-clicking in the editor shows the code actions with their keys.
 
 | Key | Action |
 | --- | --- |
