@@ -15,6 +15,7 @@ ready().then(async () => {
     location.reload();
   });
   if (!app.workspace.allItems().length) await app.workspace.open(`${PROJECT}/README.md`);
+  if (innerWidth < 700) app.sidebar.hide(); // a phone: give the editor the room
   app.ui.notify.info('This is Minimide, running in your browser', 'Your edits stay in this browser. Terminals, git and language servers need the desktop app.', {
     timeout: 9000,
     actions: [{ label: 'Download', run: () => window.open('https://github.com/mikemich/minimide/releases/latest', '_blank', 'noopener') }],
