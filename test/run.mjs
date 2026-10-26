@@ -89,7 +89,14 @@ const SUITES = [
   },
   {
     name: 'lspPaths', home: 'qah2', project: 'ts space', timeout: 120, requires: ['typescript-language-server'],
-    expect: () => ({ ready: true, typeErrorFlagged: true, definitionOpened: (n) => Number.isInteger(n) && n >= 1, laterFileDiagnostics: true }),
+    expect: () => ({
+      ready: true, typeErrorFlagged: true, definitionOpened: (n) => Number.isInteger(n) && n >= 1, laterFileDiagnostics: true,
+      backAfterDefinition: 'main app.ts',
+      'peek.file': 'my lib.ts', 'peek.target': /function greetUser/, 'peek.closed': true, 'peek.stayedPut': 'main app.ts',
+      workspaceSymbol: (l) => Array.isArray(l) && l.some((x) => /^greetUser\|.*my lib\.ts:1$/.test(x)),
+      lightbulb: true, quickFixMenu: (l) => Array.isArray(l) && l.some((x) => /import/i.test(x)),
+      hoverLinks: (l) => Array.isArray(l) && l.includes('Go to Definition') && l.includes('Peek'),
+    }),
   },
   {
     name: 'sessionSave', home: 'sessh', project: 'qa', timeout: 60,
@@ -148,6 +155,23 @@ const SUITES = [
       afterNs: (l) => Array.isArray(l) && l.includes('nsr1|word'),
       afterDollarNs: (l) => Array.isArray(l) && l.includes('$nsr1|word'),
       expanded: JSON.stringify('for item in list; do\n  \ndone'),
+    }),
+  },
+  {
+    name: 'codingHelp', home: 'chh', project: 'chproj', timeout: 90,
+    expect: () => ({
+      'back.line': 1, 'forward.line': 90, smallMovesNotRecorded: true,
+      'crossFile.file': 'long.js', 'crossFile.line': 90, 'crossFileForward.file': 'notes.txt',
+      backKey: 90,
+      // Right-click: no language server for .txt, so only the clipboard, comment and palette entries.
+      txtMenu: 'cut,copy,paste,|,Toggle Comment,|,Command Palette…',
+      menuMovedCursor: 3, menuRanComment: '// const line3 = 3;',
+      modSlash: 'const line3 = 3;',
+      'accelerators.back': /^(Ctrl\+-|Alt\+Left)$/, 'accelerators.definition': 'F12', 'accelerators.palette': /P$/,
+      'cheatSheet.sections': 4, 'cheatSheet.hasPeek': true, 'cheatSheet.closedByEscape': true, 'cheatSheet.rowRuns': true,
+      'holdCmd.notInstant': true, 'holdCmd.shown': true, 'holdCmd.tabBadges': true, 'holdCmd.sidebarBadge': true,
+      'holdCmd.cursorCard': /^At the cursor: .*Comment \/ uncomment/, 'holdCmd.anywhereCard': true, 'holdCmd.hiddenOnRelease': true,
+      'holdCmd.notForShortcuts': true,
     }),
   },
   {

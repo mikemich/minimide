@@ -118,6 +118,8 @@ That's the whole loop. The full API is in [docs/PLUGINS.md](docs/PLUGINS.md).
 
 ## Everyday keys
 
+Forgot one? `⌘K ⌘H` opens a one-page cheat sheet, and right-clicking in the editor shows the code actions with their keys.
+
 | Key | Action |
 | --- | --- |
 | `⌘⇧P` | Command palette: every action lives here |
@@ -137,10 +139,13 @@ That's the whole loop. The full API is in [docs/PLUGINS.md](docs/PLUGINS.md).
 | `⌘K ⌘S` | Search all keybindings (`⌘K ⌘⇧S` opens them in Settings) |
 | `Ctrl-⇧M` | Markdown preview |
 | `F12` / `⌘`-click | Go to definition (LSP) |
+| `⌥F12` | Peek definition: read it inline without leaving the file (LSP) |
+| `⌃-` / `⌃⇧-` | Go back / forward after a jump (`Alt-←` / `Alt-→` on Linux and Windows; mouse back buttons work too) |
 | `⇧F12` | Find references (LSP) |
 | `F2` | Rename symbol (LSP) |
 | `⌘.` | Code actions / quick fix (LSP) |
-| `⌘R` | Go to symbol in file (LSP) |
+| `⌘R` / `⌥⌘P` | Go to symbol in file / in the whole project (LSP) |
+| `⌘/` | Toggle comment |
 | `⇧⌥F` | Format document (LSP) |
 | `F8` / `⇧F8` | Next / previous problem |
 | `⌘K ⌘P` | Problems panel |
@@ -157,7 +162,7 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `command-palette` | Fuzzy-search every command, most recently used first |
 | `fuzzy-finder` | Open files and tabs by fuzzy name |
 | `find-in-project` | Regex / case-sensitive search and replace across the project |
-| `lsp` | Language servers: completions (with auto-import), diagnostics, hover, signature help, definition, references, rename, code actions, formatting, symbols, Problems panel |
+| `lsp` | Language servers: completions (with auto-import), diagnostics, hover with go-to links, signature help, go to / peek definition, references, rename, quick fixes with a 💡, formatting, file and project symbols, Problems panel |
 | `git` | Branch switcher, tree status, change markers in the editor gutter |
 | `source-control` | Git panel (`⌃⇧G`): stage, unstage, discard, commit, amend, push, pull, and side-by-side or inline diffs |
 | `terminal` | A real terminal (xterm.js + node-pty) in tabs; click `file:line` in output to jump there |

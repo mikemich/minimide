@@ -11,7 +11,7 @@ export async function activate(mide) {
     Prec.highest(vim({ status: false })),
     EditorView.editorAttributes.of({ 'data-keymap-passthrough': '', class: 'vim-enabled' }),
   ]);
-  mide.keymap.allowInPassthrough('tab:next', 'tab:previous', 'terminal:toggle', 'command-palette:toggle');
+  mide.keymap.allowInPassthrough('tab:next', 'tab:previous', 'terminal:toggle', 'command-palette:toggle', 'navigate:back', 'navigate:forward');
 
   // Ex commands mapped onto Minimide commands.
   const ex = (name, prefix, fn) => Vim.defineEx(name, prefix, fn);
@@ -76,9 +76,34 @@ export async function activate(mide) {
     relative = on ? mide.editor.addExtension([relativeGutter, EditorView.editorAttributes.of({ class: 'vim-relative' })]) : null;
   });
 
-  // Mode indicator in the status bar.
+  // Mode indicator in the status bar. Clicking it explains the modes and offers a way out.
   const badge = h('span.vim-mode-badge');
-  mide.statusBar.addItem({ id: 'vim-mode', element: badge, align: 'left', priority: 1, tooltip: 'Vim mode' });
+  const turnOff = () => mide.packages.setEnabled('vim-mode', false);
+  const menu = async () => {
+    const id = await mide.ui.contextMenu([
+      { id: 'insert', label: 'Start Typing (i)' },
+      { id: 'help', label: 'How Vim Mode Works' },
+      { type: 'separator' },
+      { id: 'off', label: 'Turn Off Vim Mode' },
+    ]);
+    if (id === 'insert') { const view = mide.workspace.getActiveEditor()?.view; if (view) { Vim.handleKey(getCM(view), 'i', 'mapping'); view.focus(); } }
+    else if (id === 'help') showTip();
+    else if (id === 'off') turnOff();
+  };
+  mide.statusBar.addItem({ id: 'vim-mode', element: badge, align: 'left', priority: 1, tooltip: 'Vim mode: click for help or to turn it off', onClick: menu });
+
+  // Vim's Normal mode surprises people who switched it on to try it: keys run commands instead of
+  // typing, and Backspace only moves left. Say so once.
+  function showTip() {
+    mide.notify.info('Vim mode is on', 'You start in Normal mode, where keys are commands: Backspace moves left and letters don\'t type. Press i to type and Esc to go back. The badge in the bottom-left corner shows the mode.', {
+      timeout: 0,
+      actions: [{ label: 'Got It', run: () => {} }, { label: 'Turn Off Vim Mode', run: turnOff }],
+    });
+  }
+  try {
+    const key = `vim-mode.tipShown:${mide.user.dir}`; // per settings folder, so test runs don't use it up
+    if (!localStorage.getItem(key)) { localStorage.setItem(key, '1'); setTimeout(showTip, 1200); }
+  } catch {}
 
   function modeOf(view) {
     const state = view && getCM(view)?.state?.vim;
@@ -110,7 +135,7 @@ export async function activate(mide) {
   setTimeout(attachAll, 0);
 
   mide.styles.add(`
-    .vim-mode-badge { font-weight: 700; font-size: 0.85em; letter-spacing: 0.06em; padding: 1px 7px; border-radius: 4px; background: var(--bg-selected); color: var(--fg-muted); }
+    .vim-mode-badge { font-weight: 700; font-size: 0.85em; letter-spacing: 0.06em; padding: 1px 7px; border-radius: 4px; background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); }
     .vim-mode-badge:empty { display: none; }
     .vim-mode-badge[data-mode="insert"] { background: color-mix(in srgb, var(--success) 22%, transparent); color: var(--success); }
     .vim-mode-badge[data-mode^="visual"] { background: color-mix(in srgb, var(--c-magenta) 22%, transparent); color: var(--c-magenta); }

@@ -12,7 +12,7 @@ import * as lezerHighlight from '@lezer/highlight';
 import { Emitter, Disposable } from './events.js';
 import { h, icon, fileIcon, registerIcon, basename, dirname } from './dom.js';
 import { fuzzyFilter, fuzzyMatch, highlightMatches } from './fuzzy.js';
-import { registerLanguage, detectLanguage } from './editor.js';
+import { registerLanguage, detectLanguage, createPreviewView } from './editor.js';
 import { prettyBinding } from './keymap.js';
 import { convertSnippet } from './snippet.js';
 import { SandboxedPackage, loadSandboxedStyles } from './sandbox.js';
@@ -368,6 +368,8 @@ export class PackageManager extends Emitter {
         extraCompletionSource: ws.extraCompletionSource,
         /** LSP/VS Code snippet text -> CodeMirror snippet template (escapes handled). */
         convertSnippet: (text, resolveVariable) => convertSnippet(text, resolveVariable),
+        /** A small read-only, highlighted EditorView of `text`, scrolled to `line`. Destroy it when done. */
+        createPreview: ({ text, path, line, parent, extensions }) => createPreviewView({ text, path, line, parent, extensions, config: app.config }),
       },
       cm,
       ui: {

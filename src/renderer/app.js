@@ -1,7 +1,7 @@
 // Minimide renderer entry: wires the core services together, loads packages,
 // restores the session and hands control to the user.
 import { CommandRegistry } from './core/commands.js';
-import { Keymap, prettyBinding } from './core/keymap.js';
+import { Keymap, prettyBinding, isMac } from './core/keymap.js';
 import { Config, parseJSONC } from './core/config.js';
 import { Workspace } from './core/workspace.js';
 import { PackageManager, loadStylesheet } from './core/packages.js';
@@ -12,6 +12,9 @@ import { CORE_SCHEMA } from './core/schema.js';
 import { bindThemedAppIcon, renderAppIcon } from './core/app-icon.js';
 import { Trust } from './core/trust.js';
 import { wordCompletion } from './core/word-completion.js';
+import { Navigation } from './core/navigation.js';
+import { editorContextMenu } from './core/editor-menu.js';
+import { bindKeyHints } from './core/key-hints.js';
 
 // ui.accentColor overrides the theme's accent and everything derived from it.
 // Inline styles on <html> beat the theme's :root rules, so this survives theme switches.
@@ -68,11 +71,15 @@ class App {
 
     this.workspace = new Workspace({ config: this.config, commands: this.commands, keymap: this.keymap, ui: this.ui });
     this.workspace.addCompletionSource(wordCompletion(this));
+    this.workspace.addEditorExtension(editorContextMenu(this));
+    this.navigation = new Navigation(this.workspace);
     this.workspace.renderWelcome = () => this.renderWelcome();
     this.workspace.updateEmptyState();
 
     this.keymap.add(CORE_KEYMAP, 'core');
     registerCoreCommands(this);
+    this.bindMenuAccelerators();
+    this.keyHints = bindKeyHints(this);
     await this.loadUserKeymap();
     await loadStylesheet('mide://user/styles.css', 'user').then((el) => { el.id = 'user-styles'; this.userStylesEl = el; });
 
@@ -369,6 +376,20 @@ class App {
     }
   }
 
+  // The menu bar shows the current shortcut next to each command.
+  bindMenuAccelerators() {
+    let timer = null;
+    const send = () => {
+      const map = {};
+      for (const id of new Set(this.keymap.resolved().values())) { const acc = this.keymap.acceleratorFor(id); if (acc) map[id] = acc; }
+      window.native.menu.setAccelerators(map).catch(() => {});
+    };
+    const schedule = () => { clearTimeout(timer); timer = setTimeout(send, 300); };
+    this.keymap.on('changed', schedule);
+    window.addEventListener('focus', schedule); // another window may have sent its own
+    schedule();
+  }
+
   addWelcomeTip(tip) {
     this.welcomeTips.push(tip);
     return { dispose: () => { this.welcomeTips = this.welcomeTips.filter((t) => t !== tip); } };
@@ -390,11 +411,13 @@ class App {
           this.workspace.project ? action('Find File', 'fuzzy-finder:toggle') : action('Open Folder…', 'project:open-folder'),
           action('New File', 'file:new'),
           action('Command Palette', 'command-palette:toggle'),
+          action('Keyboard Cheat Sheet', 'help:cheat-sheet'),
           action('Settings', 'settings:open')),
         !this.workspace.project && recents.length ? h('div.welcome-recents',
           h('div.welcome-heading', 'Recent'),
           recents.map((p) => h('button.welcome-recent', { onclick: () => this.openProject(p) },
             h('span.recent-name', basename(p)), h('span.recent-path', p.replace(this.userInfo.home, '~'))))) : null,
+        h('div.welcome-hint', `Hold ${isMac ? '⌘' : 'Ctrl'} for a moment to see the shortcuts for what's on screen.`),
         h('div.welcome-hint', 'Make it yours — ', h('a', { href: '#', onclick: (e) => { e.preventDefault(); this.commands.run('settings:open-init-script'); } }, 'init.js'), ', ',
           h('a', { href: '#', onclick: (e) => { e.preventDefault(); this.commands.run('settings:open-stylesheet'); } }, 'styles.css'), ' or ',
           h('a', { href: '#', onclick: (e) => { e.preventDefault(); this.commands.run('packages:create'); } }, 'a new package'), '.')));

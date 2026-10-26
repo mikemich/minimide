@@ -116,6 +116,7 @@ export class Pane extends Emitter {
       .map((a) => h('button.icon-btn.pane-action', {
         title: typeof a.title === 'function' ? a.title(item) : a.title,
         class: a.className || '',
+        dataset: a.command ? { command: typeof a.command === 'function' ? a.command(item) : a.command } : {},
         onclick: (e) => { e.stopPropagation(); a.run(item, this); },
       }, icon(typeof a.icon === 'function' ? a.icon(item) : a.icon, 15))));
   }

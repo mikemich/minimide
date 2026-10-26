@@ -11,7 +11,7 @@ export function activate(mide) {
 
   mide.statusBar.addItem({ id: 'file-path', element: path, align: 'left', priority: 10, tooltip: 'Click to copy relative path', onClick: () => mide.commands.run('file:copy-relative-path') });
   mide.statusBar.addItem({ id: 'pending-keys', element: pending, align: 'left', priority: 20 });
-  mide.statusBar.addItem({ id: 'cursor', element: cursor, align: 'right', priority: 10, tooltip: 'Go to Line', onClick: () => mide.commands.run('editor:go-to-line') });
+  mide.statusBar.addItem({ id: 'cursor', element: cursor, align: 'right', priority: 10, tooltip: 'Go to Line', command: 'editor:go-to-line', onClick: () => mide.commands.run('editor:go-to-line') });
   mide.statusBar.addItem({ id: 'indent', element: indent, align: 'right', priority: 20, tooltip: 'Change indentation', onClick: () => mide.commands.run('editor:set-indentation') });
   mide.statusBar.addItem({ id: 'eol', element: eol, align: 'right', priority: 30 });
   mide.statusBar.addItem({ id: 'language', element: lang, align: 'right', priority: 40, tooltip: 'Select language mode', onClick: () => mide.commands.run('editor:set-language') });

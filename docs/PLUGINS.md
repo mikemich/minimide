@@ -166,6 +166,9 @@ mide.editor.addExtension(myLinter);   // applied to every open and future editor
 
 const support = await mide.editor.languageFor('src/app.ts'); // LanguageSupport for a path, or null
 
+// A small read-only, highlighted editor (what Peek Definition uses). Destroy it when done.
+const preview = await mide.editor.createPreview({ text, path: 'src/app.ts', line: 42, parent: someElement });
+
 // Completions that run alongside the language's own and the language server's:
 mide.editor.addCompletionSource((ctx) => {
   const word = ctx.matchBefore(/\w+$/);
@@ -209,7 +212,7 @@ mide.ui.selectList({
 });
 const name = await mide.ui.prompt({ title: 'Name?', value: 'untitled', validate: (v) => v ? null : 'Required' });
 const choice = await mide.ui.confirm({ message: 'Sure?', buttons: ['Yes', 'No'] }); // index
-const picked = await mide.ui.contextMenu([{ id: 'a', label: 'A' }, { type: 'separator' }, { id: 'b', label: 'B' }]);
+const picked = await mide.ui.contextMenu([{ id: 'a', label: 'A', accelerator: 'Cmd+Shift+A' }, { type: 'separator' }, { id: 'b', label: 'B' }, { role: 'copy' }]);
 ```
 
 ### notifications
@@ -228,6 +231,9 @@ mide.sidebar.show('outline'); mide.sidebar.toggle('outline');
 mide.panel.addView({ id: 'problems', title: 'Problems', icon: 'terminal', element });
 mide.statusBar.addItem({ element, align: 'right', priority: 50, tooltip: '…', onClick() {} });
 ```
+
+Give a view, status bar item or pane action a `command: 'my-pkg:show'` and its shortcut is
+labelled on it while the user holds ⌘ (Ctrl on Linux and Windows).
 
 ### Files, project and processes
 

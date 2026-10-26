@@ -444,7 +444,7 @@ export function activate(mide) {
   const tree = new Tree(mide);
 
   mide.sidebar.addView({
-    id: 'tree-view', title: 'Files', icon: 'files', order: 0,
+    id: 'tree-view', title: 'Files', icon: 'files', order: 0, command: 'tree-view:focus',
     element: tree.element, focus: () => tree.focus(),
   });
 

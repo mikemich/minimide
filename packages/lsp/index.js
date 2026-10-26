@@ -14,7 +14,7 @@ const isMac = navigator.platform.toLowerCase().includes('mac');
 
 export function activate(mide) {
   const { h, icon } = mide.ui;
-  const { EditorView, hoverTooltip, showTooltip, keymap } = mide.cm.view;
+  const { EditorView, hoverTooltip, showTooltip, keymap, Decoration, WidgetType } = mide.cm.view;
   const { StateField, StateEffect, Prec } = mide.cm.state;
   const { setDiagnostics, lintGutter } = mide.cm.lint;
   const { autocompletion, snippet, insertCompletionText, pickedCompletion, completeFromList } = mide.cm.autocomplete;
@@ -300,6 +300,7 @@ export function activate(mide) {
         const doc = docByPath(path);
         if (doc) applyDiagnostics(doc);
         scheduleProblems();
+        if (doc && doc === mide.workspace.getActiveEditor()?.document) scheduleLightbulb();
         break;
       }
       case 'window/logMessage': log(client.name, params.message, 'log'); break;
@@ -477,9 +478,21 @@ export function activate(mide) {
     if (!md.trim()) return null;
     const start = res.range ? fromPosition(view.state.doc, res.range.start) : pos;
     const end = res.range ? fromPosition(view.state.doc, res.range.end) : pos;
+    const caps = entry.client.capabilities;
     return {
       pos: start, end, above: true,
-      create: () => { const dom = h('div.lsp-hover'); dom.innerHTML = renderMarkdown(md); return { dom }; },
+      create: () => {
+        const body = h('div.lsp-hover-body');
+        body.innerHTML = renderMarkdown(md);
+        const link = (label, keys, run) => h('button.lsp-hover-link', { onmousedown: (e) => e.preventDefault(), onclick: run, title: keys ? `${label} (${keys})` : label }, label);
+        const shortcut = (id) => { const b = mide.keymap.bindingsFor(id)[0]; return b ? mide.keymap.pretty(b) : ''; };
+        const links = [
+          caps.definitionProvider && link('Go to Definition', shortcut('lsp:go-to-definition'), () => navigate('textDocument/definition', view, pos, 'Definitions')),
+          caps.definitionProvider && link('Peek', shortcut('lsp:peek-definition'), () => peekDefinition(view, pos)),
+          caps.referencesProvider && link('References', shortcut('lsp:find-references'), () => navigate('textDocument/references', view, pos, 'References')),
+        ].filter(Boolean);
+        return { dom: h('div.lsp-hover', body, links.length ? h('div.lsp-hover-links', ...links) : null) };
+      },
     };
   }, { hoverTime: 350 }));
 
@@ -620,6 +633,189 @@ export function activate(mide) {
   mide.config.observe('lsp.modClickGoesToDefinition', (on) => {
     altClick?.dispose();
     altClick = on ? mide.editor.addExtension(EditorView.clickAddsSelectionRange.of((e) => e.altKey)) : null;
+  });
+
+  // ---------------------------------------------------------------------------
+  // Peek definition: the definition in a small read-only editor under the line, so you can read
+  // it without losing your place. Esc closes it, Enter opens the file.
+
+  const setPeek = StateEffect.define();
+  const peekField = StateField.define({
+    create: () => null,
+    update(value, tr) {
+      for (const e of tr.effects) if (e.is(setPeek)) return e.value;
+      if (!value) return value;
+      if (tr.docChanged) return null;
+      if (tr.selection && tr.state.doc.lineAt(tr.state.selection.main.head).number !== tr.state.doc.lineAt(value.pos).number) return null;
+      return value;
+    },
+    provide: (f) => showTooltip.from(f),
+  });
+  const closePeek = (view) => {
+    if (!view.state.field(peekField, false)) return false;
+    view.dispatch({ effects: setPeek.of(null) });
+    view.focus();
+    return true;
+  };
+  mide.editor.addExtension([peekField, Prec.highest(keymap.of([{ key: 'Escape', run: closePeek }]))]);
+
+  async function peekDefinition(view, pos) {
+    const entry = entryForView(view);
+    if (!entry) return mide.notify.info('No language server for this file');
+    let locs;
+    try {
+      locs = toLocations(await entry.client.request('textDocument/definition', { textDocument: { uri: entry.uri }, position: toPosition(view.state.doc, pos) }));
+    } catch (err) { return mide.notify.error('Request failed', err.message); }
+    if (!locs.length) return mide.notify.info('No definition found');
+    if (view.state.selection.main.head !== pos) view.dispatch({ selection: { anchor: pos } });
+    await showPeek(view, pos, locs, 0);
+  }
+
+  async function showPeek(view, pos, locs, index) {
+    const loc = locs[index];
+    const path = fromUri(loc.uri);
+    const open = docByPath(path)?.primaryView();
+    const text = open ? open.state.doc.toString() : await mide.fs.read(path).catch(() => null);
+    if (text == null) return mide.notify.error(`Couldn't read ${mide.path.basename(path)}`);
+    if (!view.dom.isConnected) return;
+    const goThere = () => { closePeek(view); openLocation(loc); return true; };
+    const body = h('div.lsp-peek-body');
+    const button = (label, title, onclick) => h('button.lsp-peek-btn', { title, onclick, onmousedown: (e) => e.preventDefault() }, label);
+    const dom = h('div.lsp-peek',
+      h('div.lsp-peek-header',
+        mide.ui.fileIcon(path),
+        h('span.lsp-peek-file', mide.path.basename(path)),
+        h('span.lsp-peek-where', `${mide.workspace.relativePath(mide.path.dirname(path))} · line ${loc.range.start.line + 1}`),
+        h('span.lsp-peek-spacer'),
+        locs.length > 1 ? button(`${index + 1} of ${locs.length}`, 'Next definition', () => showPeek(view, pos, locs, (index + 1) % locs.length)) : null,
+        button('Open', 'Open the file (Enter)', goThere),
+        button('✕', 'Close (Esc)', () => closePeek(view))),
+      body);
+    const preview = await mide.editor.createPreview({
+      text, path, line: loc.range.start.line + 1, parent: body,
+      extensions: Prec.highest(keymap.of([{ key: 'Escape', run: () => closePeek(view) }, { key: 'Enter', run: goThere }])),
+    });
+    view.dispatch({
+      effects: setPeek.of({
+        pos, above: false, strictSide: true, arrow: false,
+        create: () => ({
+          dom,
+          mount: () => {
+            preview.dispatch({ effects: EditorView.scrollIntoView(preview.state.selection.main.head, { y: 'start', yMargin: 24 }) });
+            preview.focus();
+          },
+          destroy: () => preview.destroy(),
+        }),
+      }),
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Symbols across the project, from every running server that can search them.
+
+  function goToWorkspaceSymbol() {
+    const searchable = [...live.values()].filter((c) => c.state === 'ready' && c.capabilities.workspaceSymbolProvider);
+    if (!searchable.length) return mide.notify.info('No running language server can search this project', 'Open a source file first, so its language server starts.');
+    let asked = null;
+    let results = [];
+    let timer = null;
+    let seq = 0;
+    const list = mide.ui.selectList({
+      id: 'lsp-workspace-symbols',
+      placeholder: 'Go to symbol in project',
+      items: [],
+      emptyMessage: 'Type a name to search',
+      // The servers do the matching, so show what they return as is.
+      onQuery: (q) => {
+        if (q !== asked) { asked = q; clearTimeout(timer); timer = setTimeout(() => search(q), 120); }
+        return results;
+      },
+      onSelect: (i) => openLocation(i.loc),
+    });
+    async function search(query) {
+      const mine = ++seq;
+      const answers = await Promise.all(searchable.map((c) => c.request('workspace/symbol', { query }, { timeout: 5000 }).catch(() => null)));
+      if (mine !== seq || !list) return;
+      results = answers.flat().filter((s) => s?.location?.uri).slice(0, 300).map((s) => {
+        const range = s.location.range || { start: { line: 0, character: 0 } };
+        const path = fromUri(s.location.uri);
+        return {
+          label: s.name,
+          detail: `${mide.workspace.relativePath(path)}:${range.start.line + 1}`,
+          hint: [SYMBOL_KINDS[s.kind], s.containerName].filter(Boolean).join(' · '),
+          loc: { uri: s.location.uri, range },
+        };
+      });
+      list.setItems(results);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // A lightbulb at the end of the line when the server has a quick fix for a problem on it.
+
+  class LightbulbWidget extends WidgetType {
+    eq() { return true; }
+    toDOM() {
+      const keys = mide.keymap.bindingsFor('lsp:code-actions')[0];
+      return h('span.lsp-lightbulb', {
+        title: `Quick fix${keys ? ` (${mide.keymap.pretty(keys)})` : ''}`,
+        onmousedown: (e) => { e.preventDefault(); e.stopPropagation(); codeActions(); },
+      }, '💡');
+    }
+    ignoreEvent() { return true; }
+  }
+  const setBulb = StateEffect.define();
+  const bulbField = StateField.define({
+    create: () => Decoration.none,
+    update(deco, tr) {
+      for (const e of tr.effects) if (e.is(setBulb)) return e.value;
+      if (!deco.size) return deco;
+      if (tr.docChanged) return Decoration.none; // asked again once typing pauses
+      if (tr.selection && !onBulbLine(tr, deco)) return Decoration.none;
+      return deco;
+    },
+    provide: (f) => EditorView.decorations.from(f),
+  });
+  // Moving along the bulb's own line keeps it.
+  function onBulbLine(tr, deco) {
+    let at = -1;
+    deco.between(0, tr.state.doc.length, (from) => { at = from; });
+    return at >= 0 && tr.state.doc.lineAt(at).number === tr.state.doc.lineAt(tr.state.selection.main.head).number;
+  }
+  mide.editor.addExtension(bulbField);
+
+  let bulbTimer = null;
+  let bulbSeq = 0;
+  function scheduleLightbulb() {
+    clearTimeout(bulbTimer);
+    bulbTimer = setTimeout(updateLightbulb, 300);
+  }
+  async function updateLightbulb() {
+    const mine = ++bulbSeq;
+    const a = activeEntry();
+    if (!a || !mide.config.get('lsp.lightbulb') || !a.caps.codeActionProvider) return;
+    const { view, entry } = a;
+    const doc = view.state.doc;
+    const line = doc.lineAt(view.state.selection.main.head);
+    const n = line.number - 1;
+    const onLine = (diagnostics.get(entry.uri) || []).filter((d) => d.range.start.line <= n && d.range.end.line >= n);
+    const clear = () => { if (view.state.field(bulbField).size) view.dispatch({ effects: setBulb.of(Decoration.none) }); };
+    if (!onLine.length) return clear();
+    let actions;
+    try {
+      actions = await entry.client.request('textDocument/codeAction', {
+        textDocument: { uri: entry.uri },
+        range: { start: { line: n, character: 0 }, end: { line: n, character: line.length } },
+        context: { diagnostics: onLine, triggerKind: 2 },
+      }, { timeout: 3000 });
+    } catch { return; }
+    if (mine !== bulbSeq || !view.dom.isConnected || view.state.doc !== doc) return;
+    const fixes = (actions || []).filter((x) => !x.disabled && (!x.kind || x.kind.startsWith('quickfix') || x.isPreferred));
+    if (!fixes.length) return clear();
+    view.dispatch({ effects: setBulb.of(Decoration.set([Decoration.widget({ widget: new LightbulbWidget(), side: 1 }).range(line.to)])) });
+  }
+  mide.workspace.onDidUpdateEditor((editor, update) => {
+    if (update && (update.selectionSet || update.docChanged) && editor === mide.workspace.getActiveEditor()) scheduleLightbulb();
   });
 
   // ---------------------------------------------------------------------------
@@ -793,7 +989,7 @@ export function activate(mide) {
   // Problems panel + status bar
 
   const problemsList = h('div.lsp-problems');
-  mide.panel.addView({ id: 'problems', title: 'Problems', icon: 'search', order: 5, element: h('div.lsp-problems-wrap', problemsList) });
+  mide.panel.addView({ id: 'problems', title: 'Problems', icon: 'search', order: 5, command: 'lsp:toggle-problems', element: h('div.lsp-problems-wrap', problemsList) });
 
   let problemsTimer = null;
   function scheduleProblems() { clearTimeout(problemsTimer); problemsTimer = setTimeout(renderProblems, 150); }
@@ -822,7 +1018,7 @@ export function activate(mide) {
   }
 
   const countsEl = h('span.lsp-counts');
-  mide.statusBar.addItem({ id: 'lsp-problems', element: countsEl, align: 'left', priority: 15, tooltip: 'Problems', onClick: () => mide.panel.toggle('problems') });
+  mide.statusBar.addItem({ id: 'lsp-problems', element: countsEl, align: 'left', priority: 15, tooltip: 'Problems', command: 'lsp:toggle-problems', onClick: () => mide.panel.toggle('problems') });
 
   const statusEl = h('span.lsp-status');
   mide.statusBar.addItem({ id: 'lsp-status', element: statusEl, align: 'right', priority: 45, tooltip: 'Language server', onClick: () => serverMenu() });
@@ -879,6 +1075,8 @@ export function activate(mide) {
     'lsp:rename': { title: 'Rename Symbol', when: () => has('renameProvider')() && editorFocused(), run: rename },
     'lsp:format-document': { title: 'Format Document', when: has('documentFormattingProvider'), run: () => formatDocument(mide.workspace.getActiveEditor()).catch((err) => mide.notify.error('Format failed', err.message)) },
     'lsp:go-to-symbol': { title: 'Go to Symbol in File', when: has('documentSymbolProvider'), run: goToSymbol },
+    'lsp:go-to-workspace-symbol': { title: 'Go to Symbol in Project', run: goToWorkspaceSymbol },
+    'lsp:peek-definition': { title: 'Peek Definition', when: has('definitionProvider'), run: () => { const { view } = activeEntry(); peekDefinition(view, headOf(view)); } },
     'lsp:code-actions': { title: 'Code Actions / Quick Fix', when: has('codeActionProvider'), run: codeActions },
     'lsp:signature-help': { title: 'Show Signature Help', when: has('signatureHelpProvider'), run: () => { const { editor, entry } = activeEntry(); requestSignature(editor, entry); } },
     'lsp:toggle-problems': { title: 'Toggle Problems Panel', run: () => mide.panel.toggle('problems') },
@@ -897,6 +1095,7 @@ export function activate(mide) {
     dispose: () => {
       disposed = true;
       clearTimeout(problemsTimer);
+      clearTimeout(bulbTimer);
       for (const entry of tracked.values()) entry.sub?.dispose();
       tracked.clear();
       stopAll();

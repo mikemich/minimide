@@ -1,16 +1,18 @@
 {
   "name": "lsp",
   "displayName": "Language Servers",
-  "description": "Completions, diagnostics, hover, go to definition, rename, formatting and more via the Language Server Protocol.",
+  "description": "Completions, diagnostics, hover, go to and peek definition, project symbols, rename, quick fixes, formatting and more via the Language Server Protocol.",
   "version": "0.1.0",
   "main": "index.js",
   "styles": ["style.css"],
   "keymap": {
     "F12": "lsp:go-to-definition",
+    "Alt-F12": "lsp:peek-definition",
     "Shift-F12": "lsp:find-references",
     "F2": "lsp:rename",
     "Shift-Alt-f": "lsp:format-document",
     "Mod-r": "lsp:go-to-symbol",
+    "Mod-Alt-p": "lsp:go-to-workspace-symbol",
     "Mod-.": "lsp:code-actions",
     "Mod-Shift-Space": "lsp:signature-help",
     "Mod-k Mod-p": "lsp:toggle-problems"
@@ -20,6 +22,7 @@
     "formatOnSave": { "type": "boolean", "default": false, "title": "Format on Save", "description": "Ask the language server to format a file before saving it." },
     "modClickGoesToDefinition": { "type": "boolean", "default": true, "title": "⌘/Ctrl-Click Goes to Definition", "description": "When on, Alt-click adds cursors instead." },
     "hover": { "type": "boolean", "default": true, "title": "Hover Info" },
+    "lightbulb": { "type": "boolean", "default": true, "title": "Quick Fix Lightbulb", "description": "Show a 💡 at the end of a line when the server can fix a problem on it." },
     "signatureHelp": { "type": "boolean", "default": true, "title": "Signature Help", "description": "Show parameter hints while typing a call." },
     "promptToInstall": { "type": "boolean", "default": true, "title": "Suggest Installing Servers", "description": "Show install instructions when a file has a known server that isn't installed." },
     "trace": { "type": "boolean", "default": false, "title": "Trace Protocol", "description": "Log every JSON-RPC message to the Language Servers panel." }

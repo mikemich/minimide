@@ -61,6 +61,17 @@ export function prettyBinding(binding) {
   }).join(' ');
 }
 
+const ACCELERATOR_KEYS = { ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', Escape: 'Esc', '+': 'Plus' };
+
+/** "Shift-Cmd-p" -> Electron's "Shift+Cmd+P", for showing in native menus. Chords can't be shown. */
+export function toAccelerator(binding) {
+  if (!binding || binding.includes(' ')) return undefined;
+  const parts = binding.split(/-(?!$)/);
+  const key = parts.pop();
+  const mods = parts.map((m) => (m === 'Cmd' && !isMac ? 'Super' : m));
+  return [...mods, ACCELERATOR_KEYS[key] || (key.length === 1 ? key.toUpperCase() : key)].join('+');
+}
+
 export class Keymap extends Emitter {
   constructor(commands) {
     super();
@@ -112,6 +123,12 @@ export class Keymap extends Emitter {
     const out = [];
     for (const [k, v] of this.resolved()) if (v === commandId) out.push(k);
     return out;
+  }
+
+  /** A shortcut for `commandId` that a native menu can show (single keystrokes only). */
+  acceleratorFor(commandId) {
+    for (const b of this.bindingsFor(commandId)) { const a = toAccelerator(b); if (a) return a; }
+    return undefined;
   }
 
   /** Commands that still fire inside passthrough zones (e.g. terminal:toggle). */

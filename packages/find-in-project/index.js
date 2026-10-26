@@ -141,7 +141,7 @@ export function activate(mide) {
   }
 
   mide.sidebar.addView({
-    id: 'find-in-project', title: 'Search', icon: 'search', order: 10, element: el,
+    id: 'find-in-project', title: 'Search', icon: 'search', order: 10, command: 'find-in-project:show', element: el,
     focus: () => { query.focus(); query.select(); },
   });
 

@@ -15,6 +15,7 @@ export const CORE_SCHEMA = {
   'ui.accentColor': { type: 'string', default: '', title: 'Accent Color', description: 'Overrides the theme\'s accent (buttons, cursor, selection), e.g. #ff7a59. Empty uses the theme\'s own.' },
   'ui.themedAppIcon': { type: 'boolean', default: true, title: 'Themed App Icon', description: 'Color the Dock (or taskbar) icon to match the theme, accent and editor font.' },
   'ui.compactTabs': { type: 'boolean', default: false, title: 'Compact Tabs' },
+  'ui.holdToShowShortcuts': { type: 'boolean', default: true, title: 'Hold ⌘ to Show Shortcuts', description: 'Holding ⌘ (Ctrl on Linux and Windows) for a moment labels what\'s on screen with its shortcut.' },
   'editor.fontFamily': { type: 'string', default: '"JetBrains Mono", "SF Mono", "Fira Code", Menlo, Consolas, monospace', title: 'Font Family' },
   'editor.fontSize': { type: 'number', default: 14, title: 'Font Size' },
   'editor.wordCompletion': { type: 'boolean', default: true, title: 'Word Completion', description: 'Suggest words that already appear in the file, in languages without a language server.' },

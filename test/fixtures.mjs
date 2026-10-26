@@ -82,6 +82,7 @@ function tsSpace(root) {
   write(path.join(d, 'src ü (app)/my lib.ts'), 'export function greetUser(name: string): string {\n  return "hi " + name;\n}\n');
   write(path.join(d, 'src ü (app)/main app.ts'), 'import { greetUser } from "./my lib";\nconst n: number = greetUser("x");\n');
   write(path.join(d, 'app (auth)/page.ts'), 'export const ok: number = "no";\n');
+  write(path.join(d, 'src ü (app)/needs import.ts'), 'export const y = greetUser("a");\n');
 }
 
 /** `corep` + `coreh`: a user package with a chord and a hot-reloadable module, plus init.js (core). */
@@ -164,6 +165,13 @@ function large(root) {
   }
 }
 
+/** `chproj`: a long file and a short one, for back / forward, the editor menu and the cheat sheet (codingHelp). */
+function chproj(root) {
+  const d = path.join(root, 'chproj');
+  write(path.join(d, 'long.js'), Array.from({ length: 120 }, (_, i) => `const line${i + 1} = ${i + 1};`).join('\n') + '\n');
+  write(path.join(d, 'notes.txt'), 'one\ntwo\nthree\n');
+}
+
 /** `ftproj`: one small file per extra file type, plus a shell script for completion. */
 function ftproj(root) {
   const d = path.join(root, 'ftproj');
@@ -195,8 +203,9 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   sbx(root);
   evilrepo(root);
   ftproj(root);
+  chproj(root);
   large(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 

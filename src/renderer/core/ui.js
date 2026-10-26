@@ -9,7 +9,7 @@ import { fuzzyFilter, highlightMatches } from './fuzzy.js';
 
 let activeModal = null;
 
-function openModal(el, { onClose, id } = {}) {
+export function openModal(el, { onClose, id } = {}) {
   activeModal?.close();
   const root = document.getElementById('overlay-root');
   const backdrop = h('div.modal-backdrop', { onmousedown: (e) => { if (e.target === backdrop) modal.close(); } }, el);
@@ -257,6 +257,7 @@ export class Dock extends Emitter {
     this.header.replaceChildren(...views.map((v) => h('button.dock-tab', {
       class: v.id === this.activeId ? 'active' : '',
       title: v.title,
+      dataset: v.command ? { command: v.command } : {}, // its shortcut shows while ⌘ is held
       onclick: () => this.show(v.id, { focus: true }),
     }, v.icon ? icon(v.icon, 15) : null, h('span', v.title))));
     for (const v of views) {
@@ -328,9 +329,9 @@ export class StatusBar {
     this.items = [];
   }
 
-  /** addItem({ id, element, align: 'left'|'right', priority, onClick, tooltip }) */
-  addItem({ id, element, align = 'left', priority = 100, onClick, tooltip }) {
-    const el = h('div.status-item', { dataset: { id: id || '' }, title: tooltip || '' }, element);
+  /** addItem({ id, element, align: 'left'|'right', priority, onClick, tooltip, command }) */
+  addItem({ id, element, align = 'left', priority = 100, onClick, tooltip, command }) {
+    const el = h('div.status-item', { dataset: { id: id || '', ...(command ? { command } : {}) }, title: tooltip || '' }, element);
     if (onClick) { el.classList.add('clickable'); el.addEventListener('click', onClick); }
     const entry = { el, align, priority };
     this.items.push(entry);

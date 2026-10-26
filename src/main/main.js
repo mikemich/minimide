@@ -85,6 +85,13 @@ async function ensureUserDir() {
     const file = path.join(USER_DIR, name);
     if (!fss.existsSync(file)) await fs.writeFile(file, content);
   }
+  // Half-finished saves (state.json.<pid>.tmp…) from a run that was killed mid-write. Recent ones
+  // may belong to another running copy, so only old ones go.
+  for (const name of await fs.readdir(USER_DIR).catch(() => [])) {
+    if (!/^[\w.-]+\.json\.\d+\.tmp$/.test(name)) continue;
+    const file = path.join(USER_DIR, name);
+    try { if (Date.now() - (await fs.stat(file)).mtimeMs > 60_000) await fs.unlink(file); } catch {}
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -545,9 +552,11 @@ function registerIpc() {
 
   // dialogs
   // Test mode: queued answers replace native dialogs so scripted QA never blocks.
-  const testAnswers = { confirm: [], saveAs: [], openFolder: [], openFile: [] };
+  const testAnswers = { confirm: [], saveAs: [], openFolder: [], openFile: [], menu: [] };
   const scripted = (kind) => (SCREENSHOT && testAnswers[kind].length ? { value: testAnswers[kind].shift() } : null);
+  const shownMenus = []; // context menus answered from the script, for tests to inspect
   if (SCREENSHOT) handle('test:answers', (_e, kind, values) => { testAnswers[kind].push(...values); });
+  if (SCREENSHOT) handle('test:menus', () => ({ shown: shownMenus.splice(0), accelerators: menuAccelerators }));
   // Test mode: capture the window as numbered JPEG frames in $MINIMIDE_FRAMES (for demo videos).
   let frameNo = 0;
   if (SCREENSHOT && process.env.MINIMIDE_FRAMES) handle('test:capture', async (event) => {
@@ -584,14 +593,24 @@ function registerIpc() {
     return r.response;
   });
 
-  // native context menu: items = [{ id, label, accelerator?, enabled? } | { type: 'separator' }]
+  // native context menu: items = [{ id, label, accelerator?, enabled? } | { role } | { type: 'separator' }]
+  // Accelerators are only shown: the renderer's keymap handles the keys.
   handle('menu:popup', (event, items) => new Promise((resolve) => {
+    const s = scripted('menu');
+    if (s) { shownMenus.push(items); return resolve(s.value); }
     let picked = null;
-    const menu = Menu.buildFromTemplate(items.map((it) => it.type === 'separator' ? it : {
-      label: it.label, enabled: it.enabled !== false, click: () => { picked = it.id; },
+    const menu = Menu.buildFromTemplate(items.map((it) => it.type === 'separator' ? { type: 'separator' } : MENU_ROLES.has(it.role) ? { role: it.role } : {
+      label: String(it.label), enabled: it.enabled !== false, click: () => { picked = it.id; },
+      ...(validAccelerator(it.accelerator) ? { accelerator: it.accelerator, registerAccelerator: false } : {}),
     }));
     menu.popup({ window: BrowserWindow.fromWebContents(event.sender), callback: () => setTimeout(() => resolve(picked), 0) });
   }));
+
+  // The renderer's current shortcuts, so the menu bar can show them.
+  handle('menu:set-accelerators', (_e, map) => {
+    menuAccelerators = Object.fromEntries(Object.entries(map || {}).filter(([id, acc]) => typeof id === 'string' && validAccelerator(acc)));
+    buildMenu();
+  });
 
   // shell & misc
   handle('shell:openExternal', (_e, url) => /^https?:|^mailto:/.test(url) && shell.openExternal(url));
@@ -811,17 +830,19 @@ app.on('will-quit', () => { try { fss.rmSync(RUN_DIR, { recursive: true, force: 
 // written to a temp file then renamed, so concurrent quits can't leave it half-written.
 const STATE_FILE = () => path.join(USER_DIR, 'state.json');
 let stateQueue = Promise.resolve();
+let stateWrites = 0; // queued writes, so quitting can wait for them (see will-quit)
 async function readState() {
   try { return JSON.parse(await fs.readFile(STATE_FILE(), 'utf8')); } catch { return {}; }
 }
 function saveState(incoming) {
+  stateWrites++;
   stateQueue = stateQueue.then(async () => {
     const disk = await readState();
     const merged = { ...disk, ...incoming, sessions: { ...disk.sessions, ...incoming.sessions } };
     const tmp = `${STATE_FILE()}.${process.pid}.tmp`;
     await fs.writeFile(tmp, JSON.stringify(merged, null, 2));
     await fs.rename(tmp, STATE_FILE());
-  }).catch((err) => console.warn('[state] save failed:', err.message));
+  }).catch((err) => console.warn('[state] save failed:', err.message)).finally(() => { stateWrites--; });
   return stateQueue;
 }
 
@@ -832,8 +853,15 @@ function safeIsDir(p) {
 // ---------------------------------------------------------------------------
 // Application menu. Edit roles are required on macOS for clipboard shortcuts.
 
+const MENU_ROLES = new Set(['cut', 'copy', 'paste', 'selectAll']);
+const validAccelerator = (a) => typeof a === 'string' && /^[\w+\-=.,/\\;'`[\]]{1,40}$/.test(a);
+let menuAccelerators = {}; // command id -> accelerator, from the renderer's keymap
+
 function buildMenu() {
-  const cmd = (label, id, accelerator) => ({ label, accelerator, click: () => sendCommand(id) });
+  // Explicit accelerators are real shortcuts; ones from the keymap are only shown.
+  const cmd = (label, id, accelerator) => (accelerator
+    ? { label, accelerator, click: () => sendCommand(id) }
+    : { label, accelerator: menuAccelerators[id], registerAccelerator: false, click: () => sendCommand(id) });
   const isMac = process.platform === 'darwin';
   const template = [
     ...(isMac ? [{
@@ -888,10 +916,28 @@ function buildMenu() {
         cmd('Toggle Developer Tools', 'window:toggle-dev-tools', isMac ? 'Alt+Cmd+I' : 'Ctrl+Shift+I'),
       ],
     },
+    {
+      label: 'Go',
+      submenu: [
+        cmd('Back', 'navigate:back'),
+        cmd('Forward', 'navigate:forward'),
+        { type: 'separator' },
+        cmd('Go to File…', 'fuzzy-finder:toggle'),
+        cmd('Go to Symbol in File…', 'lsp:go-to-symbol'),
+        cmd('Go to Symbol in Project…', 'lsp:go-to-workspace-symbol'),
+        cmd('Go to Line…', 'editor:go-to-line'),
+        { type: 'separator' },
+        cmd('Go to Definition', 'lsp:go-to-definition'),
+        cmd('Peek Definition', 'lsp:peek-definition'),
+        cmd('Find References', 'lsp:find-references'),
+        { type: 'separator' },
+        cmd('Problems', 'lsp:toggle-problems'),
+      ],
+    },
     { role: 'windowMenu' },
     {
       role: 'help',
-      submenu: [cmd('Plugin API Docs', 'help:plugin-docs'), cmd('Open Packages Folder', 'packages:open-folder'), ...(isMac ? [] : [{ type: 'separator' }, cmd('Check for Updates…', 'app:check-for-updates')])],
+      submenu: [cmd('Keyboard Cheat Sheet', 'help:cheat-sheet'), cmd('All Keybindings…', 'help:keybindings'), { type: 'separator' }, cmd('Plugin API Docs', 'help:plugin-docs'), cmd('Open Packages Folder', 'packages:open-folder'), ...(isMac ? [] : [{ type: 'separator' }, cmd('Check for Updates…', 'app:check-for-updates')])],
     },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
@@ -966,7 +1012,14 @@ app.whenReady().then(async () => {
 app.on('before-quit', () => { quitting = true; });
 // A downloaded update is applied on the way out, whether the user picked "Restart" or quit later.
 let ptysDrained = false;
+let stateFlushed = false;
 app.on('will-quit', (event) => {
+  // Windows save their state as they close: let the last write finish, or it leaves a .tmp behind.
+  if (!stateFlushed && stateWrites) {
+    event.preventDefault();
+    Promise.race([stateQueue, new Promise((r) => setTimeout(r, 1500))]).then(() => { stateFlushed = true; app.quit(); });
+    return;
+  }
   if (!ptysDrained && (ptys.size || pendingPtyExits.size)) {
     event.preventDefault();
     for (const term of ptys.values()) { try { term.kill(); } catch {} }

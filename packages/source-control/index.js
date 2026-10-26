@@ -347,7 +347,7 @@ export function activate(mide) {
   }
 
   // --- wiring --------------------------------------------------------------
-  mide.sidebar.addView({ id: 'source-control', title: 'Source Control', icon: 'branch', order: 15, element: el, onShow: refresh, focus: () => msgInput.focus() });
+  mide.sidebar.addView({ id: 'source-control', title: 'Source Control', icon: 'branch', order: 15, command: 'source-control:show', element: el, onShow: refresh, focus: () => msgInput.focus() });
   mide.commands.add({
     'source-control:show': { title: 'Show Source Control', run: () => { mide.sidebar.show('source-control', { focus: true }); refresh(); } },
     'source-control:commit': { title: 'Commit', when: () => !!state.root, run: () => { mide.sidebar.show('source-control'); commit(); } },

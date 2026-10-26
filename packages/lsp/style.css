@@ -1,8 +1,12 @@
 /* Hover, completion docs and signature help */
-.lsp-hover, .lsp-doc, .lsp-signature { max-width: 560px; max-height: 360px; overflow: auto; padding: 8px 12px; line-height: 1.5; user-select: text; }
-.lsp-hover p, .lsp-doc p, .lsp-signature-doc p { margin: 6px 0; }
-.lsp-hover p:first-child, .lsp-doc p:first-child { margin-top: 0; }
-.lsp-hover p:last-child, .lsp-doc p:last-child { margin-bottom: 0; }
+.lsp-hover-body, .lsp-doc, .lsp-signature { max-width: 560px; max-height: 360px; overflow: auto; padding: 8px 12px; line-height: 1.5; user-select: text; }
+.lsp-hover { max-width: 560px; }
+.lsp-hover-links { display: flex; gap: 2px; padding: 3px 6px; border-top: 1px solid var(--border); }
+.lsp-hover-link { padding: 2px 6px; border: 0; border-radius: 4px; background: transparent; color: var(--accent); font-size: 0.9em; }
+.lsp-hover-link:hover { background: var(--bg-hover); }
+.lsp-hover-body p, .lsp-doc p, .lsp-signature-doc p { margin: 6px 0; }
+.lsp-hover-body p:first-child, .lsp-doc p:first-child { margin-top: 0; }
+.lsp-hover-body p:last-child, .lsp-doc p:last-child { margin-bottom: 0; }
 .lsp-code {
   margin: 0 0 6px; padding: 6px 8px; border-radius: 4px; background: var(--bg-hover);
   font-family: var(--editor-font); font-size: calc(var(--editor-font-size) - 1.5px); white-space: pre-wrap; color: var(--fg-strong);
@@ -61,3 +65,20 @@
 .lsp-log-server { color: var(--accent); margin-right: 8px; }
 .lsp-log-line.stderr { color: color-mix(in srgb, var(--c-red) 70%, var(--fg)); }
 .lsp-log-line.trace { color: var(--fg-subtle); }
+
+/* Peek definition */
+.cm-tooltip:has(> .lsp-peek) { padding: 0; }
+.lsp-peek { width: min(780px, calc(100vw - 120px)); display: flex; flex-direction: column; }
+.lsp-peek-header { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border-bottom: 1px solid var(--border); font-family: var(--ui-font); }
+.lsp-peek-file { color: var(--fg-strong); font-weight: 600; }
+.lsp-peek-where { color: var(--fg-subtle); font-size: 0.88em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lsp-peek-spacer { flex: 1; }
+.lsp-peek-btn { padding: 2px 8px; border: 0; border-radius: 4px; background: transparent; color: var(--fg-muted); font-size: 0.9em; white-space: nowrap; }
+.lsp-peek-btn:hover { background: var(--bg-hover); color: var(--fg-strong); }
+.lsp-peek-body .cm-editor { max-height: 260px; background: var(--bg); }
+.lsp-peek-body .cm-scroller { overflow: auto; }
+.lsp-peek-body .cm-gutters { background: var(--bg); }
+
+/* Quick fix lightbulb */
+.lsp-lightbulb { margin-left: 10px; cursor: pointer; font-size: 0.85em; opacity: 0.75; user-select: none; }
+.lsp-lightbulb:hover { opacity: 1; }

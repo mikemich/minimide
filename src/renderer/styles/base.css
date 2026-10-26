@@ -464,6 +464,44 @@ body.compact-tabs { --tab-height: 30px; }
 .select-empty { padding: 14px; color: var(--fg-subtle); text-align: center; }
 .select-footer { padding: 6px 14px; border-top: 1px solid var(--border); color: var(--fg-subtle); font-size: 0.88em; }
 .select-list.prompt .select-input { border-bottom: 0; }
+
+/* keyboard cheat sheet */
+.cheat-sheet {
+  width: min(860px, 94vw); max-height: min(640px, 82vh); overflow: auto; outline: none;
+  padding: 18px 22px 14px; background: var(--bg-elevated); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow); animation: drop-in 0.14s var(--ease);
+}
+.cheat-title { font-size: 1.15em; font-weight: 600; color: var(--fg-strong); margin-bottom: 12px; }
+.cheat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 6px 28px; }
+.cheat-section h3 { margin: 10px 0 4px; font-size: 0.78em; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.cheat-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;
+  padding: 5px 8px; border: 0; border-radius: var(--radius); background: transparent; color: var(--fg); text-align: left;
+}
+button.cheat-row:hover { background: var(--bg-hover); color: var(--fg-strong); }
+.cheat-keys { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px; }
+.cheat-extra { color: var(--fg-subtle); font-size: 0.88em; }
+.cheat-footer { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); color: var(--fg-subtle); font-size: 0.9em; }
+.cheat-footer a { color: var(--accent); text-decoration: none; }
+.cheat-footer a:hover { text-decoration: underline; }
+
+/* hold ⌘ to show shortcuts */
+.key-hints { position: fixed; inset: 0; z-index: 3000; pointer-events: none; animation: fade-in 0.12s ease; }
+.key-hint {
+  position: absolute; padding: 1px 6px; border: 0; border-radius: 5px;
+  background: var(--accent); color: var(--bg); font-weight: 700; font-size: 0.8em; white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.key-hints-card {
+  position: absolute; min-width: 230px; padding: 8px 10px; border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg); background: var(--bg-elevated); box-shadow: var(--shadow); font-size: 0.92em;
+}
+.key-hints-card.anywhere { right: 16px; bottom: 40px; }
+.key-hints-title { margin-bottom: 4px; font-size: 0.78em; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.key-hints-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 2px 0; color: var(--fg); }
+
+/* read-only previews (peek definition) */
+.cm-preview-target { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .prompt-message { padding: 12px 16px 0; color: var(--fg-muted); font-size: 0.92em; }
 .prompt-message.error { color: var(--error); }
 

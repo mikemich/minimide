@@ -4,7 +4,7 @@
 import { EditorState, Compartment, Annotation, Transaction, Text } from '@codemirror/state';
 import {
   EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection,
-  dropCursor, rectangularSelection, crosshairCursor, highlightActiveLine, scrollPastEnd, highlightWhitespace,
+  dropCursor, rectangularSelection, crosshairCursor, highlightActiveLine, scrollPastEnd, highlightWhitespace, Decoration,
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import {
@@ -345,6 +345,39 @@ function baseExtensions(ws) {
       indentWithTab,
     ]),
   ];
+}
+
+/**
+ * A small read-only editor showing `text` with the file's highlighting, scrolled to `line`
+ * (1-based) and marking it. Used by Peek Definition.
+ */
+export async function createPreviewView({ text, path, line = 1, parent, config, extensions = [] }) {
+  const desc = path ? detectLanguage(path, text.split('\n', 1)[0]) : null;
+  let language = [];
+  try { if (desc) language = desc.support || await desc.load(); } catch {}
+  const state = EditorState.create({ doc: text });
+  const target = state.doc.line(Math.max(1, Math.min(line, state.doc.lines)));
+  const view = new EditorView({
+    parent,
+    state: EditorState.create({
+      doc: state.doc,
+      selection: { anchor: target.from },
+      extensions: [
+        language,
+        lineNumbers(),
+        config ? tabExtensions(config) : [],
+        EditorState.readOnly.of(true),
+        highlightSpecialChars(),
+        drawSelection(),
+        syntaxHighlighting(classHighlighter),
+        syntaxHighlighting(richHighlighter),
+        EditorView.decorations.of(Decoration.set([Decoration.line({ class: 'cm-preview-target' }).range(target.from)])),
+        extensions,
+      ],
+    }),
+  });
+  view.dispatch({ effects: EditorView.scrollIntoView(target.from, { y: 'start', yMargin: 24 }) });
+  return view;
 }
 
 export function tabExtensions(cfg) {

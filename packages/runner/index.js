@@ -176,6 +176,7 @@ export function activate(mide) {
     icon: () => (isRunning() ? 'stop' : 'play'),
     title: () => (isRunning() ? 'Stop (Shift-F5)' : 'Run File (F5)'),
     className: 'runner-action',
+    command: () => (isRunning() ? 'runner:stop' : 'runner:run-file'),
     when: (item) => runnable(item),
     run: () => (isRunning() ? stop() : runFile()),
   });

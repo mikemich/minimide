@@ -256,7 +256,7 @@ export async function activate(mide) {
 
   // --- panel, commands, service ------------------------------------------
   mide.panel.addView({
-    id: 'terminal', title: 'Terminal', icon: 'terminal', order: 0, element: el,
+    id: 'terminal', title: 'Terminal', icon: 'terminal', order: 0, command: 'terminal:toggle', element: el,
     focus: () => { if (!sessions.length) create(); else active?.term.focus(); },
     onShow: () => { if (active) requestAnimationFrame(() => fit(active)); },
   });

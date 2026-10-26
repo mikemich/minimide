@@ -36,7 +36,7 @@ contextBridge.exposeInMainWorld('native', {
     saveAs: call('dialog:saveAs'),
     confirm: call('dialog:confirm'),
   },
-  menu: { popup: call('menu:popup') },
+  menu: { popup: call('menu:popup'), setAccelerators: call('menu:set-accelerators') },
   pkgmgr: {
     stage: call('pkgmgr:stage'),
     install: call('pkgmgr:install'),
@@ -105,5 +105,6 @@ if (process.argv.includes('--mide-test')) {
   contextBridge.exposeInMainWorld('mideTest', {
     answers: (kind, ...values) => ipcRenderer.invoke('test:answers', kind, values),
     capture: () => ipcRenderer.invoke('test:capture'),
+    menus: () => ipcRenderer.invoke('test:menus'),
   });
 }
