@@ -82,6 +82,11 @@
     .icons p { margin: 0; color: var(--muted); font-size: 17px; line-height: 1.55; }
     .icons p b { color: var(--strong); }
     @media (max-width: 880px) { .icons { flex-direction: column; align-items: flex-start; } .icons img { width: 100%; } }
+    .keys-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 18px; }
+    .keys-list li { color: var(--muted); font-size: 16px; }
+    .keys-list b { display: block; color: var(--strong); font-size: 17px; margin-bottom: 2px; }
+    kbd { font: 600 13px var(--mono); color: var(--strong); background: var(--card); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
+    .shot-caption { color: var(--muted); font-size: 15px; text-align: center; margin: 14px 0 0; }
     .shot { border-radius: var(--radius); border: 1px solid var(--line); width: 100%; display: block; box-shadow: 0 30px 80px rgba(0,0,0,.45); }
 
     .cta { text-align: center; padding: 110px 0 60px; }
@@ -103,6 +108,7 @@
       <a class="brand" href="#"><img src="icon.png" alt="">Minimide</a>
       <div class="nav-links">
         <a href="#why">Why</a>
+        <a href="#keys">Keys</a>
         <a href="#hack">Hack it</a>
         <a href="#features">Features</a>
         <a href="#themes">Themes</a>
@@ -133,6 +139,23 @@
         <div class="card"><div class="num">~5<span>k</span></div><h3>Lines in the core</h3><p>Plain JavaScript. No framework, no build magic. Every line that runs is one you can read.</p></div>
         <div class="card"><div class="num">42</div><h3>Built-in packages</h3><p>Tree view, git, terminal, language servers, Vim, themes, even settings: all on the same public API you get.</p></div>
         <div class="card"><div class="num">0<span>s</span></div><h3>Restarts to see a change</h3><p>Save a package, your stylesheet or keymap and it reloads instantly. Tweak the editor while you use it.</p></div>
+      </div>
+    </section>
+
+    <section id="keys">
+      <h2>Nothing to memorize.</h2>
+      <p class="sub">Hold <kbd>⌘</kbd> for a moment and every shortcut on screen gets a label: tabs, sidebar, status bar, and what you can do with the code under the cursor. Let go and it's gone.</p>
+      <img class="shot" src="media/hold-cmd.jpg" alt="Minimide with ⌘ held: key labels on tabs, sidebar icons and the status bar, a card of what works at the cursor and a card of what works anywhere" loading="lazy">
+      <p class="shot-caption">Holding ⌘ in Minimide's own source. Ctrl on Linux and Windows.</p>
+      <div class="split" style="margin-top:64px">
+        <ul class="keys-list">
+          <li><b>Peek, don't jump</b>Read a function's code in a box under the line with <kbd>⌥F12</kbd>. Enter opens it, Esc puts it away.</li>
+          <li><b>Always a way back</b><kbd>⌃-</kbd> returns to where you were after a jump, a search or another tab. Mouse back buttons work too.</li>
+          <li><b>Right-click knows the code</b>Definition, references, rename, quick fix and format, each with its key, so you pick them up as you go.</li>
+          <li><b>Help that points at the fix</b>Hovers link to the definition, and a 💡 shows up when there's a fix for the problem on that line.</li>
+          <li><b>One page of keys</b><kbd>⌘K</kbd> <kbd>⌘H</kbd> opens a cheat sheet grouped by what you're trying to do. Click a row to run it.</li>
+        </ul>
+        <img class="shot" src="media/peek.jpg" alt="Peek Definition: the definition of locationOf shown in an inline editor under the line that calls it" loading="lazy">
       </div>
     </section>
 
@@ -167,13 +190,14 @@
       <h2>Small, not bare.</h2>
       <p class="sub">Simple by default, with power tools a keystroke away.</p>
       <div class="features">
-        <div class="feature"><b>Language servers</b><span>Completions with auto-import, diagnostics, hover, go to definition, rename, code actions.</span></div>
+        <div class="feature"><b>Language servers</b><span>Completions with auto-import, diagnostics, go to or peek definition, project symbols, rename, quick fixes.</span></div>
         <div class="feature"><b>Real terminal</b><span>Tabs, your own shell, clickable <code>file:line</code> output.</span></div>
         <div class="feature"><b>One-key run</b><span>F5 runs Python, JS/TS, Go, Rust, C/C++ and more. ⌘⇧B runs tasks.</span></div>
         <div class="feature"><b>Git panel</b><span>Stage, commit, push, pull, side-by-side diffs, blame and gutter markers.</span></div>
         <div class="feature"><b>Command palette</b><span>Every action by name, plus a fuzzy file finder with <code>file:42</code>.</span></div>
         <div class="feature"><b>Vim mode</b><span>Motions, registers, macros, <code>:w</code> and <code>:q</code>. Off until you want it.</span></div>
-        <div class="feature"><b>Snippets</b><span>Tab-expand built-ins, or paste your VS Code snippet files.</span></div>
+        <div class="feature"><b>160+ languages</b><span>From Python and Rust to Terraform, Nix, Zig, Makefiles, <code>.env</code> and logs.</span></div>
+        <div class="feature"><b>Snippets</b><span>171 built in for 25 languages, words from the file as you type, or your VS Code snippets.</span></div>
         <div class="feature"><b>Big repos</b><span>Indexes and searches 250,000 files without freezing the editor.</span></div>
         <div class="feature"><b>Updates itself</b><span>Checks GitHub once a day and verifies every download.</span></div>
         <div class="feature"><b>27 fonts</b><span>JetBrains Mono, Fira Code, Iosevka, Monaspace, Geist and more, previewed live.</span></div>
