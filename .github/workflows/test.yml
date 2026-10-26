@@ -53,7 +53,8 @@ jobs:
       # The browser demo (docs/try) is the same renderer with a stand-in for the Electron bridge.
       - name: Test the browser demo (Linux)
         if: runner.os == 'Linux'
-        run: xvfb-run -a npm run test:web
+        # GitHub's Ubuntu runners can't use Chromium's sandbox (see test/run.mjs); it has to be off from launch.
+        run: xvfb-run -a npm run test:web -- --no-sandbox
 
       - name: Test the browser demo (macOS)
         if: runner.os == 'macOS'

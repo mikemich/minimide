@@ -9,8 +9,6 @@ const path = require('node:path');
 const ROOT = path.join(__dirname, '..', 'docs');
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 
-if (process.platform === 'linux' && process.env.CI) app.commandLine.appendSwitch('no-sandbox');
-
 const server = http.createServer((req, res) => {
   let rel = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
   if (rel.endsWith('/')) rel += 'index.html';
