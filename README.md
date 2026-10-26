@@ -14,7 +14,7 @@ you can change while it runs.
 ![Core](https://img.shields.io/badge/core-~5k%20lines-a3d385)
 [![Download](https://img.shields.io/badge/download-latest-f0b866)](https://github.com/mikemich/minimide/releases/latest)
 
-<a href="docs/media/minimide-demo.mp4"><img src="docs/media/minimide-demo.gif" alt="Creating a package in Minimide: type one line, save, and it's live" width="840"></a>
+<a href="docs/media/shortcuts-demo.mp4"><img src="docs/media/shortcuts-demo.gif" alt="Holding ⌘ labels every shortcut on screen, ⌥F12 peeks at a definition, F12 jumps to it and ⌃- comes back" width="840"></a>
 
 *Create a package, add a feature in one line, save: it's live. No restart.*
 
