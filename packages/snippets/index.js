@@ -9,6 +9,7 @@ const LANGUAGE_IDS = {
   html: ['html'], css: ['css'], scss: ['scss', 'css'], less: ['less', 'css'], sass: ['sass', 'css'],
   markdown: ['markdown'], shell: ['shellscript'], json: ['json'], yaml: ['yaml'], sql: ['sql'], java: ['java'],
   ruby: ['ruby'], php: ['php'], swift: ['swift'], kotlin: ['kotlin'], lua: ['lua'], vue: ['vue', 'html'], svelte: ['svelte', 'html'],
+  'c#': ['csharp'], dockerfile: ['dockerfile'], makefile: ['makefile'], terraform: ['terraform'], java: ['java'], 'properties files': ['properties'],
 };
 
 export function activate(mide) {

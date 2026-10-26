@@ -54,7 +54,8 @@ Minimide picks up Atom's idea, small enough to own:
   internet unless you approve the permissions they ask for. Folders you haven't trusted open
   in Restricted Mode, with git and language servers off. See [SECURITY.md](SECURITY.md).
 - **Simple by default.** A file tree, tabs, a command palette and a fuzzy finder, built
-  on CodeMirror 6 with syntax highlighting for 100+ languages. Power tools such as LSP,
+  on CodeMirror 6 with syntax highlighting for 160+ languages and file types (Makefiles,
+  Terraform, nftables, logs, CSV…). Power tools such as LSP,
   split panes, multi-cursor and project-wide replace are there when you reach for them.
 
 ## Getting started
@@ -167,7 +168,7 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `editor-guides` | Scope-aware indent guides; optional rainbow brackets |
 | `image-viewer` | Opens PNG, JPG, GIF, WebP, SVG and more in a tab with zoom (`⌘+` / `⌘-` / pinch) |
 | `sticky-scroll` | Pins the headers of the function, class or block you're in to the top of the editor |
-| `snippets` | Type a prefix and press Tab. Built-ins for popular languages, plus your own in VS Code format |
+| `snippets` | 170+ built-in snippets in 25 languages, offered as you type or expanded with Tab, plus your own in VS Code format. Autocomplete also suggests words already in the file |
 | `color-preview` | Inline swatches for `#hex`, `rgb()` and `hsl()`; click a hex swatch to pick a new color |
 | `git-blame` | Who changed the current line, and when, shown at its end (like GitLens) |
 | `todos` | Highlights TODO / FIXME / HACK / NOTE in comments, plus a sidebar listing them all (`⌘K ⌘T`) |

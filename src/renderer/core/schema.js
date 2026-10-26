@@ -17,6 +17,7 @@ export const CORE_SCHEMA = {
   'ui.compactTabs': { type: 'boolean', default: false, title: 'Compact Tabs' },
   'editor.fontFamily': { type: 'string', default: '"JetBrains Mono", "SF Mono", "Fira Code", Menlo, Consolas, monospace', title: 'Font Family' },
   'editor.fontSize': { type: 'number', default: 14, title: 'Font Size' },
+  'editor.wordCompletion': { type: 'boolean', default: true, title: 'Word Completion', description: 'Suggest words that already appear in the file, in languages without a language server.' },
   'editor.fontLigatures': { type: 'boolean', default: true, title: 'Font Ligatures', description: 'Join character pairs like => and !== into one glyph, in fonts that support it.' },
   'editor.lineHeight': { type: 'number', default: 1.6, title: 'Line Height' },
   'editor.tabSize': { type: 'number', default: 2, title: 'Tab Size' },

@@ -11,6 +11,7 @@ import { registerCoreCommands, CORE_KEYMAP } from './core/core-commands.js';
 import { CORE_SCHEMA } from './core/schema.js';
 import { bindThemedAppIcon, renderAppIcon } from './core/app-icon.js';
 import { Trust } from './core/trust.js';
+import { wordCompletion } from './core/word-completion.js';
 
 // ui.accentColor overrides the theme's accent and everything derived from it.
 // Inline styles on <html> beat the theme's :root rules, so this survives theme switches.
@@ -66,6 +67,7 @@ class App {
     this.statusBar = new StatusBar(document.getElementById('statusbar'));
 
     this.workspace = new Workspace({ config: this.config, commands: this.commands, keymap: this.keymap, ui: this.ui });
+    this.workspace.addCompletionSource(wordCompletion(this));
     this.workspace.renderWelcome = () => this.renderWelcome();
     this.workspace.updateEmptyState();
 

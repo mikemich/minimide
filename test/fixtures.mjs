@@ -164,6 +164,20 @@ function large(root) {
   }
 }
 
+/** `ftproj`: one small file per extra file type, plus a shell script for completion. */
+function ftproj(root) {
+  const d = path.join(root, 'ftproj');
+  write(path.join(d, 'test.sh'), 'nsr1=x\nip -net "$nsr1" link\n\n');
+  write(path.join(d, 'Makefile'), 'CC := gcc\nall: main.o\n\t@$(CC) -o $@ $^\n');
+  write(path.join(d, 'rules.nft'), 'table inet f {\n  chain fwd { ct state established meta l4proto gre flow add @f }\n}\n');
+  write(path.join(d, 'app.log'), '2026-10-26 10:00:01 ERROR boom\n');
+  write(path.join(d, 'data.csv'), 'a,b\n1,2\n');
+  write(path.join(d, '.zshrc'), 'export PATH=$HOME/bin:$PATH\n');
+  write(path.join(d, '.gitignore'), 'node_modules/\n');
+  write(path.join(d, 'main.tf'), 'resource "x" "y" {}\n');
+  write(path.join(d, '.env'), 'KEY=value\n');
+}
+
 /**
  * Create all fixtures under `root` (default: a new dir in os.tmpdir()). Homes that need no
  * pre-seeded files are created empty: the app fills in its defaults on first launch.
@@ -180,8 +194,9 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   rproj(root);
   sbx(root);
   evilrepo(root);
+  ftproj(root);
   large(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 

@@ -1,7 +1,7 @@
 // Built-in snippets, VS Code format: { language: { name: { prefix, body, description } } }.
 // "javascript" snippets also apply to TypeScript, JSX and TSX; "*" applies everywhere.
 
-export default {
+const BASE = {
   '*': {
     'Date': { prefix: 'date', body: '$CURRENT_YEAR-$CURRENT_MONTH-$CURRENT_DATE', description: "Today's date" },
   },
@@ -77,3 +77,176 @@ export default {
     'If file': { prefix: 'iff', body: ['if [[ -f "${1:file}" ]]; then', '\t$0', 'fi'], description: 'If file exists' },
   },
 };
+
+// More snippets, merged on top of BASE: extra ones for the languages above, plus new languages.
+const MORE = {
+  javascript: {
+    'Map': { prefix: 'map', body: '${1:items}.map((${2:item}) => ${0})', description: 'Array map' },
+    'Filter': { prefix: 'filter', body: '${1:items}.filter((${2:item}) => ${0})', description: 'Array filter' },
+    'Reduce': { prefix: 'reduce', body: '${1:items}.reduce((${2:acc}, ${3:item}) => ${0}, ${4:initial})', description: 'Array reduce' },
+    'Promise': { prefix: 'prom', body: ['new Promise((resolve, reject) => {', '\t$0', '});'], description: 'new Promise' },
+    'Event listener': { prefix: 'ael', body: ["${1:element}.addEventListener('${2:click}', (${3:e}) => {", '\t$0', '});'], description: 'addEventListener' },
+    'Switch': { prefix: 'switch', body: ['switch (${1:value}) {', '\tcase ${2:x}:', '\t\t$0', '\t\tbreak;', '\tdefault:', '\t\tbreak;', '}'], description: 'switch' },
+    'Export': { prefix: 'exp', body: 'export ${1:const} ${2:name} = ${0};', description: 'Named export' },
+    'Require': { prefix: 'req', body: "const ${1:name} = require('${2:module}');", description: 'require()' },
+  },
+  python: {
+    'If main': { prefix: 'ifmain', body: ['if __name__ == "__main__":', '\t${0:main()}'], description: 'Main guard only' },
+    'List comprehension': { prefix: 'lc', body: '[${1:x} for ${1:x} in ${2:items}${3: if ${4:cond}}]', description: 'List comprehension' },
+    'Dict comprehension': { prefix: 'dcomp', body: '{${1:k}: ${2:v} for ${1:k}, ${2:v} in ${3:items}.items()}', description: 'Dict comprehension' },
+    'Async function': { prefix: 'adef', body: ['async def ${1:name}(${2}):', '\t${0:pass}'], description: 'async def' },
+    'Argparse': { prefix: 'argp', body: ['import argparse', '', 'parser = argparse.ArgumentParser(description="${1}")', 'parser.add_argument("${2:path}")', 'args = parser.parse_args()', '$0'], description: 'argparse setup' },
+    'Pytest test': { prefix: 'test', body: ['def test_${1:name}():', '\t${0:assert True}'], description: 'pytest test' },
+    'Property': { prefix: 'prop', body: ['@property', 'def ${1:name}(self):', '\treturn self._${1:name}'], description: '@property' },
+    'Logging': { prefix: 'log', body: ['import logging', '', 'log = logging.getLogger(__name__)', '$0'], description: 'Module logger' },
+    'While': { prefix: 'while', body: ['while ${1:True}:', '\t${0:pass}'], description: 'while loop' },
+  },
+  go: {
+    'For range': { prefix: 'forr', body: ['for ${1:_}, ${2:v} := range ${3:items} {', '\t$0', '}'], description: 'for … range' },
+    'Struct': { prefix: 'st', body: ['type ${1:Name} struct {', '\t${2:Field} ${3:string}$0', '}'], description: 'Struct type' },
+    'Interface': { prefix: 'inf', body: ['type ${1:Name} interface {', '\t${2:Method}() ${3:error}$0', '}'], description: 'Interface type' },
+    'Method': { prefix: 'meth', body: ['func (${1:r} *${2:Type}) ${3:Name}(${4}) ${5:error} {', '\t$0', '}'], description: 'Method' },
+    'Goroutine': { prefix: 'gof', body: ['go func() {', '\t$0', '}()'], description: 'Anonymous goroutine' },
+    'Printf': { prefix: 'pf', body: 'fmt.Printf("${1:%v}\\n", ${2})', description: 'fmt.Printf' },
+    'HTTP handler': { prefix: 'hand', body: ['func ${1:handler}(w http.ResponseWriter, r *http.Request) {', '\t$0', '}'], description: 'http handler' },
+    'Errorf': { prefix: 'errf', body: 'fmt.Errorf("${1:context}: %w", ${2:err})', description: 'Wrapped error' },
+  },
+  rust: {
+    'Struct': { prefix: 'st', body: ['struct ${1:Name} {', '\t${2:field}: ${3:String},$0', '}'], description: 'Struct' },
+    'Impl': { prefix: 'impl', body: ['impl ${1:Name} {', '\t$0', '}'], description: 'impl block' },
+    'Enum': { prefix: 'enum', body: ['enum ${1:Name} {', '\t${2:Variant},$0', '}'], description: 'Enum' },
+    'Match': { prefix: 'match', body: ['match ${1:value} {', '\t${2:pattern} => ${3},', '\t_ => ${0},', '}'], description: 'match' },
+    'Println': { prefix: 'pl', body: 'println!("${1:{}}", ${2});', description: 'println!' },
+    'For': { prefix: 'for', body: ['for ${1:item} in ${2:items} {', '\t$0', '}'], description: 'for loop' },
+    'Test': { prefix: 'test', body: ['#[test]', 'fn ${1:name}() {', '\t$0', '}'], description: 'Test function' },
+  },
+  c: {
+    'Include': { prefix: 'inc', body: '#include <${1:stdio.h}>', description: '#include' },
+    'Struct': { prefix: 'st', body: ['typedef struct {', '\t${2:int field};$0', '} ${1:Name};'], description: 'typedef struct' },
+    'While': { prefix: 'while', body: ['while (${1:cond}) {', '\t$0', '}'], description: 'while loop' },
+    'If': { prefix: 'if', body: ['if (${1:cond}) {', '\t$0', '}'], description: 'if' },
+    'Header guard': { prefix: 'guard', body: ['#ifndef ${1:${TM_FILENAME_BASE}_H}', '#define ${1:${TM_FILENAME_BASE}_H}', '', '$0', '', '#endif'], description: 'Include guard' },
+  },
+  cpp: {
+    'Main': { prefix: 'main', body: ['#include <iostream>', '', 'int main() {', '\t${0:std::cout << "hello" << std::endl;}', '\treturn 0;', '}'], description: 'main()' },
+    'Class': { prefix: 'cls', body: ['class ${1:Name} {', 'public:', '\t${1:Name}();', '\t$0', '};'], description: 'Class' },
+    'Range for': { prefix: 'forr', body: ['for (const auto& ${1:item} : ${2:items}) {', '\t$0', '}'], description: 'Range-based for' },
+    'Cout': { prefix: 'cout', body: 'std::cout << ${1} << std::endl;', description: 'std::cout' },
+  },
+  html: {
+    'Div with class': { prefix: 'div', body: '<div class="${1}">$0</div>', description: '<div class>' },
+    'Anchor': { prefix: 'a', body: '<a href="${1:#}">$0</a>', description: 'Link' },
+    'Image': { prefix: 'img', body: '<img src="${1}" alt="${2}">', description: 'Image' },
+    'Button': { prefix: 'btn', body: '<button type="${1:button}">$0</button>', description: 'Button' },
+    'Unordered list': { prefix: 'ul', body: ['<ul>', '\t<li>$0</li>', '</ul>'], description: 'List' },
+    'Form': { prefix: 'form', body: ['<form action="${1}" method="${2:post}">', '\t$0', '</form>'], description: 'Form' },
+    'Input': { prefix: 'input', body: '<input type="${1:text}" name="${2}" placeholder="${3}">', description: 'Input' },
+  },
+  css: {
+    'Root variables': { prefix: 'root', body: [':root {', '\t--${1:accent}: ${2:#4c8dff};$0', '}'], description: ':root variables' },
+    'Dark mode': { prefix: 'dark', body: ['@media (prefers-color-scheme: dark) {', '\t$0', '}'], description: 'Dark-mode media query' },
+    'Transition': { prefix: 'trans', body: 'transition: ${1:all} ${2:0.2s} ${3:ease};', description: 'transition' },
+    'Keyframes': { prefix: 'kf', body: ['@keyframes ${1:name} {', '\tfrom { $2 }', '\tto { $0 }', '}'], description: '@keyframes' },
+    'Absolute fill': { prefix: 'absf', body: ['position: absolute;', 'inset: 0;'], description: 'Fill the parent' },
+  },
+  markdown: {
+    'Heading': { prefix: 'h2', body: '## ${0}', description: 'Heading' },
+    'Image': { prefix: 'img', body: '![${1:alt}](${2:path})', description: 'Image' },
+    'Details': { prefix: 'details', body: ['<details>', '<summary>${1:Summary}</summary>', '', '$0', '', '</details>'], description: 'Collapsible section' },
+    'Front matter': { prefix: 'fm', body: ['---', 'title: ${1}', 'date: $CURRENT_YEAR-$CURRENT_MONTH-$CURRENT_DATE', '---', '', '$0'], description: 'YAML front matter' },
+  },
+  shellscript: {
+    'If': { prefix: 'if', body: ['if [[ ${1:condition} ]]; then', '\t$0', 'fi'], description: 'if' },
+    'If else': { prefix: 'ife', body: ['if [[ ${1:condition} ]]; then', '\t$2', 'else', '\t$0', 'fi'], description: 'if … else' },
+    'If directory': { prefix: 'ifd', body: ['if [[ -d "${1:dir}" ]]; then', '\t$0', 'fi'], description: 'If directory exists' },
+    'If empty': { prefix: 'ifz', body: ['if [[ -z "${1:\\$var}" ]]; then', '\t$0', 'fi'], description: 'If string is empty' },
+    'If command exists': { prefix: 'ifcmd', body: ['if command -v ${1:tool} >/dev/null 2>&1; then', '\t$0', 'fi'], description: 'If a program is installed' },
+    'For in': { prefix: 'for', body: ['for ${1:item} in ${2:list}; do', '\t$0', 'done'], description: 'for … in' },
+    'For range': { prefix: 'fori', body: ['for ((${1:i} = 0; ${1:i} < ${2:n}; ${1:i}++)); do', '\t$0', 'done'], description: 'Counting for loop' },
+    'For files': { prefix: 'forf', body: ['for ${1:f} in ${2:*}; do', '\t[[ -e "\\$${1:f}" ]] || continue', '\t$0', 'done'], description: 'Loop over files' },
+    'While read': { prefix: 'whiler', body: ['while IFS= read -r ${1:line}; do', '\t$0', 'done < "${2:file}"'], description: 'Read a file line by line' },
+    'Case': { prefix: 'case', body: ['case "${1:\\$1}" in', '\t${2:pattern})', '\t\t$0', '\t\t;;', '\t*)', '\t\t;;', 'esac'], description: 'case … esac' },
+    'Function': { prefix: 'fn', body: ['${1:name}() {', '\tlocal ${2:arg}="\\$1"', '\t$0', '}'], description: 'Function' },
+    'Heredoc': { prefix: 'heredoc', body: ["cat <<'${1:EOF}'", '$0', '${1:EOF}'], description: 'Here document' },
+    'Trap cleanup': { prefix: 'trap', body: ['cleanup() {', '\t${1:rm -rf "\\$tmp"}', '}', 'trap cleanup EXIT'], description: 'Clean up on exit' },
+    'Temp dir': { prefix: 'tmp', body: 'tmp=$(mktemp -d)', description: 'Temporary directory' },
+    'Script dir': { prefix: 'sdir', body: 'SCRIPT_DIR="$(cd "$(dirname "\\${BASH_SOURCE[0]}")" && pwd)"', description: "The script's own folder" },
+    'Getopts': { prefix: 'getopts', body: ['while getopts "${1:hv}" opt; do', '\tcase "\\$opt" in', '\t\th) ${2:usage; exit 0} ;;', '\t\tv) ${3:verbose=1} ;;', '\t\t*) exit 1 ;;', '\tesac', 'done', 'shift $((OPTIND - 1))'], description: 'Parse options' },
+    'Die': { prefix: 'die', body: ['die() { echo "\\$*" >&2; exit 1; }'], description: 'Print an error and exit' },
+  },
+  java: {
+    'Main': { prefix: 'main', body: ['public static void main(String[] args) {', '\t$0', '}'], description: 'main method' },
+    'Class': { prefix: 'cls', body: ['public class ${1:${TM_FILENAME_BASE}} {', '\t$0', '}'], description: 'Class' },
+    'Println': { prefix: 'sout', body: 'System.out.println(${1});', description: 'System.out.println' },
+    'For each': { prefix: 'fore', body: ['for (${1:var} ${2:item} : ${3:items}) {', '\t$0', '}'], description: 'Enhanced for' },
+    'Try catch': { prefix: 'try', body: ['try {', '\t$1', '} catch (${2:Exception} ${3:e}) {', '\t$0', '}'], description: 'try … catch' },
+    'Record': { prefix: 'rec', body: 'public record ${1:Name}(${2:String value}) {}', description: 'Record' },
+  },
+  kotlin: {
+    'Main': { prefix: 'main', body: ['fun main() {', '\t$0', '}'], description: 'main' },
+    'Function': { prefix: 'fun', body: ['fun ${1:name}(${2}): ${3:Unit} {', '\t$0', '}'], description: 'Function' },
+    'Data class': { prefix: 'dc', body: 'data class ${1:Name}(val ${2:value}: ${3:String})', description: 'Data class' },
+    'When': { prefix: 'when', body: ['when (${1:value}) {', '\t${2:x} -> ${3}', '\telse -> ${0}', '}'], description: 'when' },
+  },
+  swift: {
+    'Function': { prefix: 'func', body: ['func ${1:name}(${2}) ${3:-> Void} {', '\t$0', '}'], description: 'Function' },
+    'Struct': { prefix: 'st', body: ['struct ${1:Name} {', '\t$0', '}'], description: 'Struct' },
+    'Guard': { prefix: 'guard', body: ['guard let ${1:value} = ${2:optional} else {', '\t${0:return}', '}'], description: 'guard let' },
+    'SwiftUI view': { prefix: 'view', body: ['struct ${1:ContentView}: View {', '\tvar body: some View {', '\t\t${0:Text("Hello")}', '\t}', '}'], description: 'SwiftUI view' },
+  },
+  csharp: {
+    'Class': { prefix: 'cls', body: ['public class ${1:Name}', '{', '\t$0', '}'], description: 'Class' },
+    'Property': { prefix: 'prop', body: 'public ${1:string} ${2:Name} { get; set; }', description: 'Auto property' },
+    'Console': { prefix: 'cw', body: 'Console.WriteLine(${1});', description: 'Console.WriteLine' },
+    'Foreach': { prefix: 'foreach', body: ['foreach (var ${1:item} in ${2:items})', '{', '\t$0', '}'], description: 'foreach' },
+  },
+  php: {
+    'PHP tag': { prefix: 'php', body: ['<?php', '', '$0'], description: '<?php' },
+    'Function': { prefix: 'fn', body: ['function ${1:name}(${2}): ${3:void}', '{', '\t$0', '}'], description: 'Function' },
+    'Foreach': { prefix: 'foreach', body: ['foreach (\\$${1:items} as \\$${2:item}) {', '\t$0', '}'], description: 'foreach' },
+    'Class': { prefix: 'cls', body: ['class ${1:Name}', '{', '\t$0', '}'], description: 'Class' },
+  },
+  ruby: {
+    'Method': { prefix: 'def', body: ['def ${1:name}${2:(args)}', '\t$0', 'end'], description: 'Method' },
+    'Class': { prefix: 'cls', body: ['class ${1:Name}', '\t$0', 'end'], description: 'Class' },
+    'Each': { prefix: 'each', body: ['${1:items}.each do |${2:item}|', '\t$0', 'end'], description: 'each block' },
+    'RSpec describe': { prefix: 'desc', body: ['describe ${1:Subject} do', '\tit "${2:works}" do', '\t\t$0', '\tend', 'end'], description: 'RSpec describe' },
+  },
+  lua: {
+    'Function': { prefix: 'fn', body: ['local function ${1:name}(${2})', '\t$0', 'end'], description: 'Local function' },
+    'For pairs': { prefix: 'forp', body: ['for ${1:k}, ${2:v} in pairs(${3:t}) do', '\t$0', 'end'], description: 'for … pairs' },
+    'For ipairs': { prefix: 'fori', body: ['for ${1:i}, ${2:v} in ipairs(${3:t}) do', '\t$0', 'end'], description: 'for … ipairs' },
+    'If': { prefix: 'if', body: ['if ${1:cond} then', '\t$0', 'end'], description: 'if' },
+  },
+  sql: {
+    'Select': { prefix: 'sel', body: ['SELECT ${1:*}', 'FROM ${2:table}', 'WHERE ${3:condition};'], description: 'SELECT … WHERE' },
+    'Insert': { prefix: 'ins', body: 'INSERT INTO ${1:table} (${2:columns}) VALUES (${3:values});', description: 'INSERT' },
+    'Update': { prefix: 'upd', body: ['UPDATE ${1:table}', 'SET ${2:column} = ${3:value}', 'WHERE ${4:condition};'], description: 'UPDATE' },
+    'Create table': { prefix: 'ct', body: ['CREATE TABLE ${1:name} (', '\tid ${2:INTEGER} PRIMARY KEY,', '\t${3:column} ${4:TEXT}$0', ');'], description: 'CREATE TABLE' },
+    'Join': { prefix: 'join', body: 'JOIN ${1:table} ON ${2:a}.${3:id} = ${1:table}.${4:id}', description: 'JOIN … ON' },
+    'Group by': { prefix: 'grp', body: ['SELECT ${1:column}, COUNT(*)', 'FROM ${2:table}', 'GROUP BY ${1:column}', 'ORDER BY COUNT(*) DESC;'], description: 'Count per group' },
+  },
+  yaml: {
+    'Compose service': { prefix: 'svc', body: ['${1:app}:', '  image: ${2:nginx:latest}', '  ports:', '    - "${3:8080}:${4:80}"', '  $0'], description: 'docker compose service' },
+    'GitHub Actions job': { prefix: 'job', body: ['${1:build}:', '  runs-on: ${2:ubuntu-latest}', '  steps:', '    - uses: actions/checkout@v4', '    - run: ${0:echo hello}'], description: 'Actions job' },
+  },
+  dockerfile: {
+    'Node app': { prefix: 'node', body: ['FROM node:${1:22}-alpine', 'WORKDIR /app', 'COPY package*.json ./', 'RUN npm ci --omit=dev', 'COPY . .', 'CMD ["node", "${2:index.js}"]'], description: 'Node.js image' },
+    'Python app': { prefix: 'py', body: ['FROM python:${1:3.13}-slim', 'WORKDIR /app', 'COPY requirements.txt .', 'RUN pip install --no-cache-dir -r requirements.txt', 'COPY . .', 'CMD ["python", "${2:main.py}"]'], description: 'Python image' },
+    'Multi-stage': { prefix: 'multi', body: ['FROM ${1:golang:1.23} AS build', 'WORKDIR /src', 'COPY . .', 'RUN ${2:go build -o /out/app .}', '', 'FROM ${3:gcr.io/distroless/base}', 'COPY --from=build /out/app /app', 'ENTRYPOINT ["/app"]'], description: 'Build and runtime stages' },
+  },
+  makefile: {
+    'Target': { prefix: 'target', body: ['${1:name}: ${2}', '\t$0'], description: 'Target' },
+    'Phony': { prefix: 'phony', body: ['.PHONY: ${1:all}', '${1:all}:', '\t$0'], description: 'Phony target' },
+    'Help': { prefix: 'help', body: ['help: ## Show this help', "\t@grep -E '^[a-zA-Z_-]+:.*?## ' \\$(MAKEFILE_LIST) | awk 'BEGIN {FS = \":.*?## \"}; {printf \"%-20s %s\\\\n\", \\$\\$1, \\$\\$2}'"], description: 'Self-documenting help' },
+  },
+  terraform: {
+    'Resource': { prefix: 'res', body: ['resource "${1:type}" "${2:name}" {', '  $0', '}'], description: 'resource' },
+    'Variable': { prefix: 'var', body: ['variable "${1:name}" {', '  type    = ${2:string}', '  default = ${3:""}', '}'], description: 'variable' },
+    'Output': { prefix: 'out', body: ['output "${1:name}" {', '  value = ${0}', '}'], description: 'output' },
+  },
+};
+
+const merged = { ...BASE };
+for (const [lang, defs] of Object.entries(MORE)) merged[lang] = { ...merged[lang], ...defs };
+export default merged;

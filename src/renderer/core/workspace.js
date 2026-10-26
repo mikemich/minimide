@@ -254,9 +254,29 @@ export class Workspace extends Emitter {
     this.extraCompletionSource = async (ctx) => {
       const results = (await Promise.all([...this.completionSources].map((s) => Promise.resolve(s(ctx)).catch(() => null)))).filter(Boolean);
       if (!results.length) return null;
+      if (results.length === 1) return results[0];
+      // Sources may disagree on where the word starts (snippets count "$" or ".", words don't).
+      // Align them on the earliest start by putting the skipped text in front of the later ones'
+      // labels, so typing "$ns" can still offer "$nsr1". Later sources lose to earlier ones on
+      // duplicate labels.
       const from = Math.min(...results.map((r) => r.from));
-      const same = results.filter((r) => r.from === from);
-      return { from, options: same.flatMap((r) => r.options), validFor: same.length === 1 ? same[0].validFor : undefined };
+      const seen = new Set();
+      const options = [];
+      for (const r of results) {
+        const lead = ctx.state.sliceDoc(from, r.from);
+        if (lead && /\s/.test(lead)) continue;
+        for (const o of r.options) {
+          const label = lead + o.label;
+          if (seen.has(label)) continue;
+          seen.add(label);
+          if (!lead) { options.push(o); continue; }
+          const apply = typeof o.apply === 'function'
+            ? (view, completion, f, to) => o.apply(view, completion, f + lead.length, to)
+            : lead + (o.apply ?? o.label);
+          options.push({ ...o, label, apply });
+        }
+      }
+      return { from, options };
     };
     this.saveHooks = [];
     this.extensions = new Set();

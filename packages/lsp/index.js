@@ -459,6 +459,8 @@ export function activate(mide) {
   };
 
   mide.editor.addExtension([lintGutter(), autocompletion({ override: [completionSource, mide.editor.extraCompletionSource] })]);
+  // Lets other parts of the editor (word completion) stand aside where a server already completes.
+  mide.services.provide('lsp', { handles: (view) => !!entryForView(view)?.client?.capabilities?.completionProvider });
 
   // ---------------------------------------------------------------------------
   // Hover

@@ -139,6 +139,18 @@ const SUITES = [
     }),
   },
   {
+    name: 'languages', home: 'fth', project: 'ftproj', timeout: 90,
+    expect: () => ({
+      // Each file opens in the right language and gets highlighted.
+      langs: (l) => !!l && Object.entries({ Makefile: 'Makefile', 'rules.nft': 'nftables', 'app.log': 'Log', 'data.csv': 'CSV', '.zshrc': 'Shell',
+        '.gitignore': 'Ignore', 'main.tf': 'Terraform', '.env': 'Properties files' }).every(([f, lang]) => new RegExp(`^${lang} \\([1-9]`).test(l[f] || '')),
+      afterFo: (l) => Array.isArray(l) && l.includes('for|for … in') && l.includes('fori|Counting for loop'),
+      afterNs: (l) => Array.isArray(l) && l.includes('nsr1|word'),
+      afterDollarNs: (l) => Array.isArray(l) && l.includes('$nsr1|word'),
+      expanded: JSON.stringify('for item in list; do\n  \ndone'),
+    }),
+  },
+  {
     name: 'largeProject', home: 'largeh', project: 'large', timeout: 180,
     expect: () => ({
       fileCount: 55000, nodeModulesIgnored: true, searchMatches: 1100, searchError: null,

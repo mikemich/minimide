@@ -11,6 +11,7 @@ import {
   indentOnInput, syntaxHighlighting, bracketMatching, foldGutter, foldKeymap, indentUnit, LanguageDescription,
 } from '@codemirror/language';
 import { languages as builtinLanguages } from '@codemirror/language-data';
+import { installExtraLanguages } from './extra-languages.js';
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
 import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { lintKeymap } from '@codemirror/lint';
@@ -53,6 +54,7 @@ export const languages = [...builtinLanguages];
     });
   }
 }
+installExtraLanguages(languages);
 
 export function registerLanguage(desc) {
   const d = desc instanceof LanguageDescription ? desc : LanguageDescription.of(desc);
