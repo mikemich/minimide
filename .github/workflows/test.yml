@@ -50,6 +50,15 @@ jobs:
         if: runner.os == 'macOS'
         run: npm test
 
+      # The browser demo (docs/try) is the same renderer with a stand-in for the Electron bridge.
+      - name: Test the browser demo (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:web
+
+      - name: Test the browser demo (macOS)
+        if: runner.os == 'macOS'
+        run: npm run test:web
+
       - name: Upload logs and screenshots
         if: failure()
         uses: actions/upload-artifact@v4

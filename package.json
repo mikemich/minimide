@@ -22,6 +22,8 @@
     "dev": "node build.mjs && electron . --dev",
     "test": "node test/run.mjs",
     "build:web": "node scripts/build-web.mjs",
+    "test:web": "node scripts/build-web.mjs && electron test/web-smoke.cjs",
+    "version": "node scripts/build-web.mjs && git add docs/try",
     "dist": "node build.mjs && electron-builder",
     "dist:mac": "node build.mjs && electron-builder --mac -c.mac.identity=-",
     "dist:dir": "node build.mjs && electron-builder --dir",
