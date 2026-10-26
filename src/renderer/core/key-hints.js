@@ -127,7 +127,18 @@ function render(app) {
     anywhere.classList.add('anywhere');
     layer.append(anywhere);
   }
-  if (cursorCard) place(cursorCard, parseFloat(cursorCard.style.left), parseFloat(cursorCard.style.top));
+  if (cursorCard) {
+    place(cursorCard, parseFloat(cursorCard.style.left), parseFloat(cursorCard.style.top));
+    // Never cover the corner card: step left of it, or above it when there's no room.
+    if (anywhere) {
+      const a = anywhere.getBoundingClientRect();
+      const c = cursorCard.getBoundingClientRect();
+      if (c.right > a.left - 8 && c.bottom > a.top - 8) {
+        if (a.left - 12 - c.width >= 12) cursorCard.style.left = `${a.left - 12 - c.width}px`;
+        else cursorCard.style.top = `${Math.max(12, a.top - 12 - c.height)}px`;
+      }
+    }
+  }
   return layer;
 }
 
