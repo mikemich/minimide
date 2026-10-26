@@ -16,6 +16,7 @@ import { Navigation } from './core/navigation.js';
 import { editorContextMenu } from './core/editor-menu.js';
 import { bindKeyHints } from './core/key-hints.js';
 import { QuickOpen } from './core/quick-open.js';
+import { userFileUrl } from './core/urls.js';
 
 // ui.accentColor overrides the theme's accent and everything derived from it.
 // Inline styles on <html> beat the theme's :root rules, so this survives theme switches.
@@ -83,7 +84,7 @@ class App {
     this.bindMenuAccelerators();
     this.keyHints = bindKeyHints(this);
     await this.loadUserKeymap();
-    await loadStylesheet('mide://user/styles.css', 'user').then((el) => { el.id = 'user-styles'; this.userStylesEl = el; });
+    await loadStylesheet(userFileUrl('styles.css'), 'user').then((el) => { el.id = 'user-styles'; this.userStylesEl = el; });
 
     this.packages = new PackageManager(this);
     await this.packages.discover();
@@ -347,7 +348,7 @@ class App {
     const has = (name) => paths.includes(`${dir}/${name}`);
     if (has('config.json')) await this.config.reload();
     if (has('keymap.json')) { await this.loadUserKeymap(); notify.info('Keymap reloaded'); }
-    if (has('styles.css') && this.userStylesEl) this.userStylesEl.href = `mide://user/styles.css?v=${Date.now()}`;
+    if (has('styles.css') && this.userStylesEl) this.userStylesEl.href = userFileUrl('styles.css');
     const pkgChanges = paths.filter((p) => p.startsWith(`${this.userInfo.packagesDir}/`));
     if (pkgChanges.length && this.config.get('core.hotReloadPackages')) {
       const names = new Set(pkgChanges.map((p) => p.slice(this.userInfo.packagesDir.length + 1).split('/')[0]));
@@ -370,7 +371,7 @@ class App {
   async runInitScript() {
     const fakePkg = { meta: { name: 'init', dir: this.userInfo.dir, url: 'mide://user/', manifest: { name: 'init' } }, subscriptions: [], styleEls: [] };
     try {
-      const mod = await import(/* @vite-ignore */ `mide://user/init.js?v=${Date.now()}`);
+      const mod = await import(/* @vite-ignore */ userFileUrl('init.js'));
       if (typeof mod.default === 'function') await mod.default(this.packages.createApi(fakePkg));
     } catch (err) {
       console.error('[init.js]', err);

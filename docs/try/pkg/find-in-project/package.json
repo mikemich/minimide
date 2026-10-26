@@ -1,0 +1,9 @@
+{
+  "name": "find-in-project",
+  "displayName": "Find in Project",
+  "description": "Search and replace across every file in the project.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"],
+  "keymap": { "Mod-Shift-f": "find-in-project:show", "Mod-Shift-h": "find-in-project:show-replace" }
+}

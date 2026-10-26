@@ -1,0 +1,41 @@
+/* Midnight — true black, neon accents. */
+:root {
+  color-scheme: dark;
+  --bg: #000000;
+  --bg-sidebar: #07080a;
+  --bg-tabbar: #07080a;
+  --bg-statusbar: #07080a;
+  --bg-elevated: #111317;
+  --bg-input: #0b0c0f;
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-selected: rgba(255, 255, 255, 0.08);
+  --bg-selected-focus: rgba(125, 249, 255, 0.14);
+  --fg: #d6dbe4;
+  --fg-strong: #ffffff;
+  --fg-muted: #8b93a3;
+  --fg-subtle: #545b68;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --accent: #7df9ff;
+  --accent-fg: #001a1c;
+  --selection: rgba(125, 249, 255, 0.18);
+  --cursor: #7df9ff;
+  --line-highlight: rgba(255, 255, 255, 0.035);
+  --gutter-fg: #343a45;
+  --gutter-fg-active: #9aa3b3;
+  --c-red: #ff5c8a;
+  --c-orange: #ff9e64;
+  --c-yellow: #f3f99d;
+  --c-green: #5af78e;
+  --c-cyan: #7df9ff;
+  --c-blue: #57c7ff;
+  --c-magenta: #ff6ac1;
+}
+.tok-comment { color: #4f5766; }
+.tok-keyword, .tok-controlKeyword, .tok-modifier { color: #ff6ac1; }
+.tok-function { color: #57c7ff; }
+.tok-string, .tok-attributeValue { color: #5af78e; }
+.tok-propertyName { color: #e6e9ef; }
+.tok-typeName, .tok-className { color: #f3f99d; }
+.tok-punctuation { color: #7a8292; }
+.cm-cursor { box-shadow: 0 0 8px #7df9ff; }

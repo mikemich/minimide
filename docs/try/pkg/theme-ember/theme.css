@@ -1,0 +1,47 @@
+/* Ember: warm charcoal with glowing orange. Like coding by a fire. */
+:root {
+  color-scheme: dark;
+  --bg: #1c1917;
+  --bg-sidebar: #171412;
+  --bg-tabbar: #171412;
+  --bg-statusbar: #131110;
+  --bg-elevated: #272320;
+  --bg-input: #110f0d;
+  --bg-hover: rgba(255, 255, 255, 0.045);
+  --bg-selected: rgba(255, 255, 255, 0.075);
+  --bg-selected-focus: rgba(255, 138, 76, 0.18);
+  --fg: #d8d0c7;
+  --fg-strong: #f5efe8;
+  --fg-muted: #998d81;
+  --fg-subtle: #655b52;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.1);
+  --accent: #ff8a4c;
+  --accent-fg: #1f0e04;
+  --selection: rgba(255, 138, 76, 0.24);
+  --selection-inactive: rgba(255, 255, 255, 0.08);
+  --cursor: #ff8a4c;
+  --line-highlight: rgba(255, 255, 255, 0.03);
+  --gutter-fg: rgba(216, 208, 199, 0.3);
+  --gutter-fg-active: #998d81;
+  --match: rgba(244, 197, 107, 0.25);
+  --match-border: rgba(244, 197, 107, 0.55);
+  --bracket-match: rgba(255, 138, 76, 0.3);
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --scrollbar: rgba(255, 255, 255, 0.11);
+  --scrollbar-hover: rgba(255, 255, 255, 0.2);
+  --c-red: #f2766b;
+  --c-orange: #ff9e64;
+  --c-yellow: #f4c56b;
+  --c-green: #b8cc72;
+  --c-cyan: #82c8bb;
+  --c-blue: #7fa9db;
+  --c-magenta: #dca3c9;
+}
+.tok-keyword, .tok-controlKeyword, .tok-modifier { color: #ff8a4c; }
+.tok-function { color: #f4c56b; }
+.tok-typeName, .tok-className { color: #82c8bb; }
+.tok-propertyName { color: #e6ddd3; }
+.tok-comment { color: #6f645a; font-style: italic; }
+.tok-punctuation { color: #9a8e82; }
+.tok-operator { color: #ffb489; }

@@ -1,0 +1,47 @@
+/* Dune — warm sand and ink. */
+:root {
+  color-scheme: light;
+  --bg: #f4ecdf;
+  --bg-sidebar: #ece2d2;
+  --bg-tabbar: #e8ddcb;
+  --bg-statusbar: #e4d8c4;
+  --bg-elevated: #faf4ea;
+  --bg-input: #fbf7f0;
+  --bg-hover: rgba(80, 50, 20, 0.05);
+  --bg-selected: rgba(80, 50, 20, 0.085);
+  --bg-selected-focus: rgba(181, 83, 47, 0.14);
+  --fg: #3e3326;
+  --fg-strong: #241b11;
+  --fg-muted: #7a6a55;
+  --fg-subtle: #a99883;
+  --border: rgba(80, 50, 20, 0.09);
+  --border-strong: rgba(80, 50, 20, 0.15);
+  --accent: #b5532f;
+  --accent-fg: #fff8ef;
+  --selection: rgba(181, 83, 47, 0.18);
+  --selection-inactive: rgba(80, 50, 20, 0.08);
+  --cursor: #b5532f;
+  --line-highlight: rgba(80, 50, 20, 0.035);
+  --gutter-fg: #c4b49d;
+  --gutter-fg-active: #6f604c;
+  --match: rgba(222, 160, 40, 0.25);
+  --match-border: rgba(190, 130, 20, 0.45);
+  --bracket-match: rgba(181, 83, 47, 0.18);
+  --shadow: 0 12px 40px rgba(60, 40, 15, 0.16), 0 2px 8px rgba(60, 40, 15, 0.08);
+  --scrollbar: rgba(80, 50, 20, 0.16);
+  --scrollbar-hover: rgba(80, 50, 20, 0.26);
+  --c-red: #b83f3f;
+  --c-orange: #a86a12;
+  --c-yellow: #957000;
+  --c-green: #5f7a2c;
+  --c-cyan: #2d7d76;
+  --c-blue: #3c6a9e;
+  --c-magenta: #7a4f9c;
+}
+.tok-comment { color: #a3927b; }
+.tok-keyword, .tok-controlKeyword, .tok-modifier { color: #b5532f; }
+.tok-propertyName { color: #3e3326; }
+.tok-punctuation { color: #8a7a64; }
+.tok-function { color: #3c6a9e; }
+.tok-typeName, .tok-className { color: #a86a12; }
+.logo-mark { color: #fff8ef; }

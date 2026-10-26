@@ -1,0 +1,10 @@
+{
+  "name": "image-viewer",
+  "displayName": "Image Viewer",
+  "description": "Open PNG, JPG, GIF, WebP, SVG, ICO, BMP and AVIF files in a tab with zoom.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "configSchema": {
+    "background": { "type": "string", "default": "checkerboard", "enum": ["checkerboard", "dark", "light"], "title": "Background" }
+  }
+}

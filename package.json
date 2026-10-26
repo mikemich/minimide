@@ -21,6 +21,7 @@
     "start": "node build.mjs && electron .",
     "dev": "node build.mjs && electron . --dev",
     "test": "node test/run.mjs",
+    "build:web": "node scripts/build-web.mjs",
     "dist": "node build.mjs && electron-builder",
     "dist:mac": "node build.mjs && electron-builder --mac -c.mac.identity=-",
     "dist:dir": "node build.mjs && electron-builder --dir",

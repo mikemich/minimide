@@ -1,0 +1,18 @@
+{
+  "name": "daylight",
+  "displayName": "Daylight",
+  "description": "A crisp, warm light theme.",
+  "version": "0.1.0",
+  "theme": "ui",
+  "main": false,
+  "styles": [
+    "theme.css"
+  ],
+  "swatches": [
+    "#fbfbfa",
+    "#2f6fed",
+    "#a33ea1",
+    "#3c8a2e",
+    "#b4690e"
+  ]
+}

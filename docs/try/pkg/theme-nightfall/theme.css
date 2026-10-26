@@ -1,0 +1,42 @@
+/* Nightfall — Minimide's default dark theme. */
+:root {
+  color-scheme: dark;
+  --bg: #1e2128;
+  --bg-sidebar: #191c22;
+  --bg-tabbar: #191c22;
+  --bg-statusbar: #16181d;
+  --bg-elevated: #262a33;
+  --bg-input: #14161b;
+  --bg-hover: rgba(255, 255, 255, 0.045);
+  --bg-selected: rgba(255, 255, 255, 0.075);
+  --bg-selected-focus: rgba(106, 168, 255, 0.17);
+  --fg: #c5cad3;
+  --fg-strong: #eef1f5;
+  --fg-muted: #878fa0;
+  --fg-subtle: #5a6170;
+  --border: rgba(255, 255, 255, 0.055);
+  --border-strong: rgba(255, 255, 255, 0.095);
+  --accent: #6aa8ff;
+  --accent-fg: #0b1220;
+  --selection: rgba(106, 168, 255, 0.22);
+  --cursor: #6aa8ff;
+  --line-highlight: rgba(255, 255, 255, 0.028);
+  --gutter-fg: #434956;
+  --gutter-fg-active: #a0a7b5;
+  --c-red: #f07178;
+  --c-orange: #f5a66b;
+  --c-yellow: #f0c674;
+  --c-green: #a3d385;
+  --c-cyan: #7fd6d0;
+  --c-blue: #6aa8ff;
+  --c-magenta: #c792ea;
+}
+.tok-comment { color: #5f6779; }
+.tok-propertyName { color: #dfe4ec; }
+.tok-propertyName.tok-definition { color: #ff9cac; }
+.tok-variableName.tok-definition { color: #eef1f5; }
+.tok-punctuation { color: #8a93a5; }
+.tok-operator { color: #89ddff; }
+.tok-self, .tok-builtin { color: #ff9cac; font-style: italic; }
+.tok-tagName { color: #f07178; }
+.tok-heading { color: #6aa8ff; }

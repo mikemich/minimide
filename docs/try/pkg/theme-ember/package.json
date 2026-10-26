@@ -1,0 +1,18 @@
+{
+  "name": "ember",
+  "displayName": "Ember",
+  "description": "Warm charcoal with glowing orange. Like coding by a fire.",
+  "version": "0.1.0",
+  "theme": "ui",
+  "main": false,
+  "styles": [
+    "theme.css"
+  ],
+  "swatches": [
+    "#1c1917",
+    "#ff8a4c",
+    "#f4c56b",
+    "#b8cc72",
+    "#82c8bb"
+  ]
+}

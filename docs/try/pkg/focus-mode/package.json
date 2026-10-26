@@ -1,0 +1,13 @@
+{
+  "name": "focus-mode",
+  "displayName": "Focus Mode",
+  "description": "Typewriter scrolling keeps your cursor centered; other paragraphs fade back.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "enabledByDefault": false,
+  "keymap": { "Mod-k Mod-f": "focus-mode:toggle-dim" },
+  "configSchema": {
+    "typewriter": { "type": "boolean", "default": true, "title": "Typewriter Scrolling", "description": "Keep the cursor line vertically centered." },
+    "dim": { "type": "boolean", "default": true, "title": "Dim Other Paragraphs" }
+  }
+}

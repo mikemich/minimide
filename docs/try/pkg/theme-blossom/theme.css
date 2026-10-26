@@ -1,0 +1,46 @@
+/* Blossom: cherry-blossom pinks on a soft blush background. */
+:root {
+  color-scheme: light;
+  --bg: #fdf7f8;
+  --bg-sidebar: #f8eef1;
+  --bg-tabbar: #f6ebee;
+  --bg-statusbar: #f1e4e8;
+  --bg-elevated: #ffffff;
+  --bg-input: #ffffff;
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-selected: rgba(0, 0, 0, 0.065);
+  --bg-selected-focus: rgba(214, 69, 126, 0.14);
+  --fg: #4a3a44;
+  --fg-strong: #2a1d25;
+  --fg-muted: #8a7480;
+  --fg-subtle: #b9a3ae;
+  --border: rgba(0, 0, 0, 0.075);
+  --border-strong: rgba(0, 0, 0, 0.13);
+  --accent: #d6457e;
+  --accent-fg: #ffffff;
+  --selection: rgba(214, 69, 126, 0.18);
+  --selection-inactive: rgba(0, 0, 0, 0.07);
+  --cursor: #d6457e;
+  --line-highlight: rgba(0, 0, 0, 0.03);
+  --gutter-fg: #b9a3ae;
+  --gutter-fg-active: #4a3a44;
+  --match: rgba(156, 122, 0, 0.25);
+  --match-border: rgba(156, 122, 0, 0.55);
+  --bracket-match: rgba(214, 69, 126, 0.2);
+  --shadow: 0 12px 40px rgba(20, 24, 40, 0.14), 0 2px 8px rgba(20, 24, 40, 0.08);
+  --scrollbar: rgba(0, 0, 0, 0.13);
+  --scrollbar-hover: rgba(0, 0, 0, 0.22);
+  --c-red: #d13d5b;
+  --c-orange: #c2611f;
+  --c-yellow: #9c7a00;
+  --c-green: #4f8a3a;
+  --c-cyan: #1f8a8a;
+  --c-blue: #4a6fd1;
+  --c-magenta: #a845b8;
+}
+.tok-keyword, .tok-controlKeyword, .tok-modifier { color: #d6457e; }
+.tok-function { color: #4a6fd1; }
+.tok-typeName, .tok-className { color: #a845b8; }
+.tok-propertyName { color: #4a3a44; }
+.tok-comment { color: #b9a3ae; font-style: italic; }
+.tok-punctuation { color: #8a7480; }

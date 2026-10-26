@@ -1,0 +1,52 @@
+.tree-view { display: flex; flex-direction: column; height: 100%; }
+.tree-header {
+  flex: none; display: flex; align-items: center; justify-content: space-between;
+  height: 34px; padding: 0 6px 0 14px;
+}
+.tree-title {
+  font-size: 0.82em; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tree-actions { display: flex; gap: 0; opacity: 0; transition: opacity 0.15s; }
+.tree-view:hover .tree-actions, .tree-view:focus-within .tree-actions { opacity: 1; }
+.tree-actions .icon-btn { width: 24px; height: 24px; }
+
+.tree-list { flex: 1; overflow: auto; outline: none; padding-bottom: 20px; }
+.tree-row {
+  position: relative;
+  display: flex; align-items: center; gap: 5px;
+  height: 26px; padding-right: 10px;
+  color: var(--fg); white-space: nowrap;
+}
+.tree-row:hover { background: var(--bg-hover); }
+.tree-row.active { color: var(--fg-strong); background: var(--bg-selected); }
+.tree-row.selected { background: var(--bg-selected); }
+.tree-list:focus .tree-row.selected { background: var(--bg-selected-focus); box-shadow: inset 2px 0 0 var(--accent); }
+.tree-row.drop-target { background: color-mix(in srgb, var(--accent) 18%, transparent); outline: 1px dashed var(--accent); outline-offset: -1px; }
+.tree-row.dotfile .tree-name { opacity: 0.65; }
+.tree-name { overflow: hidden; text-overflow: ellipsis; }
+.tree-spacer { width: 12px; flex: none; }
+.tree-chevron { color: var(--fg-subtle); transition: transform 0.12s var(--ease); }
+.tree-row.expanded .tree-chevron { transform: rotate(90deg); }
+.tree-folder-icon { color: var(--fg-muted); }
+.tree-row.expanded .tree-folder-icon { color: var(--accent); }
+
+.tree-row[data-git="modified"] .tree-name { color: var(--c-yellow); }
+.tree-row[data-git="added"] .tree-name, .tree-row[data-git="untracked"] .tree-name { color: var(--c-green); }
+.tree-row[data-git="deleted"] .tree-name { color: var(--c-red); }
+.tree-row[data-git="ignored"] .tree-name { opacity: 0.45; }
+.tree-row[data-git="modified"]:not(.dir)::after,
+.tree-row[data-git="added"]:not(.dir)::after,
+.tree-row[data-git="untracked"]:not(.dir)::after {
+  margin-left: auto; padding-left: 8px; font-size: 0.85em; font-weight: 600;
+}
+.tree-row[data-git="modified"]:not(.dir)::after { content: 'M'; color: var(--c-yellow); }
+.tree-row[data-git="added"]:not(.dir)::after { content: 'A'; color: var(--c-green); }
+.tree-row[data-git="untracked"]:not(.dir)::after { content: 'U'; color: var(--c-green); }
+.tree-row.dir[data-git="modified"]::after, .tree-row.dir[data-git="untracked"]::after, .tree-row.dir[data-git="added"]::after {
+  content: ''; margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.6; flex: none;
+}
+.tree-row.dir[data-git="modified"]::after { color: var(--c-yellow); }
+.tree-row.dir[data-git="untracked"]::after, .tree-row.dir[data-git="added"]::after { color: var(--c-green); }
+
+.tree-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 28px 16px; color: var(--fg-muted); text-align: center; }

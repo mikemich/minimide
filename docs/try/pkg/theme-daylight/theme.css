@@ -1,0 +1,47 @@
+/* Daylight — a crisp, warm light theme. */
+:root {
+  color-scheme: light;
+  --bg: #fbfbfa;
+  --bg-sidebar: #f3f3f1;
+  --bg-tabbar: #f0f0ee;
+  --bg-statusbar: #ececea;
+  --bg-elevated: #ffffff;
+  --bg-input: #ffffff;
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-selected: rgba(0, 0, 0, 0.065);
+  --bg-selected-focus: rgba(47, 111, 237, 0.13);
+  --fg: #383a42;
+  --fg-strong: #16181d;
+  --fg-muted: #6b7080;
+  --fg-subtle: #a0a4ae;
+  --border: rgba(0, 0, 0, 0.07);
+  --border-strong: rgba(0, 0, 0, 0.12);
+  --accent: #2f6fed;
+  --accent-fg: #ffffff;
+  --selection: rgba(47, 111, 237, 0.17);
+  --selection-inactive: rgba(0, 0, 0, 0.07);
+  --cursor: #2f6fed;
+  --line-highlight: rgba(0, 0, 0, 0.028);
+  --gutter-fg: #c0c3c9;
+  --gutter-fg-active: #5e6370;
+  --match: rgba(230, 170, 30, 0.22);
+  --match-border: rgba(200, 140, 10, 0.45);
+  --bracket-match: rgba(47, 111, 237, 0.18);
+  --shadow: 0 12px 40px rgba(20, 24, 40, 0.14), 0 2px 8px rgba(20, 24, 40, 0.08);
+  --scrollbar: rgba(0, 0, 0, 0.13);
+  --scrollbar-hover: rgba(0, 0, 0, 0.22);
+  --c-red: #d1495b;
+  --c-orange: #b4690e;
+  --c-yellow: #a37800;
+  --c-green: #3c8a2e;
+  --c-cyan: #0f8c94;
+  --c-blue: #2f6fed;
+  --c-magenta: #a33ea1;
+}
+.tok-comment { color: #a0a4ae; }
+.tok-propertyName { color: #383a42; }
+.tok-propertyName.tok-definition { color: #c4434f; }
+.tok-punctuation { color: #7a7f8c; }
+.tok-typeName, .tok-className { color: #b4690e; }
+.tok-operator { color: #0f8c94; }
+.logo-mark { color: #fff; }

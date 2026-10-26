@@ -1,0 +1,13 @@
+{
+  "name": "vim-mode",
+  "displayName": "Vim Mode",
+  "description": "Vim keybindings: modes, motions, operators, registers, macros, :w / :q and more.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "enabledByDefault": false,
+  "configSchema": {
+    "insertModeEscape": { "type": "string", "default": "", "title": "Insert Mode Escape", "description": "Leave insert mode by typing this sequence, e.g. \"jj\" or \"jk\". Empty to disable." },
+    "useSystemClipboard": { "type": "boolean", "default": false, "title": "Use System Clipboard", "description": "Make y/p use the system clipboard (the unnamed register)." },
+    "relativeLineNumbers": { "type": "boolean", "default": false, "title": "Relative Line Numbers" }
+  }
+}

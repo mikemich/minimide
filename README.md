@@ -13,10 +13,11 @@ you can change while it runs.
 ![Platforms](https://img.shields.io/badge/macOS%20%7C%20Windows%20%7C%20Linux-c792ea)
 ![Core](https://img.shields.io/badge/core-~5k%20lines-a3d385)
 [![Download](https://img.shields.io/badge/download-latest-f0b866)](https://github.com/mikemich/minimide/releases/latest)
+[![Try it in your browser](https://img.shields.io/badge/try%20it-in%20your%20browser-7cb4ff)](https://mikemich.github.io/minimide/try/)
 
 <a href="docs/media/shortcuts-demo.mp4"><img src="docs/media/shortcuts-demo.gif" alt="Holding ⌘ labels every shortcut on screen, ⌥F12 peeks at a definition, F12 jumps to it and ⌃- comes back" width="840"></a>
 
-*Create a package, add a feature in one line, save: it's live. No restart.*
+*Hold ⌘ to see every shortcut, peek at a definition, jump there and back. **[Try it in your browser →](https://mikemich.github.io/minimide/try/)***
 
 </div>
 

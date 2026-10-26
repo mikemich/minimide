@@ -1,0 +1,46 @@
+/* Glacier: cool, airy light theme with ice-blue and teal. */
+:root {
+  color-scheme: light;
+  --bg: #f6f9fc;
+  --bg-sidebar: #edf2f7;
+  --bg-tabbar: #e9eef4;
+  --bg-statusbar: #e3e9f0;
+  --bg-elevated: #ffffff;
+  --bg-input: #ffffff;
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-selected: rgba(0, 0, 0, 0.065);
+  --bg-selected-focus: rgba(14, 116, 144, 0.14);
+  --fg: #334155;
+  --fg-strong: #0f172a;
+  --fg-muted: #64748b;
+  --fg-subtle: #94a3b8;
+  --border: rgba(0, 0, 0, 0.075);
+  --border-strong: rgba(0, 0, 0, 0.13);
+  --accent: #0e7490;
+  --accent-fg: #ffffff;
+  --selection: rgba(14, 116, 144, 0.18);
+  --selection-inactive: rgba(0, 0, 0, 0.07);
+  --cursor: #0e7490;
+  --line-highlight: rgba(0, 0, 0, 0.03);
+  --gutter-fg: #94a3b8;
+  --gutter-fg-active: #334155;
+  --match: rgba(161, 98, 7, 0.25);
+  --match-border: rgba(161, 98, 7, 0.55);
+  --bracket-match: rgba(14, 116, 144, 0.2);
+  --shadow: 0 12px 40px rgba(20, 24, 40, 0.14), 0 2px 8px rgba(20, 24, 40, 0.08);
+  --scrollbar: rgba(0, 0, 0, 0.13);
+  --scrollbar-hover: rgba(0, 0, 0, 0.22);
+  --c-red: #dc2626;
+  --c-orange: #c2410c;
+  --c-yellow: #a16207;
+  --c-green: #15803d;
+  --c-cyan: #0e7490;
+  --c-blue: #2563eb;
+  --c-magenta: #9333ea;
+}
+.tok-keyword, .tok-controlKeyword, .tok-modifier { color: #2563eb; }
+.tok-function { color: #0e7490; }
+.tok-typeName, .tok-className { color: #9333ea; }
+.tok-propertyName { color: #334155; }
+.tok-comment { color: #94a3b8; font-style: italic; }
+.tok-punctuation { color: #64748b; }

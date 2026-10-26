@@ -89,6 +89,11 @@
     .shot-caption { color: var(--muted); font-size: 15px; text-align: center; margin: 14px 0 0; }
     .shot { border-radius: var(--radius); border: 1px solid var(--line); width: 100%; display: block; box-shadow: 0 30px 80px rgba(0,0,0,.45); }
 
+    .try-frame { position: relative; aspect-ratio: 16 / 10; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); background: #1b1d23; box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+    .try-frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(2px) brightness(.45); }
+    .try-frame .btn { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 18px; padding: 16px 28px; }
+    .try-frame .btn:hover { transform: translate(-50%, calc(-50% - 1px)); }
+    .try-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
     .cta { text-align: center; padding: 110px 0 60px; }
     footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
     .install { margin-top: 14px; } .install code { font-size: 13px; padding: 8px 12px; user-select: all; white-space: nowrap; display: inline-block; max-width: 100%; overflow-x: auto; vertical-align: middle; }
@@ -107,6 +112,7 @@
     <nav>
       <a class="brand" href="#"><img src="icon.png" alt="">Minimide</a>
       <div class="nav-links">
+        <a href="#try">Try it</a>
         <a href="#why">Why</a>
         <a href="#keys">Keys</a>
         <a href="#hack">Hack it</a>
@@ -123,6 +129,7 @@
       <p class="lede">A small, beautiful code editor in the spirit of Atom. Every feature is a package, and you can change any of them while it runs.</p>
       <div class="ctas">
         <a class="btn primary" href="https://github.com/mikemich/minimide/releases/latest">Download</a>
+        <a class="btn" href="#try">Try it in your browser</a>
         <a class="btn" href="https://github.com/mikemich/minimide">Read the source ↗</a>
       </div>
       <p class="small">macOS (Apple Silicon &amp; Intel) · Windows · Linux · free and open source</p>
@@ -131,6 +138,16 @@
         <video src="media/shortcuts-demo.mp4" poster="media/shortcuts-poster.jpg" autoplay muted loop playsinline aria-label="Holding ⌘ labels every shortcut on screen, ⌥F12 peeks at a definition, F12 jumps to it, ⌃- comes back, and ⌘K ⌘H shows every shortcut on one page"></video>
       </div>
     </header>
+
+    <section id="try">
+      <h2>Try it right here.</h2>
+      <p class="sub">The real editor, running in your browser with a sample project. Hold <kbd>⌘</kbd>, press <kbd>⌘P</kbd>, type <code>&gt;colors</code>. Your edits stay in this browser.</p>
+      <div class="try-frame" id="try-frame">
+        <img src="media/shortcuts-poster.jpg" alt="" loading="lazy">
+        <button class="btn primary" id="try-start" type="button">▶&nbsp; Start Minimide</button>
+      </div>
+      <p class="shot-caption"><a href="try/">Open it full screen ↗</a> · Best on a computer. Terminals, git and language servers need the app.</p>
+    </section>
 
     <section id="why">
       <h2>Your editor should be yours.</h2>
@@ -149,6 +166,7 @@
       <p class="shot-caption">Holding ⌘ in Minimide's own source. Ctrl on Linux and Windows.</p>
       <div class="split" style="margin-top:64px">
         <ul class="keys-list">
+          <li><b>One box for everything</b><kbd>⌘P</kbd> finds files. Type <code>&gt;</code> for commands in plain words (“remove line”), <code>@</code> or <code>#</code> for symbols, <code>:</code> for a line.</li>
           <li><b>Peek, don't jump</b>Read a function's code in a box under the line with <kbd>⌥F12</kbd>. Enter opens it, Esc puts it away.</li>
           <li><b>Always a way back</b><kbd>⌃-</kbd> returns to where you were after a jump, a search or another tab. Mouse back buttons work too.</li>
           <li><b>Right-click knows the code</b>Definition, references, rename, quick fix and format, each with its key, so you pick them up as you go.</li>
@@ -195,7 +213,7 @@
         <div class="feature"><b>Real terminal</b><span>Tabs, your own shell, clickable <code>file:line</code> output.</span></div>
         <div class="feature"><b>One-key run</b><span>F5 runs Python, JS/TS, Go, Rust, C/C++ and more. ⌘⇧B runs tasks.</span></div>
         <div class="feature"><b>Git panel</b><span>Stage, commit, push, pull, side-by-side diffs, blame and gutter markers.</span></div>
-        <div class="feature"><b>Command palette</b><span>Every action by name, plus a fuzzy file finder with <code>file:42</code>.</span></div>
+        <div class="feature"><b>One search box</b><span>Files, commands in plain words, symbols and lines, all from <code>⌘P</code>.</span></div>
         <div class="feature"><b>Vim mode</b><span>Motions, registers, macros, <code>:w</code> and <code>:q</code>. Off until you want it.</span></div>
         <div class="feature"><b>160+ languages</b><span>From Python and Rust to Terraform, Nix, Zig, Makefiles, <code>.env</code> and logs.</span></div>
         <div class="feature"><b>Snippets</b><span>171 built in for 25 languages, words from the file as you type, or your VS Code snippets.</span></div>
@@ -249,5 +267,16 @@
       <span><a href="https://github.com/mikemich/minimide">GitHub</a> · <a href="https://github.com/mikemich/minimide/issues">Issues</a> · <a href="https://github.com/mikemich/minimide/releases">Releases</a></span>
     </footer>
   </div>
+  <script>
+    // Start the live editor only when asked: it's a few megabytes and wants the keyboard.
+    document.getElementById('try-start').addEventListener('click', () => {
+      const frame = document.createElement('iframe');
+      frame.src = 'try/';
+      frame.title = 'Minimide running in your browser';
+      frame.allow = 'clipboard-read; clipboard-write';
+      document.getElementById('try-frame').replaceChildren(frame);
+      frame.addEventListener('load', () => frame.focus());
+    });
+  </script>
 </body>
 </html>

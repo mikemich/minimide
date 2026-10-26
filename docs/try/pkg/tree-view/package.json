@@ -1,0 +1,17 @@
+{
+  "name": "tree-view",
+  "displayName": "Tree View",
+  "description": "Browse and manage project files in the sidebar.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"],
+  "keymap": {
+    "Mod-Shift-e": "tree-view:focus",
+    "Mod-k Mod-r": "tree-view:reveal-active-file"
+  },
+  "configSchema": {
+    "autoReveal": { "type": "boolean", "default": true, "title": "Auto Reveal", "description": "Select the active file in the tree as you switch tabs." },
+    "hideIgnored": { "type": "boolean", "default": true, "title": "Hide Ignored Names", "description": "Hide entries listed in core.ignoredNames." },
+    "singleClickPreview": { "type": "boolean", "default": true, "title": "Preview on Single Click", "description": "Single click opens a preview tab that is replaced by the next preview." }
+  }
+}

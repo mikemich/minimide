@@ -13,6 +13,7 @@ import { Emitter, Disposable } from './events.js';
 import { h, icon, fileIcon, registerIcon, basename, dirname } from './dom.js';
 import { fuzzyFilter, fuzzyMatch, highlightMatches } from './fuzzy.js';
 import { registerLanguage, detectLanguage, createPreviewView } from './editor.js';
+import { packageUrl } from './urls.js';
 import { prettyBinding } from './keymap.js';
 import { convertSnippet } from './snippet.js';
 import { SandboxedPackage, loadSandboxedStyles } from './sandbox.js';
@@ -136,7 +137,7 @@ export class PackageManager extends Emitter {
   async activateNow(pkg) {
     const name = pkg.meta.name;
     const { manifest } = pkg.meta;
-    const url = `mide://pkg/${encodeURIComponent(name)}/~${Date.now()}/`; // fresh module graph per activation
+    const url = packageUrl(name);
     pkg.error = null;
     if (this.isSandboxed(pkg)) return this.activateSandboxed(pkg, url);
     const api = this.createApi(pkg);
@@ -468,7 +469,7 @@ function prefixSchema(schema, pkgName) {
 
 export function loadStylesheet(href, owner) {
   return new Promise((resolve) => {
-    const link = h('link', { rel: 'stylesheet', href: `${href}?v=${Date.now()}`, dataset: { pkg: owner || '' } });
+    const link = h('link', { rel: 'stylesheet', href: /^blob:|\?/.test(href) ? href : `${href}?v=${Date.now()}`, dataset: { pkg: owner || '' } });
     link.onload = () => resolve(link);
     link.onerror = () => { console.warn(`[styles] failed to load ${href}`); resolve(link); };
     const userStyles = document.getElementById('user-styles');

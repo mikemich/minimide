@@ -1,0 +1,18 @@
+{
+  "name": "metro",
+  "displayName": "Metro",
+  "description": "City lights at night: indigo, neon blue and violet, in the spirit of Tokyo Night.",
+  "version": "0.1.0",
+  "theme": "ui",
+  "main": false,
+  "styles": [
+    "theme.css"
+  ],
+  "swatches": [
+    "#1a1b26",
+    "#7aa2f7",
+    "#bb9af7",
+    "#9ece6a",
+    "#2ac3de"
+  ]
+}

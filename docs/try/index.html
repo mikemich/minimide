@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob:; style-src 'self' 'unsafe-inline' blob:; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Try Minimide, a small hackable code editor, right in your browser.">
+  <link rel="icon" href="../icon.png">
+  <title>Minimide in your browser</title>
+  <style>
+    html, body { background: #1b1d23; }
+    .web-menu { position: fixed; z-index: 4000; min-width: 220px; padding: 5px; border-radius: 9px; background: var(--bg-elevated); border: 1px solid var(--border-strong); box-shadow: var(--shadow); font: inherit; }
+    .web-menu button { display: flex; justify-content: space-between; gap: 24px; width: 100%; padding: 5px 10px; border: 0; border-radius: 5px; background: none; color: var(--fg); text-align: left; }
+    .web-menu button:hover:not(:disabled) { background: var(--bg-selected-focus); color: var(--fg-strong); }
+    .web-menu button:disabled { opacity: .45; }
+    .web-menu kbd { background: none; border: 0; padding: 0; color: var(--fg-subtle); }
+    .web-menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 2px; }
+  </style>
+  <link rel="stylesheet" href="styles/base.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div id="app">
+    <header id="titlebar"><div class="title">Minimide</div></header>
+    <div id="main">
+      <aside id="sidebar" class="dock hidden">
+        <nav class="dock-header"></nav>
+        <div class="dock-body"></div>
+      </aside>
+      <div id="sidebar-resizer" class="resizer resizer-v" hidden></div>
+      <section id="center">
+        <div id="panes"></div>
+        <div id="panel-resizer" class="resizer resizer-h" hidden></div>
+        <section id="panel" class="dock hidden">
+          <nav class="dock-header"></nav>
+          <div class="dock-body"></div>
+        </section>
+      </section>
+    </div>
+    <footer id="statusbar"><div class="status-left"></div><div class="status-right"></div></footer>
+  </div>
+  <div id="overlay-root"></div>
+  <div id="notifications"></div>
+</body>
+</html>

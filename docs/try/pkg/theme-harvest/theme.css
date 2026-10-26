@@ -1,0 +1,49 @@
+/* Harvest: retro, earthy and high-contrast, in the spirit of Gruvbox. */
+:root {
+  color-scheme: dark;
+  --bg: #282624;
+  --bg-sidebar: #22201e;
+  --bg-tabbar: #22201e;
+  --bg-statusbar: #1d1b1a;
+  --bg-elevated: #33302c;
+  --bg-input: #1c1a19;
+  --bg-hover: rgba(255, 255, 255, 0.045);
+  --bg-selected: rgba(255, 255, 255, 0.075);
+  --bg-selected-focus: rgba(250, 189, 47, 0.18);
+  --fg: #ebdbb2;
+  --fg-strong: #fbf1c7;
+  --fg-muted: #a89984;
+  --fg-subtle: #7c6f64;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.1);
+  --accent: #fabd2f;
+  --accent-fg: #282828;
+  --selection: rgba(250, 189, 47, 0.24);
+  --selection-inactive: rgba(255, 255, 255, 0.08);
+  --cursor: #fabd2f;
+  --line-highlight: rgba(255, 255, 255, 0.03);
+  --gutter-fg: rgba(235, 219, 178, 0.3);
+  --gutter-fg-active: #a89984;
+  --match: rgba(250, 189, 47, 0.25);
+  --match-border: rgba(250, 189, 47, 0.55);
+  --bracket-match: rgba(250, 189, 47, 0.3);
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --scrollbar: rgba(255, 255, 255, 0.11);
+  --scrollbar-hover: rgba(255, 255, 255, 0.2);
+  --c-red: #fb4934;
+  --c-orange: #fe8019;
+  --c-yellow: #fabd2f;
+  --c-green: #b8bb26;
+  --c-cyan: #8ec07c;
+  --c-blue: #83a598;
+  --c-magenta: #d3869b;
+}
+.tok-keyword, .tok-controlKeyword, .tok-modifier { color: #fb4934; }
+.tok-function { color: #b8bb26; }
+.tok-string, .tok-attributeValue { color: #b8bb26; }
+.tok-typeName, .tok-className { color: #fabd2f; }
+.tok-propertyName { color: #83a598; }
+.tok-number, .tok-bool, .tok-atom, .tok-null, .tok-constant { color: #d3869b; }
+.tok-operator { color: #8ec07c; }
+.tok-comment { color: #928374; font-style: italic; }
+.tok-punctuation { color: #a89984; }

@@ -1,0 +1,50 @@
+/* Volcano: hot pink, lime and lava on olive black, in the spirit of Monokai. */
+:root {
+  color-scheme: dark;
+  --bg: #272822;
+  --bg-sidebar: #21221d;
+  --bg-tabbar: #21221d;
+  --bg-statusbar: #1d1e19;
+  --bg-elevated: #32332c;
+  --bg-input: #1c1d18;
+  --bg-hover: rgba(255, 255, 255, 0.045);
+  --bg-selected: rgba(255, 255, 255, 0.075);
+  --bg-selected-focus: rgba(166, 226, 46, 0.18);
+  --fg: #e6e6dc;
+  --fg-strong: #f8f8f2;
+  --fg-muted: #a39f8c;
+  --fg-subtle: #75715e;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.1);
+  --accent: #a6e22e;
+  --accent-fg: #1a2006;
+  --selection: rgba(166, 226, 46, 0.24);
+  --selection-inactive: rgba(255, 255, 255, 0.08);
+  --cursor: #a6e22e;
+  --line-highlight: rgba(255, 255, 255, 0.03);
+  --gutter-fg: rgba(230, 230, 220, 0.3);
+  --gutter-fg-active: #a39f8c;
+  --match: rgba(230, 219, 116, 0.25);
+  --match-border: rgba(230, 219, 116, 0.55);
+  --bracket-match: rgba(166, 226, 46, 0.3);
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --scrollbar: rgba(255, 255, 255, 0.11);
+  --scrollbar-hover: rgba(255, 255, 255, 0.2);
+  --c-red: #f92672;
+  --c-orange: #fd971f;
+  --c-yellow: #e6db74;
+  --c-green: #a6e22e;
+  --c-cyan: #66d9ef;
+  --c-blue: #66d9ef;
+  --c-magenta: #ae81ff;
+}
+.tok-keyword, .tok-controlKeyword, .tok-modifier { color: #f92672; }
+.tok-function { color: #a6e22e; }
+.tok-string, .tok-attributeValue { color: #e6db74; }
+.tok-typeName, .tok-className { color: #66d9ef; font-style: italic; }
+.tok-number, .tok-bool, .tok-atom, .tok-null, .tok-constant { color: #ae81ff; }
+.tok-propertyName { color: #f8f8f2; }
+.tok-operator { color: #f92672; }
+.tok-comment { color: #88846f; }
+.tok-punctuation { color: #b7b39f; }
+.tok-variableName.tok-definition { color: #fd971f; }

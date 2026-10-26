@@ -1,0 +1,10 @@
+{
+  "name": "midnight",
+  "displayName": "Midnight",
+  "description": "True black with neon accents. Gorgeous on OLED and in dark rooms.",
+  "version": "0.1.0",
+  "theme": "ui",
+  "main": false,
+  "styles": ["theme.css"],
+  "swatches": ["#000000", "#7df9ff", "#ff6ac1", "#5af78e", "#f3f99d"]
+}
