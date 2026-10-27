@@ -12,6 +12,7 @@ export class Navigation {
     this.forward = [];
     this.current = null; // where the cursor is in the active editor: { item, path, line, col }
     this.navigating = false;
+    this.queue = Promise.resolve(); // back / forward run one at a time, so quick repeats can't overlap
     this.quietUntil = 0;
     ws.on('active-item-changed', (item) => this.onActiveItem(item));
     ws.on('editor-updated', (item, update) => this.onUpdate(item, update));
@@ -57,8 +58,14 @@ export class Navigation {
 
   canGoBack() { return this.back.some((l) => this.isAlive(l)); }
   canGoForward() { return this.forward.some((l) => this.isAlive(l)); }
-  goBack() { return this.go(this.back, this.forward); }
-  goForward() { return this.go(this.forward, this.back); }
+  goBack() { return this.enqueue(() => this.go(this.back, this.forward)); }
+  goForward() { return this.enqueue(() => this.go(this.forward, this.back)); }
+
+  enqueue(fn) {
+    const run = this.queue.then(fn, fn);
+    this.queue = run.catch(() => {});
+    return run;
+  }
 
   isAlive(loc) {
     return (loc.item.view && this.ws.allItems().includes(loc.item)) || !!loc.path;
@@ -69,10 +76,13 @@ export class Navigation {
     while (from.length) {
       const loc = from.pop();
       if (!this.isAlive(loc) || (here && same(here, loc))) continue;
+      const isOpen = loc.item.view && this.ws.allItems().includes(loc.item);
+      // Closed since, and the file deleted too: skip it rather than open an empty one.
+      if (!isOpen && !(await window.native.fs.stat(loc.path))) continue;
       if (here) to.push(here);
       this.navigating = true;
       try {
-        if (loc.item.view && this.ws.allItems().includes(loc.item)) {
+        if (isOpen) {
           this.ws.focusItem(loc.item);
           loc.item.goToLine(loc.line, loc.col);
         } else {

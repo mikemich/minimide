@@ -20,7 +20,8 @@ export class QuickOpen {
     });
   }
 
-  /** addMode({ prefix, title, description?, order?, ...selectList options }) */
+  /** addMode({ prefix, title, description?, order?, onOpen?, ...selectList options }); onOpen runs as the box
+   *  opens, before it takes focus (so a mode can see what was focused, e.g. which commands apply). */
   addMode(mode) {
     this.modes.push(mode);
     return new Disposable(() => { this.modes = this.modes.filter((m) => m !== mode); });
@@ -36,6 +37,7 @@ export class QuickOpen {
       return;
     }
     const modes = this.sortedModes();
+    for (const m of modes) m.onOpen?.();
     if (!modes.some((m) => !m.prefix)) modes.push({ ...this.help, prefix: '', title: 'Search' }); // file search turned off
     const hints = modes.filter((m) => m.prefix && m.prefix !== '?').map((m) => `${m.prefix} ${m.short || m.title.toLowerCase()}`).join(', ');
     const base = modes.find((m) => !m.prefix);

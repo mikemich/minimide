@@ -37,7 +37,16 @@ const CHECKS = `(async () => {
   const file = app.workspace.project + '/scratch.txt';
   await window.native.fs.write(file, 'hello');
   out.roundTrip = await window.native.fs.read(file);
+  // A file written into a new folder: the tree shows the folder, as with the app's real watcher.
+  await window.native.fs.write(app.workspace.project + '/fresh/inside.txt', 'x');
+  await wait(500);
+  out.newFolderInTree = [...document.querySelectorAll('.tree-name')].some((n) => n.textContent === 'fresh');
   out.search = (await window.native.project.search(app.workspace.project, 'TODO', {})).results.length;
+  // Save / Don't Save / Cancel: an HTML dialog, since window.confirm only has two buttons.
+  const answer = window.native.dialog.confirm({ message: 'Save?', buttons: ['Save', "Don't Save", 'Cancel'], cancelId: 2 });
+  await wait(50);
+  document.querySelectorAll('.web-dialog-buttons button')[1]?.click();
+  out.dialog = await answer;
   const ed = await app.workspace.open(app.workspace.project + '/src/app.js');
   await wait(300);
   out.highlighted = !!ed.view.contentDOM.querySelector('.tok-keyword');
@@ -50,6 +59,8 @@ const EXPECT = {
   theme: (v) => v === true,
   colors: (v) => v === 'Theme: Select Theme…',
   roundTrip: (v) => v === 'hello',
+  newFolderInTree: (v) => v === true,
+  dialog: (v) => v === 1,
   search: (v) => v >= 1,
   highlighted: (v) => v === true,
 };

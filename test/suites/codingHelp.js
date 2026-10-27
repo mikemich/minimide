@@ -117,6 +117,15 @@
   await sleep(600);
   out.holdCmd.notForShortcuts = !document.querySelector('.key-hints');
   release();
+  // Not over a dialog: the labels would point at things it covers.
+  await app.commands.run('help:cheat-sheet');
+  await sleep(150);
+  key(window, hold);
+  await sleep(650);
+  out.holdCmd.notOverDialog = !document.querySelector('.key-hints');
+  release();
+  app.ui.closeModal();
+  await sleep(150);
 
   // --- one box -------------------------------------------------------------
   const boxInput = () => document.querySelector('.select-list .select-input');
@@ -128,7 +137,10 @@
   await sleep(150);
   await app.commands.run('fuzzy-finder:toggle');
   await until(boxInput);
+  await until(() => document.activeElement === boxInput()); // typed once the box has focus, like a person
   out.box.filesBadge = badgeText();
+  await typeIn('>comment');
+  out.box.editorCommandsKept = labels().includes('Editor: Toggle Comment');
   await typeIn('>remove line');
   out.box.removeLine = labels()[0];
   await typeIn('>colors');
@@ -142,6 +154,11 @@
   boxInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
   await sleep(200);
   out.box.lineJumped = long.getCursor().line;
+  app.quickOpen.open(':'); await until(boxInput);
+  await typeIn(':1:0');
+  boxInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  await sleep(200);
+  out.box.columnZero = long.getCursor().line;
   await app.commands.run('command-palette:toggle');
   await until(boxInput);
   await sleep(50);

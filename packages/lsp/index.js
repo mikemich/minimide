@@ -494,7 +494,7 @@ export function activate(mide) {
         return { dom: h('div.lsp-hover', body, links.length ? h('div.lsp-hover-links', ...links) : null) };
       },
     };
-  }, { hoverTime: 350 }));
+  }, { hoverTime: 350, hideOnChange: true }));
 
   // ---------------------------------------------------------------------------
   // Signature help
@@ -662,22 +662,26 @@ export function activate(mide) {
   async function peekDefinition(view, pos) {
     const entry = entryForView(view);
     if (!entry) return mide.notify.info('No language server for this file');
+    const doc = view.state.doc;
     let locs;
     try {
       locs = toLocations(await entry.client.request('textDocument/definition', { textDocument: { uri: entry.uri }, position: toPosition(view.state.doc, pos) }));
     } catch (err) { return mide.notify.error('Request failed', err.message); }
     if (!locs.length) return mide.notify.info('No definition found');
+    if (view.state.doc !== doc || !view.dom.isConnected) return; // typed while the server answered: pos is stale
     if (view.state.selection.main.head !== pos) view.dispatch({ selection: { anchor: pos } });
     await showPeek(view, pos, locs, 0);
   }
 
   async function showPeek(view, pos, locs, index) {
+    const doc = view.state.doc;
+    const stale = () => view.state.doc !== doc || !view.dom.isConnected;
     const loc = locs[index];
     const path = fromUri(loc.uri);
     const open = docByPath(path)?.primaryView();
     const text = open ? open.state.doc.toString() : await mide.fs.read(path).catch(() => null);
     if (text == null) return mide.notify.error(`Couldn't read ${mide.path.basename(path)}`);
-    if (!view.dom.isConnected) return;
+    if (stale()) return;
     const goThere = () => { closePeek(view); openLocation(loc); return true; };
     const body = h('div.lsp-peek-body');
     const button = (label, title, onclick) => h('button.lsp-peek-btn', { title, onclick, onmousedown: (e) => e.preventDefault() }, label);
@@ -695,6 +699,7 @@ export function activate(mide) {
       text, path, line: loc.range.start.line + 1, parent: body,
       extensions: Prec.highest(keymap.of([{ key: 'Escape', run: () => closePeek(view) }, { key: 'Enter', run: goThere }])),
     });
+    if (stale()) { preview.destroy(); return; }
     view.dispatch({
       effects: setPeek.of({
         pos, above: false, strictSide: true, arrow: false,
@@ -1067,7 +1072,7 @@ export function activate(mide) {
   // Commands
 
   const has = (cap) => () => { const a = activeEntry(); return !!a && (!cap || !!a.caps[cap]); };
-  const editorFocused = () => !!document.activeElement?.closest?.('.cm-editor');
+  const editorFocused = () => !!activeEntry()?.view.contentDOM.contains(document.activeElement); // not a peek preview
 
   mide.commands.add({
     'lsp:go-to-definition': { title: 'Go to Definition', when: has('definitionProvider'), run: () => { const { view } = activeEntry(); navigate('textDocument/definition', view, headOf(view), 'Definitions'); } },

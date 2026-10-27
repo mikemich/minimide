@@ -23,12 +23,16 @@ const basename = (p) => p.slice(p.lastIndexOf('/') + 1);
 const within = (p, dir) => p === dir || p.startsWith(dir === '/' ? '/' : `${dir}/`);
 const notFound = (p) => Object.assign(new Error(`ENOENT: no such file or directory, '${p}'`), { code: 'ENOENT' });
 
+/** Creates p and its missing parents; returns the folders it created. */
 function addDirs(p) {
-  for (let d = p; !dirs.has(d); d = dirname(d)) dirs.add(d);
+  const made = [];
+  for (let d = p; !dirs.has(d); d = dirname(d)) { dirs.add(d); made.push(d); }
+  return made;
 }
 function putFile(p, text) {
-  addDirs(dirname(p));
+  const made = addDirs(dirname(p));
   files.set(p, { text, mtime: Date.now() });
+  return made;
 }
 
 function load() {
@@ -88,7 +92,7 @@ const fs = {
     const type = p.endsWith('.svg') ? 'image/svg+xml' : 'text/plain';
     return `data:${type};charset=utf-8,${encodeURIComponent(f.text)}`;
   },
-  async write(p, data) { putFile(p, String(data)); changed(p); },
+  async write(p, data) { changed(p, ...putFile(p, String(data))); }, // new folders too, as the real watcher reports them
   async readdir(p) {
     if (!dirs.has(p)) throw notFound(p);
     const names = new Map();
@@ -101,17 +105,18 @@ const fs = {
     if (f) return { isDir: false, isFile: true, size: f.text.length, mtime: f.mtime };
     return dirs.has(p) ? { isDir: true, isFile: false, size: 0, mtime: 0 } : null;
   },
-  async mkdir(p) { addDirs(p); changed(p); },
+  async mkdir(p) { changed(p, ...addDirs(p)); },
   async copy(from, to) {
     if (files.has(to) || dirs.has(to)) throw new Error(`EEXIST: file already exists, '${to}'`);
-    if (files.has(from)) { putFile(to, files.get(from).text); changed(to); return; }
+    if (files.has(from)) { changed(to, ...putFile(to, files.get(from).text)); return; }
     if (!dirs.has(from)) throw notFound(from);
-    addDirs(to);
+    const made = addDirs(to);
     for (const d of [...dirs]) if (within(d, from)) addDirs(to + d.slice(from.length));
     for (const f of subtree(from)) putFile(to + f.slice(from.length), files.get(f).text);
-    changed(to);
+    changed(to, ...made);
   },
   async rename(a, b) {
+    if (!dirs.has(dirname(b))) throw notFound(dirname(b)); // like fs.rename: the target folder must exist
     if (files.has(a)) { putFile(b, files.get(a).text); files.delete(a); changed(a, b); return; }
     if (!dirs.has(a)) throw notFound(a);
     for (const d of [...dirs]) if (within(d, a)) { dirs.delete(d); addDirs(b + d.slice(a.length)); }
@@ -140,7 +145,9 @@ function projectFiles(root, ignored = []) {
     .sort();
 }
 
+// Same answers as the app's search worker: nothing for an empty query, the first match on a line.
 function search(root, query, { regex = false, caseSensitive = false, ignored, maxResults = 2000 } = {}) {
+  if (!query) return { results: [], truncated: false };
   let re;
   try { re = new RegExp(regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), caseSensitive ? 'g' : 'gi'); } catch (err) { return { error: err.message, results: [] }; }
   const results = [];
@@ -150,11 +157,8 @@ function search(root, query, { regex = false, caseSensitive = false, ignored, ma
     const matches = [];
     files.get(file).text.split('\n').forEach((line, l) => {
       re.lastIndex = 0;
-      for (let m; count < maxResults && (m = re.exec(line));) {
-        matches.push({ line: l + 1, col: m.index, length: m[0].length || 1, text: line.slice(0, 400) });
-        count++;
-        if (!m[0].length) re.lastIndex++;
-      }
+      const m = count < maxResults && re.exec(line);
+      if (m) { matches.push({ line: l + 1, col: m.index, length: m[0].length || 1, text: line.slice(0, 400) }); count++; }
     });
     if (matches.length) results.push({ file, matches });
   }
@@ -204,6 +208,38 @@ function popupMenu(items) {
   });
 }
 
+// --- a small HTML dialog instead of the native one (window.confirm can't offer three choices) ---
+
+function askDialog({ message, detail, buttons = ['OK', 'Cancel'], cancelId }) {
+  const cancel = cancelId ?? buttons.length - 1;
+  return new Promise((resolve) => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'web-dialog-backdrop';
+    const box = document.createElement('div');
+    box.className = 'web-dialog';
+    box.setAttribute('role', 'dialog');
+    const text = (cls, value) => { const el = document.createElement('div'); el.className = cls; el.textContent = value; return el; };
+    box.append(text('web-dialog-message', message));
+    if (detail) box.append(text('web-dialog-detail', detail));
+    const row = document.createElement('div');
+    row.className = 'web-dialog-buttons';
+    const escape = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(cancel); } };
+    const done = (i) => { backdrop.remove(); window.removeEventListener('keydown', escape, true); resolve(i); };
+    buttons.forEach((label, i) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      if (i === 0) b.className = 'primary';
+      b.onclick = () => done(i);
+      row.append(b);
+    });
+    box.append(row);
+    backdrop.append(box);
+    document.body.append(backdrop);
+    window.addEventListener('keydown', escape, true);
+    row.firstChild.focus();
+  });
+}
+
 // --- the bridge ---------------------------------------------------------------------
 
 const desktopOnly = async () => { throw new Error(DESKTOP_ONLY); };
@@ -232,8 +268,7 @@ window.native = {
     openFolder: async () => null,
     openFile: async () => [],
     saveAs: async (defaultPath) => window.prompt('Save as', defaultPath || `${PROJECT}/untitled.txt`) || null,
-    confirm: async ({ message, detail, buttons = ['OK', 'Cancel'], cancelId }) =>
-      (window.confirm([message, detail].filter(Boolean).join('\n\n')) ? 0 : cancelId ?? buttons.length - 1),
+    confirm: async (opts) => askDialog(opts),
   },
   menu: { popup: popupMenu, setAccelerators: async () => {} },
   pkgmgr: {

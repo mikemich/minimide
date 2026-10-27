@@ -57,7 +57,8 @@ export function registerCoreCommands(app) {
   const editor = () => ws.getActiveEditor();
   const hasEditor = () => !!editor();
   const view = () => editor()?.view;
-  const editorFocused = () => !!view() && view().dom.contains(document.activeElement);
+  // The text itself has focus: not a peek preview, which lives in the editor's tooltip layer.
+  const editorFocused = () => !!view() && view().contentDOM.contains(document.activeElement);
   const userFile = (name) => `${app.userInfo.dir}/${name}`;
 
   const transformSelection = (fn) => () => {

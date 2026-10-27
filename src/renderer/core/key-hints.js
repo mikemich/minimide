@@ -6,6 +6,7 @@
 // actions set it from their `command` option.
 import { h } from './dom.js';
 import { prettyBinding, isMac } from './keymap.js';
+import { isModalOpen } from './ui.js';
 
 const HOLD_MS = 450;
 
@@ -50,7 +51,7 @@ export function bindKeyHints(app) {
       // Only ⌘ on its own: ⌘ pressed while Shift or Alt is down is the start of a shortcut.
       if (e.repeat || e.shiftKey || e.altKey || (isMac ? e.ctrlKey : e.metaKey)) return;
       hide();
-      if (app.config.get('ui.holdToShowShortcuts') !== false) timer = setTimeout(() => { timer = null; layer = render(app); }, HOLD_MS);
+      if (app.config.get('ui.holdToShowShortcuts') !== false) timer = setTimeout(() => { timer = null; if (!isModalOpen()) layer = render(app); }, HOLD_MS);
     } else {
       hide(); // any other key: it's a shortcut, not a look around
     }

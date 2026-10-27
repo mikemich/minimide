@@ -39,6 +39,12 @@
   await app.commands.run('lsp:peek-definition');
   const peek = await until(() => document.querySelector('.lsp-peek .cm-preview-target') && document.querySelector('.lsp-peek'), 10000);
   out.peek = { file: peek?.querySelector('.lsp-peek-file')?.textContent, target: peek?.querySelector('.cm-preview-target')?.textContent };
+  // Editing keys while the preview has focus must not change the file underneath.
+  const textBefore = ed.getText();
+  const isMac = navigator.platform.toLowerCase().includes('mac');
+  document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: '/', code: 'Slash', bubbles: true, cancelable: true, ...(isMac ? { metaKey: true } : { ctrlKey: true }) }));
+  await wait(100);
+  out.peek.mainUntouched = ed.getText() === textBefore;
   const focused = document.activeElement?.closest?.('.cm-editor') ? document.activeElement : ed.view.contentDOM;
   focused.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }));
   out.peek.closed = !!(await until(() => !document.querySelector('.lsp-peek'), 3000));

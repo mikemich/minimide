@@ -255,7 +255,7 @@ export class EditorItem extends Emitter {
   goToLine(line, col = 0) {
     const { state } = this.view;
     const ln = state.doc.line(Math.max(1, Math.min(line, state.doc.lines)));
-    const pos = Math.min(ln.from + col, ln.to);
+    const pos = Math.min(ln.from + Math.max(0, col), ln.to);
     this.view.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: 'center' }) });
     this.view.focus();
   }
@@ -263,7 +263,7 @@ export class EditorItem extends Emitter {
   selectRange(line, col, length) {
     const { state } = this.view;
     const ln = state.doc.line(Math.max(1, Math.min(line, state.doc.lines)));
-    const from = Math.min(ln.from + col, ln.to);
+    const from = Math.min(ln.from + Math.max(0, col), ln.to);
     const to = Math.min(from + length, ln.to);
     this.view.dispatch({ selection: { anchor: from, head: to }, effects: EditorView.scrollIntoView(from, { y: 'center' }) });
     this.view.focus();

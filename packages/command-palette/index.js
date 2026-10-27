@@ -43,7 +43,10 @@ export function activate(mide) {
   let recent = [];
   try { recent = JSON.parse(localStorage.getItem('command-palette:recent') || '[]'); } catch {}
 
-  const items = () => {
+  // Which commands apply depends on what has focus (Toggle Comment needs the editor), so the list
+  // is taken as the box opens, not when ">" is typed inside it.
+  let snapshot = null;
+  const commandItems = () => {
     const list = mide.commands.list()
       .filter((c) => c.id !== 'command-palette:toggle')
       .map((c) => {
@@ -57,7 +60,8 @@ export function activate(mide) {
   mide.ui.addQuickOpenMode({
     prefix: '>', title: 'Commands', short: 'commands', order: 10,
     description: 'Run any command by name',
-    items,
+    onOpen: () => { snapshot = commandItems(); },
+    items: () => snapshot || commandItems(),
     maxItems: 300,
     alternateQueries,
     render: (item, indices) => {
