@@ -54,3 +54,30 @@ Published releases are immutable, so check before publishing.
    Installed copies pick it up from **Check for Updates…** (and on their own within a day).
 
 6. **Update the site** (`docs/index.html`) if the release adds something worth showing.
+
+## One-time setup: signed and notarized Mac builds
+
+Without these secrets the Mac builds are ad-hoc signed, and macOS asks people to allow the app in
+System Settings. With them, the Release workflow signs with your Developer ID and electron-builder
+notarizes and staples the app, so it opens with no warning.
+
+1. Create a **Developer ID Application** certificate (Xcode → Settings → Accounts → Manage
+   Certificates → +; needs the Account Holder role) and export it from Keychain Access as a .p12
+   with a password.
+2. Create an app-specific password at account.apple.com → Sign-In and Security.
+3. Add the secrets (each `gh secret set` without a value prompts for it):
+
+   ```bash
+   base64 -i ~/Desktop/DeveloperID.p12 | gh secret set MAC_CERT_P12_BASE64
+   gh secret set MAC_CERT_PASSWORD             # the .p12 password
+   gh secret set APPLE_ID                      # your Apple ID email
+   gh secret set APPLE_APP_SPECIFIC_PASSWORD
+   gh secret set APPLE_TEAM_ID                 # developer.apple.com → Membership details
+   ```
+
+4. After the next release, check a downloaded build:
+
+   ```bash
+   spctl -a -vv x/Minimide.app          # "accepted", "source=Notarized Developer ID"
+   xcrun stapler validate x/Minimide.app
+   ```
