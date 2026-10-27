@@ -15,6 +15,13 @@
     .web-menu button:disabled { opacity: .45; }
     .web-menu kbd { background: none; border: 0; padding: 0; color: var(--fg-subtle); }
     .web-menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 2px; }
+    .web-dialog-backdrop { position: fixed; inset: 0; z-index: 4000; display: grid; place-items: center; background: rgba(0, 0, 0, .35); }
+    .web-dialog { width: min(420px, 90vw); padding: 18px 20px 14px; border-radius: 12px; background: var(--bg-elevated); border: 1px solid var(--border-strong); box-shadow: var(--shadow); color: var(--fg); }
+    .web-dialog-message { color: var(--fg-strong); font-weight: 600; margin-bottom: 6px; }
+    .web-dialog-detail { color: var(--fg-muted); white-space: pre-wrap; margin-bottom: 14px; }
+    .web-dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+    .web-dialog-buttons button { padding: 5px 14px; border-radius: 7px; border: 1px solid var(--border-strong); background: var(--bg-hover); color: var(--fg); }
+    .web-dialog-buttons button.primary { background: var(--accent); border-color: transparent; color: var(--accent-fg); }
   </style>
   <link rel="stylesheet" href="styles/base.css">
   <script type="module" src="app.js"></script>
