@@ -1,0 +1,11 @@
+{
+  "name": "remote-ssh",
+  "displayName": "Remote over SSH",
+  "description": "Edit a folder on another machine: Minimide keeps a local copy in sync over ssh and rsync.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"],
+  "configSchema": {
+    "syncInterval": { "type": "number", "default": 10, "title": "Sync Interval (seconds)", "description": "How often to check the remote folder for changes while the window is focused. 0 syncs only on focus and after saves." }
+  }
+}

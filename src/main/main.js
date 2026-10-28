@@ -13,6 +13,7 @@ import { createUpdater } from './updater.js';
 import { createVscodeReader } from './vscode.js';
 import { createSecrets, createGist } from './sync.js';
 import { registerAi } from './ai.js';
+import { createRemoteSsh } from './remote-ssh.js';
 import dns from 'node:dns/promises';
 import net_ from 'node:net';
 
@@ -446,6 +447,8 @@ function sendCommand(id) {
 }
 
 const updater = createUpdater({ devBuild: DEV_BUILD });
+const remoteSsh = createRemoteSsh({ userDir: USER_DIR, devBuild: DEV_BUILD });
+app.on('will-quit', () => remoteSsh.dispose());
 let restartAfterUpdate = false;
 
 // ---------------------------------------------------------------------------
@@ -534,8 +537,9 @@ function registerIpc() {
   });
   handle('fs:mkdir', (_e, p) => fs.mkdir(p, { recursive: true }));
   handle('fs:copy', (_e, from, to) => fs.cp(from, to, { recursive: true, errorOnExist: true, force: false }));
-  handle('fs:rename', (_e, a, b) => fs.rename(a, b));
-  handle('fs:trash', (_e, p) => shell.trashItem(p));
+  // Deletes and renames inside a remote folder's mirror are recorded for its next sync.
+  handle('fs:rename', async (_e, a, b) => { await fs.rename(a, b); await remoteSsh.recordRename(a, b); });
+  handle('fs:trash', async (_e, p) => { await shell.trashItem(p); await remoteSsh.recordTrash(p); });
   handle('fs:realpath', (_e, p) => fs.realpath(p).catch(() => null));
   handle('fs:watch', (event, root, key = 'project') => {
     const id = `${event.sender.id}:${key}`;
@@ -810,6 +814,15 @@ function registerIpc() {
   handle('gist:upload', (_e, files) => gist.upload(files));
   handle('gist:download', () => gist.download());
   handle('gist:forget', () => gist.forget());
+
+  // remote folders over SSH (see remote-ssh.js)
+  handle('remote:connect', (_e, host, remotePath, ignoredNames) => remoteSsh.connect(host, remotePath, ignoredNames));
+  handle('remote:lookup', (_e, p) => remoteSsh.lookup(p));
+  handle('remote:sync', (_e, id, opts) => remoteSsh.sync(id, opts));
+  handle('remote:push', (_e, id, file, opts) => remoteSsh.push(id, file, opts));
+  handle('remote:pull', (_e, id, file) => remoteSsh.pull(id, file));
+  handle('remote:disconnect', (_e, id) => remoteSsh.disconnect(id));
+  handle('remote:terminalCommand', (_e, id) => remoteSsh.terminalCommand(id));
 
   // user dir, packages & state
   handle('user:info', () => ({ appRoot: ROOT, dir: USER_DIR, packagesDir: USER_PACKAGES, platform: process.platform, home: os.homedir(), shell: USER_SHELL, version: app.getVersion(), runDir: RUN_DIR,

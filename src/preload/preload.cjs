@@ -61,6 +61,15 @@ contextBridge.exposeInMainWorld('native', {
     download: call('gist:download'),
     forget: call('gist:forget'),
   },
+  remote: {
+    connect: call('remote:connect'),
+    lookup: call('remote:lookup'),
+    sync: call('remote:sync'),
+    push: call('remote:push'),
+    pull: call('remote:pull'),
+    disconnect: call('remote:disconnect'),
+    terminalCommand: call('remote:terminalCommand'),
+  },
   trust: { list: call('trust:list'), add: call('trust:add'), remove: call('trust:remove'), onChange: (fn) => on('trust:changed', fn) },
   updates: {
     check: call('update:check'),

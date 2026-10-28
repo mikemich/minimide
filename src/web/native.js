@@ -14,7 +14,7 @@ const USER_DIR = `${HOME}/.minimide`;
 const STORE = 'minimide-demo-fs-v1';
 const STATE = 'minimide-demo-state-v1';
 // Need a desktop: language servers, terminals, running code and git.
-const LEFT_OUT = new Set(['lsp', 'terminal', 'runner', 'git', 'git-blame', 'source-control', 'debugger', 'ai', 'settings-sync', 'vscode-import']);
+const LEFT_OUT = new Set(['lsp', 'terminal', 'runner', 'git', 'git-blame', 'source-control', 'debugger', 'ai', 'settings-sync', 'vscode-import', 'remote-ssh']);
 const DESKTOP_ONLY = 'This needs the desktop app. Download Minimide from GitHub to use it.';
 
 // --- which project: the sample, or a GitHub repo -------------------------------------
@@ -397,6 +397,10 @@ window.native = {
   vscode: { scan: desktopOnly, read: desktopOnly, theme: desktopOnly },
   secrets: { set: desktopOnly, has: desktopOnly, delete: desktopOnly },
   gist: { status: desktopOnly, cliAvailable: desktopOnly, cliLogin: desktopOnly, upload: desktopOnly, download: desktopOnly, forget: desktopOnly },
+  remote: {
+    connect: desktopOnly, lookup: async () => null, sync: desktopOnly, push: desktopOnly, pull: desktopOnly,
+    disconnect: async () => {}, terminalCommand: desktopOnly,
+  },
   trust: { list: async () => [], add: async () => [], remove: async () => [], onChange: noop },
   updates: {
     check: async () => { throw new Error('The browser demo always runs the latest version. Download the app from GitHub.'); },
