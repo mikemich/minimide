@@ -1,12 +1,11 @@
 {
   "name": "editor-guides",
   "displayName": "Editor Guides",
-  "description": "Indent guides that follow scope, plus optional rainbow brackets.",
+  "description": "Indent guides that follow scope.",
   "version": "0.1.0",
   "main": "index.js",
   "configSchema": {
     "indentGuides": { "type": "boolean", "default": true, "title": "Indent Guides" },
-    "highlightActiveScope": { "type": "boolean", "default": true, "title": "Highlight Active Scope", "description": "Brighten the guide of the block the cursor is in." },
-    "rainbowBrackets": { "type": "boolean", "default": false, "title": "Rainbow Brackets", "description": "Color matching brackets by nesting depth." }
+    "highlightActiveScope": { "type": "boolean", "default": true, "title": "Highlight Active Scope", "description": "Brighten the guide of the block the cursor is in." }
   }
 }

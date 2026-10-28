@@ -182,7 +182,7 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `markdown-preview` | Live, sanitized preview in a split pane that scrolls with the editor (and the other way round). In the editor itself, pasting an image into a Markdown file saves it to `images/` and inserts the link, and Markdown and plain text get spell check with suggestions in the right-click menu (turn it off with `editor.spellcheck`) |
 | `settings-view` | Settings, themes, packages and keybindings, generated from schemas |
 | `status-bar` | Cursor, selection, language, indentation, line endings, and word count with reading time for Markdown and text files |
-| `editor-guides` | Scope-aware indent guides; optional rainbow brackets |
+| `editor-guides` | Scope-aware indent guides |
 | `image-viewer` | Opens PNG, JPG, GIF, WebP, SVG and more in a tab with zoom (`⌘+` / `⌘-` / pinch) |
 | `sticky-scroll` | Pins the headers of the function, class or block you're in to the top of the editor |
 | `snippets` | 170+ built-in snippets in 25 languages, offered as you type or expanded with Tab, plus your own in VS Code format. Autocomplete also suggests words already in the file |
