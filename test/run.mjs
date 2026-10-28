@@ -181,6 +181,22 @@ const SUITES = [
     }),
   },
   {
+    name: 'emmetMarkdown', home: 'emh', project: 'emproj', timeout: 90,
+    expect: () => ({
+      // Emmet: Tab expands in HTML / CSS / JSX; elsewhere Tab and snippets behave as before.
+      'html.loaded': true, 'html.expanded': '<ul>\n  <li></li>\n  <li></li>\n</ul>', 'html.cursorInFirstLi': true, 'html.id': '<div id="app"></div>',
+      'html.proseWordKept': true, 'html.indentKept': true, 'html.insideTag': true, 'html.inScript': true,
+      'css.margin': 'margin: 10px;', 'css.outsideBlock': true, 'scss.margin': 'margin: 10px;',
+      'jsx.inside': '<p className="note"></p>', 'jsx.outsideJsx': true,
+      'js.snippetWins': 'console.log();', 'js.plainTabIndents': true, 'txt.plainTabIndents': true,
+      'disabled.untouched': true, 'commands.listed': true, 'commands.balance': 'x | <p>x</p> | x',
+      'wrap.box': true, 'wrap.doc': '<p><span class="hi">hello</span></p>', 'wrap.closed': true,
+      // Markdown preview: scrolling either side moves the other, matched by source line.
+      'md.previewHasLines': true, 'md.editorToPreview': true, 'md.previewToEditor': true, 'md.stable': true, 'md.clickMovesCursor': true, 'md.offStaysPut': true,
+      totalErrors: 0,
+    }),
+  },
+  {
     name: 'largeProject', home: 'largeh', project: 'large', timeout: 180,
     expect: () => ({
       fileCount: 55000, nodeModulesIgnored: true, searchMatches: 1100, searchError: null,

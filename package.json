@@ -43,6 +43,7 @@
     "@codemirror/search": "^6.7.2",
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.14",
+    "@emmetio/codemirror6-plugin": "^0.4.1",
     "@lezer/highlight": "^1.2.5",
     "@replit/codemirror-indentation-markers": "^6.5.3",
     "@replit/codemirror-minimap": "^0.5.2",

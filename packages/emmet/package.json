@@ -1,0 +1,10 @@
+{
+  "name": "emmet",
+  "displayName": "Emmet",
+  "description": "Type an abbreviation like ul>li.item*3 in HTML, JSX or CSS and press Tab to expand it.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "configSchema": {
+    "enabled": { "type": "boolean", "default": true, "title": "Emmet Abbreviations", "description": "Press Tab after an abbreviation (div#app, ul>li*3, m10) in HTML, JSX, Vue and CSS files to expand it." }
+  }
+}

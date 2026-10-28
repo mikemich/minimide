@@ -172,6 +172,19 @@ function chproj(root) {
   write(path.join(d, 'notes.txt'), 'one\ntwo\nthree\n');
 }
 
+/** `emproj`: a long Markdown file (preview scroll sync) and files for Emmet in HTML, CSS and JS. */
+function emproj(root) {
+  const d = path.join(root, 'emproj');
+  const sections = Array.from({ length: 40 }, (_, i) => `## Section ${i + 1}\n\n${'Some words that make a paragraph. '.repeat(12)}\n\n- item a\n- item b\n`);
+  write(path.join(d, 'long.md'), `# Long document\n\n${sections.join('\n')}`);
+  write(path.join(d, 'page.html'), '<!doctype html>\n<html>\n<body>\n  \n</body>\n</html>\n');
+  write(path.join(d, 'style.css'), 'a {\n  \n}\n');
+  write(path.join(d, 'style.scss'), '.a {\n  \n}\n');
+  write(path.join(d, 'view.jsx'), 'export const A = () => (\n  <div>\n    \n  </div>\n);\nconst x = 1;\n');
+  write(path.join(d, 'app.js'), 'const x = 1;\n');
+  write(path.join(d, 'notes.txt'), 'plain\n');
+}
+
 /** `ftproj`: one small file per extra file type, plus a shell script for completion. */
 function ftproj(root) {
   const d = path.join(root, 'ftproj');
@@ -204,8 +217,9 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   evilrepo(root);
   ftproj(root);
   chproj(root);
+  emproj(root);
   large(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'emh']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 

@@ -16,9 +16,11 @@ export function activate(mide) {
       this.iconName = 'eye';
       this.editor = editor;
       this.listeners = new Map();
+      this.quiet = { editor: 0, preview: 0 }; // until when a side's scroll events are our own doing
       this.body = h('article.markdown-body');
       this.element = h('div.md-preview', { tabIndex: -1 }, this.body);
       this.element.addEventListener('click', (e) => this.onClick(e));
+      this.element.addEventListener('scroll', () => this.onScroll('preview', () => this.fromPreview()), { passive: true });
       this.render();
     }
     on(ev, fn) { this.listeners.set(ev, fn); return { dispose: () => this.listeners.delete(ev) }; }
@@ -28,7 +30,13 @@ export function activate(mide) {
     serialize() { return null; }
     render() {
       if (!this.editor.view) return;
-      const html = marked.parse(this.editor.getText());
+      // Each top-level block remembers the source line it starts on, for scroll syncing.
+      let html = '';
+      let line = 1;
+      for (const token of marked.lexer(this.editor.getText())) {
+        html += marked.parser([token]).replace(/^<([a-z][\w-]*)/i, `<$1 data-line="${line}"`);
+        line += (token.raw.match(/\n/g) || []).length;
+      }
       // No inline styles (they could overlay fake UI) and no element that can load a remote file
       // other than <img src>, which is checked below.
       this.body.innerHTML = DOMPurify.sanitize(html, {
@@ -52,15 +60,73 @@ export function activate(mide) {
         el.id = n ? `${base}-${n}` : base;
       }
     }
-    syncScroll() {
-      const scroller = this.editor.view?.scrollDOM;
-      if (!scroller) return;
-      const ratio = scroller.scrollTop / Math.max(1, scroller.scrollHeight - scroller.clientHeight);
-      this.element.scrollTop = ratio * (this.element.scrollHeight - this.element.clientHeight);
+    // --- scroll syncing: editor and preview follow each other, matched by source line ---
+    blocks() { return [...this.body.children].filter((el) => el.dataset.line).map((el) => ({ line: +el.dataset.line, el })); }
+    top(el) { return el.getBoundingClientRect().top - this.element.getBoundingClientRect().top + this.element.scrollTop; }
+    // Moving one side makes the other fire a scroll event; ignore those so they don't bounce back.
+    scrollTo(el, y, side) {
+      this.quiet[side] = performance.now() + 150;
+      el.scrollTop = y;
+    }
+    fromEditor() {
+      const view = this.editor.view;
+      const blocks = this.blocks();
+      if (!view || !blocks.length || !mide.config.get('markdown-preview.syncScroll')) return;
+      const scroller = view.scrollDOM;
+      const atEnd = scroller.scrollTop >= scroller.scrollHeight - scroller.clientHeight - 1;
+      const y = Math.max(0, scroller.scrollTop - view.documentPadding.top);
+      const lb = view.lineBlockAtHeight(y);
+      const line = view.state.doc.lineAt(lb.from).number + Math.min(1, (y - lb.top) / Math.max(1, lb.height));
+      const i = blocks.findLastIndex((b) => b.line <= line);
+      let target = 0;
+      if (atEnd) target = this.element.scrollHeight;
+      else if (i >= 0) {
+        const last = i === blocks.length - 1;
+        const from = this.top(blocks[i].el);
+        const to = last ? from + blocks[i].el.offsetHeight : this.top(blocks[i + 1].el);
+        const end = last ? view.state.doc.lines + 1 : blocks[i + 1].line;
+        target = from + Math.min(1, (line - blocks[i].line) / Math.max(1, end - blocks[i].line)) * (to - from);
+      }
+      this.scrollTo(this.element, target, 'preview');
+    }
+    fromPreview() {
+      const view = this.editor.view;
+      const blocks = this.blocks();
+      if (!view || !blocks.length || !mide.config.get('markdown-preview.syncScroll')) return;
+      const y = this.element.scrollTop;
+      const atEnd = y >= this.element.scrollHeight - this.element.clientHeight - 1;
+      const i = blocks.findLastIndex((b) => this.top(b.el) <= y + 1);
+      let target = 0;
+      if (atEnd) target = view.scrollDOM.scrollHeight;
+      else if (i >= 0) {
+        const last = i === blocks.length - 1;
+        const from = this.top(blocks[i].el);
+        const to = last ? from + blocks[i].el.offsetHeight : this.top(blocks[i + 1].el);
+        const end = last ? view.state.doc.lines + 1 : blocks[i + 1].line;
+        const line = blocks[i].line + Math.min(1, (y - from) / Math.max(1, to - from)) * (end - blocks[i].line);
+        const lb = view.lineBlockAt(view.state.doc.line(Math.min(view.state.doc.lines, Math.floor(line))).from);
+        target = lb.top + (line % 1) * lb.height + view.documentPadding.top;
+      }
+      this.scrollTo(view.scrollDOM, target, 'editor');
+    }
+    // Run at most once a frame, and not for scrolls we caused ourselves.
+    onScroll(side, sync) {
+      if (performance.now() < this.quiet[side] || this.frame) return;
+      this.frame = requestAnimationFrame(() => { this.frame = 0; sync(); });
+    }
+    // Clicking text in the preview puts the editor's cursor on that block's first line.
+    jumpToSource(e) {
+      const view = this.editor.view;
+      let el = e.target;
+      while (el && el.parentElement !== this.body) el = el.parentElement;
+      if (!view || !el?.dataset.line || !mide.config.get('markdown-preview.syncScroll') || window.getSelection().toString()) return;
+      this.quiet.editor = performance.now() + 150; // don't let the editor's scroll move the preview
+      const anchor = view.state.doc.line(Math.min(+el.dataset.line, view.state.doc.lines)).from;
+      view.dispatch({ selection: { anchor }, effects: mide.cm.view.EditorView.scrollIntoView(anchor, { y: 'nearest', yMargin: 40 }) });
     }
     onClick(e) {
       const a = e.target.closest('a');
-      if (!a) return;
+      if (!a) return this.jumpToSource(e);
       e.preventDefault();
       const href = a.getAttribute('href') || '';
       if (/^https?:|^mailto:/.test(href)) return mide.shell.openExternal(href);
@@ -81,6 +147,7 @@ export function activate(mide) {
     }
     destroy() {
       previews.delete(this.editor);
+      cancelAnimationFrame(this.frame);
       this.scrollOff?.();
     }
   }
@@ -100,10 +167,10 @@ export function activate(mide) {
     const current = panes.find((p) => p.items.includes(editor));
     const target = panes[panes.indexOf(current) + 1] || mide.workspace.splitRight({ empty: true });
     mide.workspace.openItem(item, { pane: target });
-    const onScroll = () => item.syncScroll();
+    const onScroll = () => item.onScroll('editor', () => item.fromEditor());
     editor.view.scrollDOM.addEventListener('scroll', onScroll, { passive: true });
     item.scrollOff = () => editor.view?.scrollDOM.removeEventListener('scroll', onScroll);
-    requestAnimationFrame(() => editor.focus());
+    requestAnimationFrame(() => { item.fromEditor(); editor.focus(); });
   }, { when: () => isMarkdown(mide.workspace.getActiveEditor()) });
 
   const timers = new WeakMap();
@@ -111,8 +178,9 @@ export function activate(mide) {
     const item = previews.get(editor) || [...previews.values()].find((p) => p.editor.document === editor.document);
     if (!item || !update?.docChanged) return;
     clearTimeout(timers.get(item));
-    timers.set(item, setTimeout(() => item.render(), 120));
+    timers.set(item, setTimeout(() => { item.render(); if (editor.view?.hasFocus) item.fromEditor(); }, 120));
   });
+  mide.config.onDidChange('markdown-preview.syncScroll', (on) => { if (on) for (const p of previews.values()) p.fromEditor(); });
   mide.config.onDidChange('markdown-preview.remoteImages', () => { for (const p of previews.values()) p.render(); });
   mide.subscriptions.add({ dispose: () => { for (const p of [...previews.values()]) mide.workspace.closeItem(p); } });
 }

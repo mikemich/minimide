@@ -25,6 +25,7 @@ const extras = Object.freeze({
   minimap: () => import('@replit/codemirror-minimap'),
   indentationMarkers: () => import('@replit/codemirror-indentation-markers'),
   merge: () => import('@codemirror/merge'),
+  emmet: () => import('@emmetio/codemirror6-plugin'),
 });
 
 const cm = Object.freeze({
