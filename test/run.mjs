@@ -181,6 +181,16 @@ const SUITES = [
     }),
   },
   {
+    name: 'welcome', home: 'welh', project: 'qa', timeout: 60,
+    expect: () => ({
+      notAtTestLaunch: true, shown: 1, flagSet: true, holdKey: true, notAModal: true, savedToDisk: true,
+      steps: (s) => Array.isArray(s) && s.length === 3 && s[1] === '… finds anything (type > for commands)' && s[2] === 'Right-click code for more',
+      hintsShown: true, hintsHidden: true, boxOpen: true,
+      noEditorBefore: true, editorOpened: 'README.md', menu: (m) => Array.isArray(m) && m.includes('Command Palette…') && m.includes('copy'),
+      closed: true, notAgain: true, notAfterReload: true, commandShows: 1, inPalette: true, closeButton: true,
+    }),
+  },
+  {
     name: 'largeProject', home: 'largeh', project: 'large', timeout: 180,
     expect: () => ({
       fileCount: 55000, nodeModulesIgnored: true, searchMatches: 1100, searchError: null,

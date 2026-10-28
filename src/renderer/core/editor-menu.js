@@ -20,13 +20,13 @@ export function editorContextMenu(app) {
         view.dispatch({ selection: { anchor: pos } });
       }
       view.focus();
-      show(app);
+      showEditorMenu(app);
       return true;
     },
   });
 }
 
-async function show(app) {
+export async function showEditorMenu(app) {
   const items = [];
   for (const group of GROUPS) {
     const entries = group.map((x) => (typeof x === 'string' ? { id: x } : x))

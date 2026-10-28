@@ -2,11 +2,14 @@
 // (see src/preload/preload.cjs); here the same calls run against an in-memory file system holding
 // a sample project, kept in localStorage so edits survive a reload. Things a web page can't do
 // (terminals, git, installing packages) answer with a pointer to the desktop app.
+// With ?repo=owner/name it holds a public GitHub repo instead: the file list comes from the GitHub
+// API, file contents are fetched when first read, and nothing is saved (see github.js).
 import { SAMPLE_FILES, USER_FILES } from './sample.js';
+import { readRepoRequest, loadTree, fetchText, rawUrl, parseRepoInput, RepoError, MAX_FILE, BINARY, IMAGE } from './github.js';
 
 const BASE = new URL('./', location.href).href;
 const HOME = '/home/you';
-export const PROJECT = `${HOME}/hello-minimide`;
+const SAMPLE_PROJECT = `${HOME}/hello-minimide`;
 const USER_DIR = `${HOME}/.minimide`;
 const STORE = 'minimide-demo-fs-v1';
 const STATE = 'minimide-demo-state-v1';
@@ -14,9 +17,24 @@ const STATE = 'minimide-demo-state-v1';
 const LEFT_OUT = new Set(['lsp', 'terminal', 'runner', 'git', 'git-blame', 'source-control']);
 const DESKTOP_ONLY = 'This needs the desktop app. Download Minimide from GitHub to use it.';
 
+// --- which project: the sample, or a GitHub repo -------------------------------------
+
+const query = new URLSearchParams(location.search);
+const request = readRepoRequest(query);
+let repoMode = !!request && !request.error; // false again if the repo can't be opened
+export let PROJECT = repoMode ? `${HOME}/${request.name}` : SAMPLE_PROJECT;
+/** What main.js shows about it: the open repo, or why it couldn't be opened. */
+export const repo = { active: false, slug: '', ref: '', start: null, error: request?.error || '', notices: [] };
+// The tests serve a fake GitHub from their own local server (?gh=/fake); a real page can't redirect requests.
+const GH = { api: 'https://api.github.com', raw: 'https://raw.githubusercontent.com' };
+if (['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname) && /^\/\w+$/.test(query.get('gh') || '')) {
+  GH.api = `${location.origin}${query.get('gh')}/api`;
+  GH.raw = `${location.origin}${query.get('gh')}/raw`;
+}
+
 // --- in-memory file system ----------------------------------------------------
 
-const files = new Map(); // path -> { text, mtime }
+const files = new Map(); // path -> { text, mtime }. In a repo, text is null until first read and `remote` is the path in the repo
 const dirs = new Set(['/']);
 const dirname = (p) => p.slice(0, p.lastIndexOf('/')) || '/';
 const basename = (p) => p.slice(p.lastIndexOf('/') + 1);
@@ -29,29 +47,34 @@ function addDirs(p) {
   for (let d = p; !dirs.has(d); d = dirname(d)) { dirs.add(d); made.push(d); }
   return made;
 }
-function putFile(p, text) {
+function putEntry(p, entry) {
   const made = addDirs(dirname(p));
-  files.set(p, { text, mtime: Date.now() });
+  files.set(p, entry);
   return made;
+}
+const putFile = (p, text) => putEntry(p, { text, mtime: Date.now() });
+
+function seed() {
+  if (!repoMode) for (const [rel, text] of Object.entries(SAMPLE_FILES)) putFile(`${PROJECT}/${rel}`, text);
+  for (const [rel, text] of Object.entries(USER_FILES)) putFile(`${USER_DIR}/${rel}`, text);
+  addDirs(`${USER_DIR}/packages`);
 }
 
 function load() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
-    if (saved?.files) {
-      for (const d of saved.dirs || []) addDirs(d);
-      for (const [p, text] of Object.entries(saved.files)) putFile(p, text);
-      return;
-    }
-  } catch {}
-  for (const [rel, text] of Object.entries(SAMPLE_FILES)) putFile(`${PROJECT}/${rel}`, text);
-  for (const [rel, text] of Object.entries(USER_FILES)) putFile(`${USER_DIR}/${rel}`, text);
-  addDirs(`${USER_DIR}/packages`);
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(STORE) || 'null'); } catch {}
+  if (!saved?.files) return seed();
+  // A repo borrows the saved settings only; the saved sample project stays as it is.
+  const keep = (p) => !repoMode || within(p, USER_DIR);
+  for (const d of saved.dirs || []) if (keep(d)) addDirs(d);
+  for (const [p, text] of Object.entries(saved.files)) if (keep(p)) putFile(p, text);
+  if (repoMode && !files.has(`${USER_DIR}/config.json`)) seed();
 }
 load();
 
 let saveTimer = null;
 function persist() {
+  if (repoMode) return; // changes to a repo stay in this tab
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     try { localStorage.setItem(STORE, JSON.stringify({ dirs: [...dirs], files: Object.fromEntries([...files].map(([p, f]) => [p, f.text])) })); } catch {}
@@ -84,13 +107,82 @@ function changed(...paths) {
 
 const subtree = (p) => [...files.keys()].filter((f) => within(f, p));
 
+// --- a GitHub repo as the project -----------------------------------------------------
+
+const SEARCH_FETCHES = 300; // new files one search may download
+let source = null; // { owner, name, branch } of the open repo
+const inflight = new Map(); // file entry -> its download, so two reads share one request
+
+const remoteUrl = (f) => rawUrl(GH.raw, source, source.branch, f.remote);
+const placeholder = (rel, why) => `This file isn't shown in the browser demo (${why}).\nSee it on GitHub: https://github.com/${source.owner}/${source.name}/blob/${source.branch}/${rel}\n`;
+
+/** Makes sure an entry's text is here, downloading it the first time it's read. */
+async function ensure(p) {
+  const f = files.get(p);
+  if (!f) throw notFound(p);
+  if (f.text != null) return f;
+  if (!inflight.has(f)) {
+    inflight.set(f, fetchText(remoteUrl(f)).then((text) => { f.text ??= text; }).finally(() => inflight.delete(f)));
+  }
+  await inflight.get(f);
+  return f;
+}
+
+async function openRepo() {
+  const { owner, name } = request;
+  const tree = await loadTree(request, GH.api);
+  source = { owner, name, branch: tree.branch };
+  const root = PROJECT;
+  const now = Date.now();
+  addDirs(root);
+  for (const d of tree.dirs) addDirs(`${root}/${d}`);
+  for (const { path, size } of tree.files) {
+    const entry = { text: null, mtime: now, size, remote: path };
+    // Pictures open in the viewer, straight from GitHub; the rest of these get a short note instead.
+    const why = IMAGE.test(path) ? 'it is an image' : BINARY.test(path) ? 'it is a binary file' : size > MAX_FILE ? 'it is over 1 MB' : null;
+    if (why) { entry.text = placeholder(path, why); entry.skip = true; }
+    putEntry(`${root}/${path}`, entry);
+  }
+  Object.assign(repo, { active: true, slug: `${owner}/${name}`, ref: tree.branch });
+  if (tree.capped) repo.notices.push(`${owner}/${name} has more than ${tree.files.length.toLocaleString()} files, so only the first ${tree.files.length.toLocaleString()} are listed.`);
+  else if (tree.truncated) repo.notices.push(`${owner}/${name} is too big for GitHub to list in full, so some files are missing.`);
+  // What to open first: the requested file, or the README.
+  const wanted = request.path && files.has(`${root}/${request.path}`) ? request.path : null;
+  if (request.path && !wanted) repo.notices.push(`There is no ${request.path} in ${owner}/${name}.`);
+  repo.start = wanted || tree.files.find((f) => /^readme(\.\w+)?$/i.test(f.path))?.path || null;
+  if (repo.start) repo.start = `${root}/${repo.start}`;
+}
+
+/** Couldn't open the repo: say why, and carry on with the sample project. */
+function backToSample(err) {
+  repo.error = err instanceof RepoError ? err.message : "Couldn't open that repo.";
+  repoMode = false;
+  PROJECT = SAMPLE_PROJECT;
+  files.clear();
+  dirs.clear();
+  dirs.add('/');
+  load();
+}
+
+/** Where to go to open a repo ("owner/name", or a github.com address), or null if that isn't one. */
+export function repoAddress(text) {
+  const slug = parseRepoInput(text);
+  if (!slug) return null;
+  const url = new URL(location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('repo', slug);
+  return url.href;
+}
+
 const fs = {
-  async read(p) { const f = files.get(p); if (!f) throw notFound(p); return f.text; },
+  async read(p) { return (await ensure(p)).text; },
   async readDataUrl(p) {
     const f = files.get(p);
     if (!f) throw notFound(p);
+    if (f.remote && f.skip && IMAGE.test(f.remote)) return remoteUrl(f);
     const type = p.endsWith('.svg') ? 'image/svg+xml' : 'text/plain';
-    return `data:${type};charset=utf-8,${encodeURIComponent(f.text)}`;
+    return `data:${type};charset=utf-8,${encodeURIComponent((await ensure(p)).text)}`;
   },
   async write(p, data) { changed(p, ...putFile(p, String(data))); }, // new folders too, as the real watcher reports them
   async readdir(p) {
@@ -102,25 +194,25 @@ const fs = {
   },
   async stat(p) {
     const f = files.get(p);
-    if (f) return { isDir: false, isFile: true, size: f.text.length, mtime: f.mtime };
+    if (f) return { isDir: false, isFile: true, size: f.text?.length ?? f.size, mtime: f.mtime };
     return dirs.has(p) ? { isDir: true, isFile: false, size: 0, mtime: 0 } : null;
   },
   async mkdir(p) { changed(p, ...addDirs(p)); },
   async copy(from, to) {
     if (files.has(to) || dirs.has(to)) throw new Error(`EEXIST: file already exists, '${to}'`);
-    if (files.has(from)) { changed(to, ...putFile(to, files.get(from).text)); return; }
+    if (files.has(from)) { changed(to, ...putEntry(to, { ...files.get(from), mtime: Date.now() })); return; }
     if (!dirs.has(from)) throw notFound(from);
     const made = addDirs(to);
     for (const d of [...dirs]) if (within(d, from)) addDirs(to + d.slice(from.length));
-    for (const f of subtree(from)) putFile(to + f.slice(from.length), files.get(f).text);
+    for (const f of subtree(from)) putEntry(to + f.slice(from.length), { ...files.get(f), mtime: Date.now() }); // a repo file not read yet stays unread
     changed(to, ...made);
   },
   async rename(a, b) {
     if (!dirs.has(dirname(b))) throw notFound(dirname(b)); // like fs.rename: the target folder must exist
-    if (files.has(a)) { putFile(b, files.get(a).text); files.delete(a); changed(a, b); return; }
+    if (files.has(a)) { putEntry(b, files.get(a)); files.delete(a); changed(a, b); return; }
     if (!dirs.has(a)) throw notFound(a);
     for (const d of [...dirs]) if (within(d, a)) { dirs.delete(d); addDirs(b + d.slice(a.length)); }
-    for (const f of subtree(a)) { putFile(b + f.slice(a.length), files.get(f).text); files.delete(f); }
+    for (const f of subtree(a)) { putEntry(b + f.slice(a.length), files.get(f)); files.delete(f); }
     changed(a, b);
   },
   async trash(p) {
@@ -145,24 +237,45 @@ function projectFiles(root, ignored = []) {
     .sort();
 }
 
+/** In a repo: downloads the files a search needs (at most SEARCH_FETCHES new ones). Returns a note when that left some out. */
+async function fetchForSearch(paths) {
+  const unread = paths.filter((p) => files.get(p).text == null);
+  const wanted = unread.slice(0, SEARCH_FETCHES);
+  let next = 0;
+  let stopped = false;
+  const worker = async () => {
+    while (next < wanted.length && !stopped) {
+      try { await ensure(wanted[next++]); } catch (err) { if (err.kind === 'rate') stopped = true; }
+    }
+  };
+  await Promise.all(Array.from({ length: 8 }, worker));
+  const left = unread.length - wanted.length;
+  if (stopped) return 'GitHub is limiting downloads for now, so only the files already opened were searched.';
+  if (left > 0) return `Searched ${(paths.length - left).toLocaleString()} of ${paths.length.toLocaleString()} files: a search downloads at most ${SEARCH_FETCHES} new ones. Search again to look through more.`;
+}
+
 // Same answers as the app's search worker: nothing for an empty query, the first match on a line.
-function search(root, query, { regex = false, caseSensitive = false, ignored, maxResults = 2000 } = {}) {
+async function search(root, query, { regex = false, caseSensitive = false, ignored, maxResults = 2000 } = {}) {
   if (!query) return { results: [], truncated: false };
   let re;
   try { re = new RegExp(regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), caseSensitive ? 'g' : 'gi'); } catch (err) { return { error: err.message, results: [] }; }
   const results = [];
   let count = 0;
-  for (const rel of projectFiles(root, ignored)) {
+  const rels = projectFiles(root, ignored);
+  const notice = repoMode ? await fetchForSearch(rels.filter((rel) => !files.get(`${root}/${rel}`).skip).map((rel) => `${root}/${rel}`)) : undefined;
+  for (const rel of rels) {
     const file = `${root}/${rel}`;
+    const entry = files.get(file);
+    if (entry.skip || entry.text == null) continue; // a placeholder, or a repo file that wasn't downloaded
     const matches = [];
-    files.get(file).text.split('\n').forEach((line, l) => {
+    entry.text.split('\n').forEach((line, l) => {
       re.lastIndex = 0;
       const m = count < maxResults && re.exec(line);
       if (m) { matches.push({ line: l + 1, col: m.index, length: m[0].length || 1, text: line.slice(0, 400) }); count++; }
     });
     if (matches.length) results.push({ file, matches });
   }
-  return { results, truncated: count >= maxResults };
+  return { results, truncated: count >= maxResults, notice };
 }
 
 // --- a small HTML context menu instead of the native one ---------------------------
@@ -245,6 +358,7 @@ function askDialog({ message, detail, buttons = ['OK', 'Cancel'], cancelId }) {
 const desktopOnly = async () => { throw new Error(DESKTOP_ONLY); };
 const noop = () => () => {};
 const blobUrls = new Map();
+const repoState = {}; // the app state while a repo is open: kept in memory only
 const folders = new Map(); // package name -> its folder under pkg/ (themes live in theme-<name>)
 
 window.native = {
@@ -261,8 +375,11 @@ window.native = {
   fs,
   project: {
     files: async (root, ignored) => projectFiles(root, ignored),
-    search: async (root, query, opts) => search(root, query, opts),
-    initial: async () => ({ project: PROJECT, restore: true, files: [] }),
+    search,
+    initial: async () => {
+      if (repoMode) await openRepo().catch(backToSample);
+      return { project: PROJECT, restore: true, files: [] };
+    },
   },
   dialog: {
     openFolder: async () => null,
@@ -310,8 +427,18 @@ window.native = {
     },
   },
   state: {
-    load: async () => { try { return JSON.parse(localStorage.getItem(STATE) || '{}'); } catch { return {}; } },
+    load: async () => {
+      let disk = {};
+      try { disk = JSON.parse(localStorage.getItem(STATE) || '{}'); } catch {}
+      // In a repo only the app-wide bits carry over; its sessions and recent projects stay in this tab.
+      return repoMode ? { ...(disk.welcomeShown && { welcomeShown: true }), ...repoState } : disk;
+    },
     save: async (incoming) => {
+      if (repoMode) {
+        Object.assign(repoState, incoming);
+        if (!incoming.welcomeShown) return;
+        incoming = { welcomeShown: true }; // the one thing worth keeping: you've seen the tips
+      }
       try {
         const disk = JSON.parse(localStorage.getItem(STATE) || '{}');
         localStorage.setItem(STATE, JSON.stringify({ ...disk, ...incoming, sessions: { ...disk.sessions, ...incoming.sessions } }));

@@ -60,7 +60,9 @@ export function bindKeyHints(app) {
   window.addEventListener('blur', hide);
   window.addEventListener('mousedown', hide, true);
   window.addEventListener('wheel', hide, { capture: true, passive: true });
-  return { hide, isShown: () => !!layer };
+  // Without holding anything: for the welcome card's "Try it". Goes away with the next key, click or scroll.
+  const show = () => { hide(); layer = render(app); timer = setTimeout(hide, 6000); };
+  return { hide, show, isShown: () => !!layer };
 }
 
 function render(app) {

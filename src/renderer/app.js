@@ -16,6 +16,7 @@ import { Navigation } from './core/navigation.js';
 import { editorContextMenu } from './core/editor-menu.js';
 import { bindKeyHints } from './core/key-hints.js';
 import { QuickOpen } from './core/quick-open.js';
+import { bindWelcomeTips } from './core/welcome-tips.js';
 import { userFileUrl } from './core/urls.js';
 
 // ui.accentColor overrides the theme's accent and everything derived from it.
@@ -83,6 +84,7 @@ class App {
     registerCoreCommands(this);
     this.bindMenuAccelerators();
     this.keyHints = bindKeyHints(this);
+    this.welcomeCard = bindWelcomeTips(this);
     await this.loadUserKeymap();
     await loadStylesheet(userFileUrl('styles.css'), 'user').then((el) => { el.id = 'user-styles'; this.userStylesEl = el; });
 
@@ -112,6 +114,7 @@ class App {
     await this.runInitScript();
     document.body.classList.add('ready');
     this.bindRestrictedModeItem();
+    if (!window.mideTest) this.welcomeCard.maybeShow(); // test runs would find a card in the way
     bindThemedAppIcon(this);
     this.renderAppIcon = renderAppIcon;
     // Daily update check (skipped in automated test runs).
