@@ -190,13 +190,16 @@ body:not(.platform-darwin) #titlebar { display: none; }
 .resizer-v::after { content: ''; position: absolute; inset: 0 -3px; }
 .resizer-h { height: 1px; background: transparent; cursor: row-resize; }
 .resizer-h::after { content: ''; position: absolute; inset: -3px 0; }
+.resizer-h.pane-resizer { background: var(--border); }
 .resizer:hover, .resizer:active { background: var(--accent); }
 body.resizing-h, body.resizing-h * { cursor: col-resize !important; }
 body.resizing-v, body.resizing-v * { cursor: row-resize !important; }
 body.resizing-h iframe, body.resizing-v iframe { pointer-events: none; }
 
 /* ------------------------------------------------------------------ panes & tabs */
-.pane { display: flex; flex-direction: column; min-width: 0; background: var(--bg); }
+.pane-split { display: flex; min-width: 0; min-height: 0; }
+.pane-split.col { flex-direction: column; }
+.pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg); }
 .pane-content { flex: 1; position: relative; min-height: 0; }
 .pane-item { position: absolute; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
 #panes.split .pane:not(.active) .tab.active { opacity: 0.7; }
@@ -281,6 +284,13 @@ body.compact-tabs { --tab-height: 30px; }
 .cm-gutters:hover .cm-fold-marker { opacity: 1; }
 .cm-editor .cm-foldPlaceholder { background: var(--bg-selected); border: 0; color: var(--fg-muted); padding: 0 6px; border-radius: 4px; margin: 0 2px; }
 .cm-editor .cm-matchingBracket { background: var(--bracket-match); color: inherit !important; border-radius: 2px; }
+/* Bracket pair colors (editor.bracketPairColors), one color per nesting level. */
+.cm-editor .cm-bracket-d0 { color: var(--c-blue); }
+.cm-editor .cm-bracket-d1 { color: var(--c-magenta); }
+.cm-editor .cm-bracket-d2 { color: var(--c-yellow); }
+.cm-editor .cm-bracket-d3 { color: var(--c-green); }
+.cm-editor .cm-bracket-d4 { color: var(--c-cyan); }
+.cm-editor .cm-bracket-d5 { color: var(--c-orange); }
 .cm-editor .cm-nonmatchingBracket { background: color-mix(in srgb, var(--error) 30%, transparent); }
 .cm-editor .cm-selectionMatch { background: var(--match); border-radius: 2px; }
 .cm-editor .cm-searchMatch { background: var(--match); outline: 1px solid var(--match-border); border-radius: 2px; }
@@ -425,6 +435,18 @@ body.compact-tabs { --tab-height: 30px; }
 .recent-name { color: var(--fg); }
 .recent-path { color: var(--fg-subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; }
 .welcome-hint { margin-top: 30px; text-align: center; color: var(--fg-subtle); font-size: 0.92em; }
+
+/* first-launch tips: a corner card, not a modal */
+.welcome-tips {
+  position: fixed; z-index: 90; right: 16px; top: calc(var(--titlebar-height) + 44px); width: 330px; padding: 10px 12px 12px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--bg-elevated); box-shadow: var(--shadow);
+  animation: rise 0.3s var(--ease);
+}
+.welcome-tips-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; color: var(--fg-strong); font-weight: 600; }
+.welcome-tip { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+.welcome-tip-num { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 0.85em; background: var(--bg-selected-focus); color: var(--accent); }
+.welcome-tip-text { flex: 1; min-width: 0; color: var(--fg); }
+.welcome-tips-foot { display: flex; justify-content: flex-end; margin-top: 8px; }
 
 /* ------------------------------------------------------------------ select lists & modals */
 #overlay-root { position: fixed; inset: 0; pointer-events: none; z-index: 100; }
