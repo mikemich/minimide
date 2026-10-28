@@ -211,9 +211,9 @@ const SUITES = [
       // Markdown preview: scrolling either side moves the other, matched by source line.
       'md.previewHasLines': true, 'md.editorToPreview': true, 'md.previewToEditor': true, 'md.stable': true, 'md.clickMovesCursor': true, 'md.offStaysPut': true,
       totalErrors: 0,
-      }),
-    },
-    {
+    }),
+  },
+  {
     name: 'codeImage', home: 'cih', project: 'cimproj', timeout: 90,
     expect: () => ({
       'copy.lines': 4, 'copy.truncated': false, 'copy.onClipboard': true, 'copy.toast': true, 'copy.sizeOk': true,
@@ -233,6 +233,16 @@ const SUITES = [
       'spellMenu.top': ['Replace with "the"', 'Replace with "tech"', 'Replace with "ten"', 'Replace with "tea"', 'Replace with "tee"', 'Add to Dictionary', '|'],
       'spellMenu.hasDictionary': true, 'spellMenu.hasCopyImage': true, 'spellMenu.asked': 'teh',
       'spellMenu.replaced': 'tech quick brown fox', 'spellMenu.codeFilesNotChecked': true,
+    }),
+  },
+  {
+    name: 'welcome', home: 'welh', project: 'qa', timeout: 60,
+    expect: () => ({
+      notAtTestLaunch: true, shown: 1, flagSet: true, holdKey: true, notAModal: true, savedToDisk: true,
+      steps: (s) => Array.isArray(s) && s.length === 3 && s[1] === '… finds anything (type > for commands)' && s[2] === 'Right-click code for more',
+      hintsShown: true, hintsHidden: true, boxOpen: true,
+      noEditorBefore: true, editorOpened: 'README.md', menu: (m) => Array.isArray(m) && m.includes('Command Palette…') && m.includes('copy'),
+      closed: true, notAgain: true, notAfterReload: true, commandShows: 1, inPalette: true, closeButton: true,
     }),
   },
   {

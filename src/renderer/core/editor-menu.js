@@ -22,7 +22,7 @@ export function editorContextMenu(app) {
         view.dispatch({ selection: { anchor: pos } });
       }
       view.focus();
-      show(app, view, pos);
+      showEditorMenu(app, view, pos);
       return true;
     },
   });
@@ -42,7 +42,8 @@ async function misspelling(app, view, pos) {
   return null;
 }
 
-async function show(app, view, pos) {
+/** The menu for the focused editor; pos is where it was right-clicked, if it was. */
+export async function showEditorMenu(app, view = null, pos = null) {
   const items = [];
   const bad = await misspelling(app, view, pos);
   if (bad) {

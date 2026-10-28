@@ -19,6 +19,8 @@ you can change while it runs.
 
 *Hold ⌘ to see every shortcut, peek at a definition, jump there and back. **[Try it in your browser →](https://mikemich.github.io/minimide/try/)***
 
+The browser demo can open any public GitHub repo, with edits kept in the tab: `https://mikemich.github.io/minimide/try/?repo=owner/name` (add `&ref=branch-or-tag` or `&path=src/file.js` to pick a version or a file to open). Or run **Open a GitHub Repo…** from the command box.
+
 </div>
 
 Minimide's core is about 5,000 lines of plain JavaScript, and the whole editor, all 42
@@ -119,7 +121,7 @@ That's the whole loop. The full API is in [docs/PLUGINS.md](docs/PLUGINS.md).
 
 ## Everyday keys
 
-Forgot one? Hold `⌘` for a moment and every shortcut on screen gets a label: tabs, sidebar, status bar, and what you can do at the cursor. `⌘K ⌘H` opens a one-page cheat sheet, and right-clicking in the editor shows the code actions with their keys.
+Forgot one? Hold `⌘` for a moment and every shortcut on screen gets a label: tabs, sidebar, status bar, and what you can do at the cursor. `⌘K ⌘H` opens a one-page cheat sheet, and right-clicking in the editor shows the code actions with their keys. The first time you start Minimide, a small card shows these three tricks with a "Try it" button each; **Show Welcome Tips** in the command box brings it back.
 
 | Key | Action |
 | --- | --- |
