@@ -130,7 +130,8 @@ Forgot one? Hold `⌘` for a moment and every shortcut on screen gets a label: t
 | `⌘F` / `⌘D` / `⌘⇧L` | Find in file / add next match / select all matches |
 | `⌘B` | Toggle sidebar |
 | ``Ctrl-` `` | Toggle terminal (``Ctrl-⇧-` `` for a new one) |
-| `F5` / `⌘⇧R` | Run the current file (`⇧F5` stops, `⌘⌥R` runs it again) |
+| `⌘⇧5` | Split the terminal (up to four side by side) |
+| `F5` / `⌘⇧R` | Run the current file in its own task tab (`⇧F5` stops, `⌘⌥R` runs it again) |
 | `⌘⇧B` | Run a task: npm scripts, Makefile targets, Cargo, Go, or any command |
 | `⌘⇧↩` | Send the selection (or current line) to the terminal |
 | `⌘\` / `⌘K ⌘\` | Split right / down (drag the dividers to resize) |
@@ -168,8 +169,8 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `lsp` | Language servers: completions (with auto-import), diagnostics, hover with go-to links, signature help, go to / peek definition, references, rename, quick fixes with a 💡, formatting, file and project symbols, Problems panel |
 | `git` | Branch switcher, tree status, change markers in the editor gutter |
 | `source-control` | Git panel (`⌃⇧G`): stage, unstage, discard, commit, amend, push, pull, and side-by-side or inline diffs |
-| `terminal` | A real terminal (xterm.js + node-pty) in tabs; click `file:line` in output to jump there |
-| `runner` | Run the current file with `F5` (Python, JS/TS, Go, Rust, C/C++, Java, Ruby, shell and more) or a project task with `⌘⇧B` |
+| `terminal` | A real terminal (xterm.js + node-pty) in tabs, with side-by-side splits; click `file:line` in output to jump there |
+| `runner` | Run the current file with `F5` (Python, JS/TS, Go, Rust, C/C++, Java, Ruby, shell and more) or a project task with `⌘⇧B`; each task gets its own terminal tab and long ones notify you when they finish out of sight (`runner.notifyAfter`) |
 | `markdown-preview` | Live, sanitized preview in a split pane that scrolls with the editor (and the other way round). In the editor itself, pasting an image into a Markdown file saves it to `images/` and inserts the link, and Markdown and plain text get spell check with suggestions in the right-click menu (turn it off with `editor.spellcheck`) |
 | `settings-view` | Settings, themes, packages and keybindings, generated from schemas |
 | `status-bar` | Cursor, selection, language, indentation, line endings, and word count with reading time for Markdown and text files |

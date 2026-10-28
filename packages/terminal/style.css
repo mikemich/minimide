@@ -12,12 +12,24 @@
 .term-tab-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fg-subtle); flex: none; }
 .term-tab.running .term-tab-dot { background: var(--success); }
 .term-tab.failed .term-tab-dot { background: var(--error); }
+.term-tab-status { flex: none; font-size: 0.85em; }
+.term-tab-status.ok { color: var(--success); }
+.term-tab-status.fail { color: var(--error); }
 .term-tab-close { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--fg-subtle); opacity: 0; }
 .term-tab:hover .term-tab-close, .term-tab.active .term-tab-close { opacity: 1; }
 .term-tab-close:hover { background: var(--bg-selected); color: var(--fg); }
 .term-actions { display: flex; gap: 2px; }
 .term-body { flex: 1; position: relative; min-height: 0; }
-.term-instance { position: absolute; inset: 6px 4px 2px 12px; }
+.term-group { position: absolute; inset: 0; display: flex; }
+.term-group[hidden] { display: none; }
+.term-instance { position: relative; flex: 1 1 0; min-width: 0; margin: 6px 4px 2px 12px; }
+.term-divider { flex: none; width: 1px; background: var(--border); cursor: col-resize; position: relative; z-index: 2; }
+.term-divider::after { content: ''; position: absolute; inset: 0 -3px; }
+.term-divider:hover, .term-divider:active { background: var(--accent); }
+.term-split-close { display: none; position: absolute; top: 0; right: 0; z-index: 3; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 4px; background: var(--bg-sidebar); color: var(--fg-subtle); }
+.term-split-close:hover { background: var(--bg-selected); color: var(--fg); }
+.term-group.split .term-instance:hover .term-split-close { display: inline-flex; }
+.term-group.split .term-instance.focused::before { content: ''; position: absolute; top: -6px; left: -12px; right: -4px; height: 2px; background: var(--accent); }
 .term-instance .xterm { height: 100%; }
 .term-instance .xterm-viewport { background: transparent !important; }
 .term-instance .xterm-viewport::-webkit-scrollbar-thumb { background: transparent; }

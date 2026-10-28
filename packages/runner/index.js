@@ -1,5 +1,6 @@
 // Code Runner: F5 runs the current file, ⌘⇧B runs a project task. Output goes to
-// the integrated terminal (via the "terminal" service), so programs can read input.
+// the integrated terminal (via the "terminal" service), so programs can read input. Each task
+// gets its own "Task: <name>" tab, reused when the same task runs again.
 
 // {file} etc. are replaced with shell-quoted paths. {out} is a temp path for compiled binaries.
 const DEFAULT_COMMANDS = {
@@ -23,7 +24,9 @@ const DEFAULT_COMMANDS = {
 const quote = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
 
 export function activate(mide) {
-  let last = null; // { command, cwd, title }
+  let last = null;          // { command, cwd, title }
+  let recent = null;        // key of the task tab that ran last
+  const fileKeys = new Map(); // file path -> its task tab, so each file's ▶ / ■ is its own
 
   const terminal = () => {
     const svc = mide.services.get('terminal');
@@ -90,14 +93,32 @@ export function activate(mide) {
         actions: [{ label: 'Open config.json', run: () => mide.commands.run('settings:open-config-file') }],
       });
     }
-    run(spec);
+    run({ ...spec, file: path });
   }
 
-  function run(spec) {
+  async function run(spec) {
     const t = terminal();
     if (!t) return;
+    const key = `task:${spec.title}`;
+    if (t.isRunning(key)) {
+      const choice = await mide.ui.confirm({ message: `“${spec.title}” is still running.`, detail: 'Restart it?', buttons: ['Restart', 'Cancel'] });
+      if (choice !== 0) return;
+    }
     last = spec;
-    t.run(spec.command, { cwd: spec.cwd, title: spec.title, key: 'run', onExit: () => mide.workspace.refreshPaneActions?.() });
+    recent = key;
+    if (spec.file) fileKeys.set(spec.file, key);
+    t.run(spec.command, {
+      cwd: spec.cwd, title: `Task: ${spec.title}`, key,
+      onExit: (code, signal, secs) => {
+        mide.workspace.refreshPaneActions?.();
+        // A long task that finishes while you're looking elsewhere is easy to miss.
+        if (secs < mide.config.get('runner.notifyAfter') || t.isVisible(key)) return;
+        const ok = code === 0 && !signal;
+        mide.notify[ok ? 'success' : 'error'](`${spec.title} ${ok ? 'finished' : 'failed'}`, ok ? `Took ${Math.round(secs)}s.` : `${signal ? 'Stopped' : `Exit code ${code}`} after ${Math.round(secs)}s.`, {
+          actions: [{ label: 'Show', run: () => t.show(key) }],
+        });
+      },
+    });
     refreshButtons();
   }
 
@@ -166,23 +187,26 @@ export function activate(mide) {
     const user = mide.config.get('runner.commands') || {};
     return !!(user[ext] || DEFAULT_COMMANDS[ext] || ['html', 'htm', 'md', 'markdown'].includes(ext) || item.document?.initialText?.startsWith('#!'));
   };
-  const isRunning = () => {
-    return !!mide.services.get('terminal')?.isRunning('run');
-  };
+  const fileKey = (item) => fileKeys.get(item?.getPath?.());
+  const isRunning = (item) => { const k = fileKey(item); return !!k && !!mide.services.get('terminal')?.isRunning(k); };
   function refreshButtons() { setTimeout(() => mide.workspace.refreshPaneActions?.(), 30); }
 
   mide.workspace.addPaneAction({
     id: 'runner.run',
-    icon: () => (isRunning() ? 'stop' : 'play'),
-    title: () => (isRunning() ? 'Stop (Shift-F5)' : 'Run File (F5)'),
+    icon: (item) => (isRunning(item) ? 'stop' : 'play'),
+    title: (item) => (isRunning(item) ? 'Stop (Shift-F5)' : 'Run File (F5)'),
     className: 'runner-action',
-    command: () => (isRunning() ? 'runner:stop' : 'runner:run-file'),
+    command: (item) => (isRunning(item) ? 'runner:stop' : 'runner:run-file'),
     when: (item) => runnable(item),
-    run: () => (isRunning() ? stop() : runFile()),
+    run: (item) => (isRunning(item) ? stop(fileKey(item)) : runFile()),
   });
 
-  function stop() {
-    const stopped = !!mide.services.get('terminal')?.stop('run');
+  /** Stop the task in the focused task tab, else the one that ran last. */
+  function stop(key) {
+    const t = mide.services.get('terminal');
+    const focused = t?.activeKey();
+    key ||= focused?.startsWith('task:') && t.isRunning(focused) ? focused : recent;
+    const stopped = !!(key && t?.stop(key));
     if (!stopped) mide.notify.info('Nothing is running.');
     refreshButtons();
   }

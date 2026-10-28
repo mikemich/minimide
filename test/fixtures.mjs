@@ -124,7 +124,7 @@ function rproj(root) {
   write(path.join(d, 'hello.py'), 'name = input("What\'s your name? ")\nprint(f"Hello, {name}! 2+2={2+2}")\n');
   write(path.join(d, 'calc.c'), '#include <stdio.h>\nint main(void) { printf("C says %d\\n", 6 * 7); return 0; }\n');
   write(path.join(d, 'loop.py'), 'import time\nwhile True:\n    time.sleep(0.2)\n');
-  write(path.join(d, 'package.json'), '{ "name": "demo", "scripts": { "greet": "echo task-ran-ok" } }\n');
+  write(path.join(d, 'package.json'), '{ "name": "demo", "scripts": { "greet": "echo task-ran-ok", "slow": "echo beginning-$$ && sleep 4", "boom": "echo boom && exit 3" } }\n');
 }
 
 /** `sbx`: a project, a secret folder beside it (linked from inside it) and three packages to install. */

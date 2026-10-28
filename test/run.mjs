@@ -260,6 +260,20 @@ const SUITES = [
       stopWorks: true, shell: 'shell-42', ctrlBPassedThrough: true, escapeKeptPanel: true, cmdPStillWorks: true,
     }),
   },
+  {
+    name: 'terminalSplits', home: 'termh', project: 'rproj', timeout: 150, requires: ['python3'],
+    expect: () => ({
+      splitMade: true, oneTab: true, focusMovesToNewSplit: true,
+      outputA: true, outputB: true, outputsSeparate: true,
+      nextWorks: true, prevWorks: true, wrapWorks: true,
+      fitted: true, fittedAfterResize: true, dividerDragWorks: true, fittedAfterDrag: true,
+      closeKeepsOther: true, otherStillLive: true, exitRemovesSplit: true, maxFour: true, tabsAfterSplits: 1,
+      taskTabs: ['Task: npm run greet', 'Task: npm run slow'], taskReused: true, taskCleared: true,
+      okMarker: true, failMarker: '✗ 3', cancelKeepsRunning: true, restartRestarts: true,
+      notifiedWhenHidden: true, showButtonWorks: true, quietWhenVisible: true,
+      stopTargetsRecentTask: true, stoppedMarker: true, runFileTab: 'Task: loop.py',
+    }),
+  },
 ];
 
 // ---------------------------------------------------------------------------
