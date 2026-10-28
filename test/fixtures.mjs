@@ -172,6 +172,21 @@ function chproj(root) {
   write(path.join(d, 'notes.txt'), 'one\ntwo\nthree\n');
 }
 
+/** `aiproj`: a small JavaScript project for the AI package (ai). */
+function aiproj(root) {
+  const d = path.join(root, 'aiproj');
+  write(path.join(d, 'src/calc.js'), [
+    'export function add(a, b) {',
+    '  ',
+    '}',
+    'const items = [1, 2, 3];',
+    'let total = 0;',
+    'for (const x of items) total += x;',
+    'console.log(total);',
+    '',
+  ].join('\n'));
+}
+
 /** `ftproj`: one small file per extra file type, plus a shell script for completion. */
 function ftproj(root) {
   const d = path.join(root, 'ftproj');
@@ -204,8 +219,9 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   evilrepo(root);
   ftproj(root);
   chproj(root);
+  aiproj(root);
   large(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'aih']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 

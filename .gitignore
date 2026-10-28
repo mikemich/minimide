@@ -4,3 +4,4 @@ packages/markdown-preview/vendor/
 packages/terminal/vendor/
 .DS_Store
 release/
+.tmp/

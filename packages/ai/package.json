@@ -1,0 +1,23 @@
+{
+  "name": "ai",
+  "displayName": "AI",
+  "description": "Chat about your code, edit a selection with a side-by-side preview, fix the problem on a line, explain code and get suggestions at the cursor, with Claude (your own API key) or a local Ollama model. Nothing is sent until you ask.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"],
+  "keymap": {
+    "Mod-i": "ai:chat",
+    "Mod-k Mod-i": "ai:edit-selection",
+    "Alt-\\": "ai:suggest"
+  },
+  "configSchema": {
+    "provider": { "type": "string", "default": "anthropic", "enum": ["anthropic", "ollama"], "title": "Provider", "description": "Claude through Anthropic's API (needs an API key), or a model running on this computer with Ollama, which keeps your code on your machine." },
+    "model": { "type": "string", "default": "claude-opus-5-5", "title": "Claude Model", "description": "claude-opus-5-5 is the most capable; claude-sonnet-5-5 is faster and cheaper; claude-haiku-5-5 is the fastest and cheapest." },
+    "effort": { "type": "string", "default": "medium", "enum": ["low", "medium", "high", "xhigh", "max"], "title": "Effort", "description": "How much Claude thinks before answering in chat and edits. Higher is slower and costs more." },
+    "suggestEffort": { "type": "string", "default": "low", "enum": ["low", "medium", "high", "xhigh", "max"], "title": "Suggestion Effort", "description": "Effort for suggestions at the cursor, which should come back quickly." },
+    "suggestAsYouType": { "type": "boolean", "default": false, "title": "Suggest as You Type", "description": "Ask for a suggestion whenever you pause typing. Each pause sends a request, which costs money with Claude. Alt-\\ asks on demand either way." },
+    "sendFileContext": { "type": "boolean", "default": true, "title": "Send the Open File", "description": "Send the rest of the open file with questions, so answers fit your code. Edits always send the code around the selection." },
+    "ollamaUrl": { "type": "string", "default": "http://127.0.0.1:11434", "title": "Ollama Address", "description": "Where Ollama runs. Only this computer is allowed." },
+    "ollamaModel": { "type": "string", "default": "qwen2.5-coder", "title": "Ollama Model", "description": "A model you've pulled with `ollama pull`." }
+  }
+}

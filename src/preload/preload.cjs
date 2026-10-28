@@ -83,6 +83,14 @@ contextBridge.exposeInMainWorld('native', {
     onExit: (fn) => on('term:exit', fn),
   },
   user: { info: call('user:info') },
+  ai: {
+    status: call('ai:status'),
+    setKey: call('ai:set-key'),
+    clearKey: call('ai:clear-key'),
+    start: call('ai:start'),
+    cancel: call('ai:cancel'),
+    onEvent: (fn) => on('ai:event', fn),
+  },
   packages: { list: call('packages:list') },
   state: { load: call('state:load'), save: call('state:save') },
   window: {

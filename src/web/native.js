@@ -11,7 +11,7 @@ const USER_DIR = `${HOME}/.minimide`;
 const STORE = 'minimide-demo-fs-v1';
 const STATE = 'minimide-demo-state-v1';
 // Need a desktop: language servers, terminals, running code and git.
-const LEFT_OUT = new Set(['lsp', 'terminal', 'runner', 'git', 'git-blame', 'source-control']);
+const LEFT_OUT = new Set(['lsp', 'terminal', 'runner', 'git', 'git-blame', 'source-control', 'ai']);
 const DESKTOP_ONLY = 'This needs the desktop app. Download Minimide from GitHub to use it.';
 
 // --- in-memory file system ----------------------------------------------------
@@ -295,6 +295,7 @@ window.native = {
     spawn: desktopOnly, write: async () => {}, kill: async () => {}, spawnRpc: desktopOnly, send: async () => {},
     onMessage: noop, onData: noop, onExit: noop,
   },
+  ai: { status: async () => ({ savedKey: false, environmentKey: false }), setKey: desktopOnly, clearKey: async () => {}, start: desktopOnly, cancel: async () => {}, onEvent: noop },
   term: { available: async () => false, create: desktopOnly, write: async () => {}, resize: async () => {}, kill: async () => {}, onData: noop, onExit: noop },
   user: {
     info: async () => ({

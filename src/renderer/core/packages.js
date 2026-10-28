@@ -14,6 +14,7 @@ import { h, icon, fileIcon, registerIcon, basename, dirname } from './dom.js';
 import { fuzzyFilter, fuzzyMatch, highlightMatches } from './fuzzy.js';
 import { registerLanguage, detectLanguage, createPreviewView } from './editor.js';
 import { packageUrl } from './urls.js';
+import { aiClient } from './ai-client.js';
 import { prettyBinding } from './keymap.js';
 import { convertSnippet } from './snippet.js';
 import { SandboxedPackage, loadSandboxedStyles } from './sandbox.js';
@@ -452,6 +453,8 @@ export class PackageManager extends Emitter {
         reveal: (p) => window.native.shell.reveal(p),
         openPath: (p) => window.native.shell.openPath(p),
       },
+      /** AI requests run by the main process, which keeps the API key. See src/renderer/core/ai-client.js. */
+      ai: aiClient,
       clipboard: window.native.clipboard,
       path: { basename, dirname, join: (...p) => p.join('/').replace(/\/+/g, '/') },
       user: app.userInfo,

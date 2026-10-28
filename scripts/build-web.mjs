@@ -8,7 +8,7 @@ import path from 'node:path';
 const out = 'docs/try';
 const { version } = JSON.parse(await fs.readFile('package.json', 'utf8'));
 // Need a desktop (see LEFT_OUT in src/web/native.js); not shipped to the browser at all.
-const LEFT_OUT = new Set(['lsp', 'terminal', 'runner', 'git', 'git-blame', 'source-control']);
+const LEFT_OUT = new Set(['lsp', 'terminal', 'runner', 'git', 'git-blame', 'source-control', 'ai']);
 
 await fs.rm(out, { recursive: true, force: true });
 await fs.mkdir(out, { recursive: true });

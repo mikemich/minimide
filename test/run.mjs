@@ -16,6 +16,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { createFixtures } from './fixtures.mjs';
+import { startFakeAnthropic } from './fake-anthropic.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SUITES_DIR = path.join(REPO, 'test/suites');
@@ -181,6 +182,28 @@ const SUITES = [
     }),
   },
   {
+    // The AI package against a fake Anthropic API (test/fake-anthropic.mjs): nothing leaves the machine.
+    name: 'ai', home: 'aih', project: 'aiproj', timeout: 300,
+    server: (fixtures) => startFakeAnthropic(path.join(fixtures, 'aih')),
+    expect: () => ({
+      'status.environmentKey': true, badKeyRejected: /sk-ant-/,
+      'chat.answer': 'console.log("hi");', 'chat.meta': /^claude-opus-5-5 · 1\.2k in \(800 cached\) · 42 out$/,
+      'chat.request': { model: 'claude-opus-5-5', stream: true, max_tokens: 64000, effort: 'medium', fallbacks: 'default', cache: 'ephemeral', apiKey: 'test-key', fallbackBeta: true, systemOk: true, hasContext: true, hasFile: true },
+      'chat.second': { messages: 3, thinkingPassedBack: 'sig-test-123', fileUnchangedNote: true },
+      inserted: true,
+      'edit.applied': 'const total = items.reduce((sum, x) => sum + x, 0);', 'edit.selectionMarked': true, 'edit.rejectedUnchanged': true,
+      'fix.noProblem': true,
+      'suggest.ghost': 'return a + b;', 'suggest.accepted': true, 'suggest.request': { max_tokens: 4096, effort: 'low' },
+      refusal: /declined in the test/,
+      'stop.stopped': true, 'stop.historyKept': true,
+      'noFile.sentFile': false,
+      'haiku.fallbacks': 'absent',
+      missingModel: /model wasn't found/,
+      'ollama.answer': 'Local model answer.', 'ollama.remoteRejected': /this machine/,
+      noKeyInState: true,
+    }),
+  },
+  {
     name: 'largeProject', home: 'largeh', project: 'large', timeout: 180,
     expect: () => ({
       fileCount: 55000, nodeModulesIgnored: true, searchMatches: 1100, searchError: null,
@@ -270,7 +293,7 @@ function killTree(child) {
 // ---------------------------------------------------------------------------
 // Running a suite
 
-function runSuite(suite, { electron, fixtures }) {
+function runSuite(suite, { electron, fixtures, env: extraEnv = {} }) {
   const script = path.join(SUITES_DIR, `${suite.name}.js`);
   const log = path.join(OUTPUT, `${suite.name}.log`);
   const png = path.join(OUTPUT, `${suite.name}.png`);
@@ -289,6 +312,7 @@ function runSuite(suite, { electron, fixtures }) {
     MINIMIDE_WINDOW: '1440x900',
     // Suites trust every folder unless they test workspace trust itself.
     ...(suite.trust === false ? {} : { MINIMIDE_TRUST_ALL: '1' }),
+    ...extraEnv,
   };
   delete env.ELECTRON_RUN_AS_NODE;
   delete env.MINIMIDE_FRAMES;
@@ -393,7 +417,10 @@ async function main() {
       continue;
     }
     process.stdout.write(`run   ${suite.name}… `);
-    const r = await runSuite(suite, { electron, fixtures });
+    // A suite may need a stand-in server (e.g. the AI API); its settings reach the app as env vars.
+    const server = suite.server ? await suite.server(fixtures) : null;
+    const r = await runSuite(suite, { electron, fixtures, env: server?.env });
+    await server?.close();
     rows.push({ suite, ...r });
     console.log(`${r.status} (${r.seconds.toFixed(1)}s)`);
     for (const f of r.failures) console.log(`        ✗ ${f}`);
