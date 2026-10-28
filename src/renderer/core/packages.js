@@ -341,6 +341,7 @@ export class PackageManager extends Emitter {
         renamePath: (from, to) => ws.renamePath(from, to),
         refreshPaneActions: () => ws.refreshPaneActions(),
         splitRight: (opts = {}) => ws.splitRight(ws.activePane, opts.empty ? null : ws.activePane.active),
+        splitDown: (opts = {}) => ws.splitDown(ws.activePane, opts.empty ? null : ws.activePane.active),
         addOpener: (fn) => track(ws.addOpener(fn)),
         onWillSave: (fn) => track(ws.onWillSave(fn)),
         onDidSave: (fn) => track(ws.on('did-save', fn)),
