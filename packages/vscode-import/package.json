@@ -1,0 +1,8 @@
+{
+  "name": "vscode-import",
+  "displayName": "Import from VS Code",
+  "description": "Bring over your VS Code settings, keybindings, snippets and color theme, after a preview.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"]
+}

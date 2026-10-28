@@ -14,7 +14,9 @@ import { h, icon, fileIcon, registerIcon, basename, dirname } from './dom.js';
 import { fuzzyFilter, fuzzyMatch, highlightMatches } from './fuzzy.js';
 import { registerLanguage, detectLanguage, createPreviewView } from './editor.js';
 import { packageUrl } from './urls.js';
-import { prettyBinding } from './keymap.js';
+import { prettyBinding, normalizeBinding } from './keymap.js';
+import { parseJSONC } from './config.js';
+import { convertTheme } from './vscode-theme.js';
 import { convertSnippet } from './snippet.js';
 import { SandboxedPackage, loadSandboxedStyles } from './sandbox.js';
 
@@ -310,6 +312,8 @@ export class PackageManager extends Emitter {
         add: (bindings) => track(app.keymap.add(bindings, name)),
         bindingsFor: (id) => app.keymap.bindingsFor(id),
         pretty: prettyBinding,
+        /** "mod-shift-P" -> the canonical "Shift-Cmd-p" form the keymap uses. */
+        normalize: normalizeBinding,
         onDidChangePending: (fn) => track(app.keymap.on('pending', fn)),
         allowInPassthrough: (...ids) => track(app.keymap.allowInPassthrough(...ids)),
         list: () => [...app.keymap.resolved()].map(([binding, command]) => ({ binding, command })),
@@ -318,6 +322,8 @@ export class PackageManager extends Emitter {
       config: {
         register: (schema) => track(app.config.register(prefixSchema(schema, name), name)),
         get: (key, fallback) => app.config.get(key, fallback),
+        /** Parse JSON with comments and trailing commas (what config.json and keymap.json allow). */
+        parseJSONC,
         set: (key, value) => app.config.set(key, value),
         observe: (key, fn) => track(app.config.observe(key, fn)),
         onDidChange: (key, fn) => track(app.config.onDidChange(key, fn)),
@@ -453,6 +459,24 @@ export class PackageManager extends Emitter {
         openPath: (p) => window.native.shell.openPath(p),
       },
       clipboard: window.native.clipboard,
+      /** Read-only access to the user folder of VS Code (and Cursor, VSCodium, Insiders). Desktop app only. */
+      vscode: {
+        scan: () => window.native.vscode.scan(),
+        read: (id) => window.native.vscode.read(id),
+        theme: (id, name) => window.native.vscode.theme(id, name),
+        /** A VS Code theme (parsed JSON) -> { slug, packageJson, themeCss } with faint text made readable. */
+        convertTheme: (theme) => convertTheme(theme, { readable: true }),
+      },
+      /** Settings sync through a private GitHub gist. The token stays in the main process. Desktop app only. */
+      sync: {
+        status: () => window.native.gist.status(),
+        setToken: (token) => window.native.secrets.set('github-gist-token', token),
+        cliAvailable: () => window.native.gist.cliAvailable(),
+        useGitHubCli: () => window.native.gist.cliLogin(),
+        upload: (files) => window.native.gist.upload(files),
+        download: () => window.native.gist.download(),
+        signOut: () => window.native.gist.forget(),
+      },
       path: { basename, dirname, join: (...p) => p.join('/').replace(/\/+/g, '/') },
       user: app.userInfo,
     };

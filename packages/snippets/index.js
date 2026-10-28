@@ -167,6 +167,7 @@ export function activate(mide) {
         });
       },
     },
+    'snippets:reload': { title: 'Reload Snippets', hidden: true, run: load },
     'snippets:open-user-snippets': {
       title: 'Open Your Snippets',
       run: async () => {

@@ -175,6 +175,8 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `image-viewer` | Opens PNG, JPG, GIF, WebP, SVG and more in a tab with zoom (`⌘+` / `⌘-` / pinch) |
 | `sticky-scroll` | Pins the headers of the function, class or block you're in to the top of the editor |
 | `snippets` | 170+ built-in snippets in 25 languages, offered as you type or expanded with Tab, plus your own in VS Code format. Autocomplete also suggests words already in the file |
+| `vscode-import` | **Import Settings from VS Code…** brings over your settings, keybindings, snippets and color theme from VS Code, Cursor, VSCodium or VS Code Insiders, after a preview with a checkbox for each thing |
+| `settings-sync` | **Sync: Upload / Download Settings** keeps your config, keymap, styles, init script and snippets the same on every computer, in a private GitHub gist |
 | `color-preview` | Inline swatches for `#hex`, `rgb()` and `hsl()`; click a hex swatch to pick a new color |
 | `git-blame` | Who changed the current line, and when, shown at its end (like GitLens) |
 | `todos` | Highlights TODO / FIXME / HACK / NOTE in comments, plus a sidebar listing them all (`⌘K ⌘T`) |
@@ -237,6 +239,32 @@ Everything personal lives in `~/.minimide/`:
 | `snippets.json` | Your snippets in VS Code's format. Or drop VS Code snippet files into `snippets/`. |
 | `packages/` | Your packages. **Packages: Create New Package…** scaffolds one. |
 | `installed.json` | Packages you installed, and the permissions you gave them. |
+
+### Coming from VS Code
+
+Run **Import Settings from VS Code…** (or press the button on the Settings page). Minimide finds
+the user folder of VS Code, VS Code Insiders, Cursor or VSCodium and shows a preview: one
+checkbox for each setting, for the color theme, for each keybinding and for each snippet file.
+Nothing changes until you press **Import**.
+
+- **Settings** with a Minimide equivalent (font, tab size, word wrap, auto save, minimap, sticky scroll, …) are written to `config.json`. The ones without are listed under "Not imported".
+- **Color theme**: a built-in theme is chosen when one is close (Dark+ becomes Nightfall); otherwise the theme from your installed extensions is converted into a new package, with faint text made easier to read.
+- **Keybindings** are added to the end of `keymap.json` in a marked block, so your own lines and comments stay. Commands with no equivalent are skipped, and a key you already bind yourself is left unticked.
+- **Snippets** are copied into `snippets/`. A file that would replace one of yours is saved beside it as `<name>.vscode.code-snippets`.
+
+Minimide only reads `settings.json`, `keybindings.json`, `snippets/` and the theme files that
+installed extensions declare. It never writes to VS Code's folder.
+
+### Sync your settings
+
+**Sync: Set Up…** connects Minimide to a private GitHub gist in your own account. If the GitHub
+CLI (`gh`) is logged in it offers to use that; otherwise paste a token that has only the `gist`
+scope. The token is kept encrypted by your operating system and handled by the main process,
+so packages and the page never see it, and it is never written to `config.json` or `state.json`.
+
+- **Sync: Upload Settings** sends `config.json`, `keymap.json`, `styles.css`, `init.js`, `snippets.json`, your `snippets/` files and the list of GitHub packages you installed. The gist is private, but anyone with its link can read it, so keep secrets out of these files.
+- **Sync: Download Settings** opens a preview with a diff for each file that differs and a checkbox to keep or skip it. Nothing changes until you press **Apply**, files that are replaced are first copied to `~/.minimide/backups/<time>/`, and `init.js` is never ticked for you because it is code. Packages you don't have yet are listed, and you install them one by one through the usual dialog.
+- **Sync: Sign Out** forgets the token on this computer. The gist stays on GitHub.
 
 ### Sharing packages
 

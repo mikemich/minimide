@@ -48,6 +48,18 @@ contextBridge.exposeInMainWorld('native', {
     permissions: call('pkgmgr:permissions'),
   },
   net: { fetch: call('net:fetch') },
+  // Import from VS Code: read-only, limited to its settings and color themes.
+  vscode: { scan: call('vscode:scan'), read: call('vscode:read'), theme: call('vscode:theme') },
+  // Secrets can be stored and deleted but never read back; the gist calls use the token in the main process.
+  secrets: { set: call('secrets:set'), has: call('secrets:has'), delete: call('secrets:delete') },
+  gist: {
+    status: call('gist:status'),
+    cliAvailable: call('gist:cliAvailable'),
+    cliLogin: call('gist:cliLogin'),
+    upload: call('gist:upload'),
+    download: call('gist:download'),
+    forget: call('gist:forget'),
+  },
   trust: { list: call('trust:list'), add: call('trust:add'), remove: call('trust:remove'), onChange: (fn) => on('trust:changed', fn) },
   updates: {
     check: call('update:check'),

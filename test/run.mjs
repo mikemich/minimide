@@ -16,6 +16,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { createFixtures } from './fixtures.mjs';
+import { gistServer, vscodeEnv } from './servers.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SUITES_DIR = path.join(REPO, 'test/suites');
@@ -188,6 +189,88 @@ const SUITES = [
     }),
   },
   {
+    name: 'vscodeImport', home: 'vsih', project: null, timeout: 90,
+    server: (fixtures) => vscodeEnv(fixtures)(),
+    expect: () => ({
+      opened: true,
+      sections: ['Settings (7)', 'Color theme (1)', 'Keybindings (3)', 'Snippets (3)'],
+      clashUnticked: true, otherTicked: true,
+      themeDetail: /Convert it into a new theme called "Fixture Night", with faint text made easier to read/,
+      snippetDetails: (l) => Array.isArray(l) && l.length === 3 && l[0] === 'global.code-snippets|1 snippet' && l[1].startsWith('javascript.json|2 snippets · saved as snippets/javascript.vscode.code-snippets') && l[2] === 'python.json|1 snippet',
+      notImported: /3 settings with no Minimide equivalent: editor\.lineHeight, terminal\.integrated\.fontSize, workbench\.iconTheme .*someExtension\.doThing: no matching command .*has arguments/,
+      skippedSummary: 'Not imported (3)',
+      // Nothing changes until Import is pressed.
+      'untouchedBefore.fontSize': true, 'untouchedBefore.keymap': true, 'untouchedBefore.noThemePackage': true, 'untouchedBefore.snippetsUntouched': true, 'untouchedBefore.stickyScrollOn': true,
+      importButton: 'Import 12 items',
+      'config.fontSize': 17, 'config.tabSize': 3, 'config.softTabs': false, 'config.fontFamily': '"Fira Code", Menlo, monospace', wordWrapSkipped: true, stickyScrollDisabled: true,
+      'theme.installed': true, 'theme.selected': 'vscode-fixture-night',
+      'themeCss.hasBackground': true, 'themeCss.hasIncludedSidebar': true, 'themeCss.readable': true,
+      'keymap.keepsComments': true, 'keymap.keepsOwnKey': true, 'keymap.hasBlock': true, 'keymap.added': true, 'keymap.removedDefault': true, 'keymap.noUnknown': true,
+      keymapLive: 'applied',
+      'snippetFiles.ownKept': true, 'snippetFiles.beside': 'javascript', 'snippetFiles.python': true, 'snippetFiles.global': true,
+      notification: /^Imported from VS Code.*theme Fixture Night.*2 keybindings.*3 snippet files.*Open config\.json$/,
+      // A second import offers only what was left unticked.
+      'second.labels': (l) => Array.isArray(l) && l.length === 2 && l[0] === 'settings:editor.wordWrap' && l[1].startsWith('keybindings:'),
+      'second.matching': /^\d+ settings already match yours\.$/,
+      'brokenKeymap.problem': /keymap\.json has a syntax error/, 'brokenKeymap.noKeybindingSection': true,
+    }),
+  },
+  {
+    name: 'settingsSync', home: 'sync1', project: null, timeout: 90,
+    server: gistServer({ name: 'settingsSync', gh: 'fail' }),
+    expect: () => ({
+      commands: ['Sync: Download Settings', 'Sync: Set Up…', 'Sync: Sign Out', 'Sync: Upload Settings'],
+      notSetUp: true,
+      // The token is typed into a masked box; a rejected one is reported and nothing is stored.
+      promptMasked: true, shortTokenRefused: true, readyBad: true, badTokenMessage: /GitHub didn't accept the token/, nothingStoredForBadToken: true,
+      signedOut: true, 'statusAfterSignOut.hasToken': false, ready: true, 'statusAfterSetUp.hasToken': true,
+      // The first upload makes one private gist; the second updates it and removes a deleted file.
+      uploaded: true, gistCount: 1, private: true, description: 'Minimide settings sync', contentIdentical: true, manifest: 'minimide',
+      uploadedFiles: ['config.json', 'init.js', 'keymap.json', 'minimide-sync.json', 'snippets--extra.json', 'snippets--mine.json', 'styles.css'],
+      firstUpload: ['GET /gists', 'POST /gists'], authOnAll: true, headers: true, stateHasGistId: true,
+      uploadedAgain: true, secondUpload: ['GET /gists/:id', 'PATCH /gists/:id'], deletedRemotely: ['snippets--extra.json'], stillOneGist: true, updatedKeymap: true, extraGone: true,
+      // The token is not in any file the user can see or in anything the page can reach.
+      filesScanned: true, tokenInFiles: [], secretsFileExists: true, tokenInPage: false, secretsApi: ['delete', 'has', 'set'],
+      otherSecretRefused: 'refused', statusHasNoToken: true, tokenInUploadResult: false,
+    }),
+  },
+  {
+    name: 'settingsSyncOther', home: 'sync2', project: null, timeout: 90, dependsOn: 'settingsSync',
+    // A gist that also holds names this version must ignore, and a package this computer lacks.
+    server: gistServer({
+      name: 'settingsSyncOther', gh: 'ok',
+      seed: (store) => {
+        const g = Object.values(store.gists)[0];
+        Object.assign(g.files, {
+          'evil.js': 'window.pwned = 1;\n', 'escape.json': '{}\n', 'snippets--../x.json': '{}\n',
+          'packages.json': JSON.stringify({ packages: [{ source: 'someone/missing-pkg' }, { source: '../../etc/passwd' }] }),
+        });
+      },
+    }),
+    expect: () => ({
+      ready: true, noTokenPrompt: true, 'status.hasToken': true,
+      // Only what differs is listed; init.js is never ticked for you; names this version doesn't sync are ignored.
+      previewOpened: true,
+      files: (l) => Array.isArray(l) && l.length === 4 && l[0] === 'config.json|+2 −2|ticked' && l[1] === 'init.js|+1 −1|unticked'
+        && l[2] === 'snippets/mine.json|new file|ticked' && /^styles\.css\|\+\d+ −\d+\|ticked$/.test(l[3]),
+      initWarning: /code that runs every time Minimide starts/,
+      configDiff: ['  {', '−   // computer two', '−   "editor.fontSize": 11', '+   // computer one', '+   "editor.fontSize": 15', '  }', '  '],
+      stylesDiffRemovesDefault: true, 'newFile.stat': 'new file',
+      missing: ['someone/missing-pkg'], ignored: 'Ignored 2 files this version doesn\'t sync: evil.js, escape.json',
+      // Nothing changes until Apply.
+      'untouched.config': true, 'untouched.init': true, 'untouched.mineAbsent': true, 'untouched.nothingWrittenOutside': true,
+      applyLabel: 'Apply 2 files', applied: true, appliedNote: /^Settings applied2 files updated\. The old versions are in ~\/\.minimide\/backups\//, missingNote: /^1 package is missing heresomeone\/missing-pkg/,
+      'after.configFromGist': true, 'after.initKept': true, 'after.stylesKept': true, 'after.newSnippets': true,
+      backupCount: 1, backupConfig: true, backupHasOnlyReplaced: 'config.json',
+      secondFiles: ['init.js|unticked', 'styles.css|ticked'],
+      'final.init': true, 'final.styles': true, 'final.initNeedsReload': true, backupsAfterSecond: 2,
+      'third.rows': 0, 'third.intro': /^This computer already has everything/, 'third.missingStill': 1,
+      // Only reads, all with the CLI's token; the gist was not changed.
+      requests: ['GET'], allWithCliToken: true, gistUntouched: true, tokenInFiles: [],
+      signedOut: true, 'statusAfterSignOut.hasToken': false, 'stateAfterSignOut.gistId': null, downloadAfterSignOut: true,
+    }),
+  },
+  {
     name: 'terminal', home: 'termh', project: 'rproj', timeout: 150, requires: ['python3', 'cc'],
     expect: () => ({
       runButton: true, prompt: true, python: 'Hello, Mike! 2+2=4', pyExit: true, buttonBackToPlay: true, c: 'C says 42', task: 'task-ran-ok',
@@ -270,7 +353,7 @@ function killTree(child) {
 // ---------------------------------------------------------------------------
 // Running a suite
 
-function runSuite(suite, { electron, fixtures }) {
+function runSuite(suite, { electron, fixtures, env: extraEnv = {} }) {
   const script = path.join(SUITES_DIR, `${suite.name}.js`);
   const log = path.join(OUTPUT, `${suite.name}.log`);
   const png = path.join(OUTPUT, `${suite.name}.png`);
@@ -289,6 +372,7 @@ function runSuite(suite, { electron, fixtures }) {
     MINIMIDE_WINDOW: '1440x900',
     // Suites trust every folder unless they test workspace trust itself.
     ...(suite.trust === false ? {} : { MINIMIDE_TRUST_ALL: '1' }),
+    ...extraEnv,
   };
   delete env.ELECTRON_RUN_AS_NODE;
   delete env.MINIMIDE_FRAMES;
@@ -393,7 +477,9 @@ async function main() {
       continue;
     }
     process.stdout.write(`run   ${suite.name}… `);
-    const r = await runSuite(suite, { electron, fixtures });
+    const server = suite.server ? await suite.server(fixtures) : null;
+    const r = await runSuite(suite, { electron, fixtures, env: server?.env });
+    await server?.close();
     rows.push({ suite, ...r });
     console.log(`${r.status} (${r.seconds.toFixed(1)}s)`);
     for (const f of r.failures) console.log(`        ✗ ${f}`);

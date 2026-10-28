@@ -186,6 +186,55 @@ function ftproj(root) {
   write(path.join(d, '.env'), 'KEY=value\n');
 }
 
+/** `vsc`: a fake VS Code folder (User/ and extensions/) for "Import from VS Code" (vscodeImport). */
+function vsc(root) {
+  const d = path.join(root, 'vsc');
+  const cmdKey = process.platform === 'darwin' ? 'cmd' : 'ctrl';
+  write(path.join(d, 'User/settings.json'), [
+    '{',
+    '  // my editor',
+    '  "editor.fontSize": 17,',
+    '  "editor.tabSize": 3,',
+    '  "editor.insertSpaces": false,',
+    '  "editor.wordWrap": "on",',
+    '  "editor.minimap.enabled": false, /* too busy */',
+    '  "editor.stickyScroll.enabled": false,',
+    '  "editor.fontFamily": "\'Fira Code\', Menlo, monospace",',
+    '  "editor.lineHeight": 22,',
+    '  "files.autoSave": "afterDelay",',
+    '  "workbench.colorTheme": "Fixture Night",',
+    '  "terminal.integrated.fontSize": 13,',
+    '  "workbench.iconTheme": "material-icon-theme",',
+    '}',
+    '',
+  ].join('\n'));
+  write(path.join(d, 'User/keybindings.json'), [
+    '// Place your key bindings in this file',
+    '[',
+    '  { "key": "alt+shift+j", "command": "workbench.action.togglePanel" },',
+    `  { "key": "${cmdKey}+s", "command": "-workbench.action.files.save" },`,
+    '  { "key": "alt+shift+q", "command": "someExtension.doThing" },',
+    '  { "key": "alt+shift+w", "command": "workbench.action.togglePanel", "args": { "x": 1 } },',
+    '  { "key": "alt+shift+l", "command": "workbench.action.closeActiveEditor", "when": "editorTextFocus" },',
+    ']',
+    '',
+  ].join('\n'));
+  write(path.join(d, 'User/snippets/javascript.json'), JSON.stringify({
+    'Console log': { prefix: 'vslog', body: ['console.log($1);'], description: 'from vs code' },
+    Arrow: { prefix: 'vsarrow', body: ['const ${1:name} = (${2}) => {', '\t$0', '};'] },
+  }, null, 2));
+  write(path.join(d, 'User/snippets/python.json'), '{\n  // comments are allowed\n  "Main guard": { "prefix": "vsmain", "body": ["if __name__ == \\"__main__\\":", "    main()"], },\n}\n');
+  write(path.join(d, 'User/snippets/global.code-snippets'), JSON.stringify({ Todo: { scope: 'javascript,typescript', prefix: 'vstodo', body: ['// TODO: $1'] } }, null, 2));
+  const ext = path.join(d, 'extensions/fixture.night-1.0.0');
+  write(path.join(ext, 'package.json'), JSON.stringify({ name: 'night', publisher: 'fixture', version: '1.0.0', contributes: { themes: [{ label: 'Fixture Night', uiTheme: 'vs-dark', path: './themes/night.json' }] } }, null, 2));
+  write(path.join(ext, 'themes/base.json'), '{\n  // shared by the theme\n  "colors": { "sideBar.background": "#161a24" },\n  "tokenColors": [{ "scope": "string", "settings": { "foreground": "#a5d6a7" } }]\n}\n');
+  write(path.join(ext, 'themes/night.json'), JSON.stringify({
+    name: 'Fixture Night', type: 'dark', include: './base.json',
+    colors: { 'editor.background': '#1b1f2b', 'editor.foreground': '#d0d4e0', 'editorLineNumber.foreground': '#2a3042', 'activityBar.background': '#12151d' },
+    tokenColors: [{ scope: 'comment', settings: { foreground: '#2d3345' } }, { scope: 'keyword', settings: { foreground: '#ff9e64' } }],
+  }, null, 2));
+}
+
 /**
  * Create all fixtures under `root` (default: a new dir in os.tmpdir()). Homes that need no
  * pre-seeded files are created empty: the app fills in its defaults on first launch.
@@ -205,7 +254,8 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   ftproj(root);
   chproj(root);
   large(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  vsc(root);
+  for (const home of ['vsih', 'sync1', 'sync2', 'qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 
