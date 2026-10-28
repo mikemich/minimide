@@ -120,8 +120,15 @@ export class Keymap extends Emitter {
   }
 
   bindingsFor(commandId) {
+    // A key shared by several commands (F5: Continue while debugging, else Run File) belongs to
+    // each of them, up to the first one without a `when`, which always takes it.
     const out = [];
-    for (const [k, v] of this.resolved()) if (v === commandId) out.push(k);
+    for (const k of this.resolved().keys()) {
+      for (const id of this.candidates(k)) {
+        if (id === commandId) { out.push(k); break; }
+        if (!this.commands.get(id)?.when) break;
+      }
+    }
     return out;
   }
 

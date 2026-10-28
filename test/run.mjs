@@ -284,6 +284,22 @@ const SUITES = [
       stopTargetsRecentTask: true, stoppedMarker: true, runFileTab: 'Task: loop.py',
     }),
   },
+  {
+    name: 'debugger', home: 'dbgh', project: 'dbgproj', timeout: 150,
+    expect: (env) => ({
+      gutter: true, afterClick: [2], afterSecondClick: [], afterF9: [7], afterF9Again: [],
+      afterInsert: [3], listAfterInsert: /app\.js:3/, afterRemove: [2], saved: JSON.stringify([{ line: 2 }]),
+      untrustedNotice: true, untrustedStatus: /^Not running/,
+      'node.stopped': 'Paused on breakpoint', 'node.line': 2, 'node.value': '0', 'node.stepped': 3,
+      'node.evaluated': '10', 'node.ended': true, 'node.output': /total is 6[\s\S]*Program exited with code 0/, 'node.noCurrentLine': true,
+      'node.frame': 'add', unverifiedAfter: false,
+      // Python needs debugpy (python3 -m pip install debugpy).
+      ...(env.debugpy ? {
+        'python.stopped': 'Paused on breakpoint', 'python.line': 2, 'python.value': '0', 'python.stepped': 3, 'python.frame': 'add',
+        'python.evaluated': '10', 'python.ended': true, 'python.output': /result is 6/, 'python.noCurrentLine': true,
+      } : { python: 'skipped' }),
+    }),
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -424,7 +440,11 @@ function runSuite(suite, { electron, fixtures }) {
 // ---------------------------------------------------------------------------
 // Main
 
-const runEnv = { has };
+const runEnv = {
+  has,
+  // As the debugger finds it: python3 from the user's login shell.
+  get debugpy() { return process.platform !== 'win32' && spawnSync(process.env.SHELL || '/bin/sh', ['-lc', 'python3 -c "import debugpy"']).status === 0; },
+};
 
 function selectSuites(names) {
   if (!names.length) return SUITES;

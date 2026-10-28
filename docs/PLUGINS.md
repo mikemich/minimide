@@ -290,6 +290,11 @@ mide.packages.list(); mide.packages.setEnabled('git', false); mide.packages.relo
 mide.package;   // { name, dir, url, manifest } of the calling package
 mide.user;      // { dir, packagesDir, home, platform }
 mide.subscriptions.add(disposable);   // anything with dispose()
+
+// Small JSON values saved with the open folder's session (or globally when no folder is open),
+// e.g. the debugger's breakpoints and watch expressions.
+mide.state.set('watches', ['total / count']);
+mide.state.get('watches');
 ```
 
 ## Themes

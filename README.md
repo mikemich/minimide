@@ -135,6 +135,8 @@ Forgot one? Hold `⌘` for a moment and every shortcut on screen gets a label: t
 | `⌘⇧5` | Split the terminal (up to four side by side) |
 | `F5` / `⌘⇧R` | Run the current file in its own task tab (`⇧F5` stops, `⌘⌥R` runs it again) |
 | `⌘⇧B` | Run a task: npm scripts, Makefile targets, Cargo, Go, or any command |
+| `⌥F5` | Debug the current Python or JavaScript file (while debugging: `F5` continues, `⇧F5` stops, `⌘⇧F5` restarts) |
+| `F9` / `F10` / `F11` / `⇧F11` | Toggle breakpoint / step over / step into / step out |
 | `⌘⇧↩` | Send the selection (or current line) to the terminal |
 | `⌘\` / `⌘K ⌘\` | Split right / down (drag the dividers to resize) |
 | `⌘K ⌘→` / `⌘K ⌘←` | Focus next / previous pane |
@@ -173,6 +175,7 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `source-control` | Git panel (`⌃⇧G`): stage, unstage, discard, commit, amend, push, pull, and side-by-side or inline diffs |
 | `terminal` | A real terminal (xterm.js + node-pty) in tabs, with side-by-side splits; click `file:line` in output to jump there |
 | `runner` | Run the current file with `F5` (Python, JS/TS, Go, Rust, C/C++, Java, Ruby, shell and more) or a project task with `⌘⇧B`; each task gets its own terminal tab and long ones notify you when they finish out of sight (`runner.notifyAfter`) |
+| `debugger` | Breakpoints (click the gutter or `F9`, optionally with a condition), stepping, call stack, variables, watch expressions and a Debug Console, for Python (needs `debugpy`) and JavaScript (Node.js 22+) |
 | `markdown-preview` | Live, sanitized preview in a split pane that scrolls with the editor (and the other way round). In the editor itself, pasting an image into a Markdown file saves it to `images/` and inserts the link, and Markdown and plain text get spell check with suggestions in the right-click menu (turn it off with `editor.spellcheck`) |
 | `settings-view` | Settings, themes, packages and keybindings, generated from schemas |
 | `status-bar` | Cursor, selection, language, indentation, line endings, and word count with reading time for Markdown and text files |

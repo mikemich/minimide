@@ -411,6 +411,11 @@ export class PackageManager extends Emitter {
       styles: {
         add: (css) => { const el = h('style', { dataset: { pkg: name } }, css); document.head.append(el); return track(new Disposable(() => el.remove())); },
       },
+      /** Small JSON values saved with the open folder's session (breakpoints, watch lists…). */
+      state: {
+        get: (key) => app.packageState(name)[key],
+        set: (key, value) => app.setPackageState(name, key, value),
+      },
       services: {
         provide: (svc, value) => track(this.services.provide(svc, value)),
         consume: (svc, fn) => track(this.services.consume(svc, fn)),

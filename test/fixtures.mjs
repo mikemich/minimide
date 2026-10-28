@@ -234,6 +234,13 @@ function extras(root) {
   write(path.join(d, 'code.js'), code.join('\n') + '\n');
 }
 
+/** `dbgproj`: the same small program in JavaScript and Python, to step through (debugger). */
+function dbgproj(root) {
+  const d = path.join(root, 'dbgproj');
+  write(path.join(d, 'app.js'), 'function add(a, b) {\n  const sum = a + b;\n  return sum;\n}\nlet total = 0;\nfor (let i = 1; i <= 3; i++) {\n  total = add(total, i);\n}\nconsole.log(\'total is\', total);\n');
+  write(path.join(d, 'app.py'), 'def add(a, b):\n    total = a + b\n    return total\n\nresult = 0\nfor i in range(1, 4):\n    result = add(result, i)\nprint("result is", result)\n');
+}
+
 /**
  * Create all fixtures under `root` (default: a new dir in os.tmpdir()). Homes that need no
  * pre-seeded files are created empty: the app fills in its defaults on first launch.
@@ -256,7 +263,8 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   large(root);
   extras(root);
   cimproj(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  dbgproj(root);
+  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih', 'dbgh']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 
