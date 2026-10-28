@@ -471,11 +471,24 @@ class App {
     const root = this.workspace.project;
     if (root) {
       this.state.sessions ||= {};
-      this.state.sessions[root] = { workspace: this.workspace.serialize(), at: Date.now() };
+      this.state.sessions[root] = { ...this.state.sessions[root], workspace: this.workspace.serialize(), at: Date.now() };
       const entries = Object.entries(this.state.sessions).sort((a, b) => (b[1].at || 0) - (a[1].at || 0)).slice(0, 30);
       this.state.sessions = Object.fromEntries(entries);
     }
     this.persistState();
+  }
+
+  /** A package's saved values (mide.state): kept with the folder's session, or globally without a folder. */
+  packageState(name) {
+    const root = this.workspace?.project;
+    const holder = root ? ((this.state.sessions ||= {})[root] ||= {}) : this.state;
+    return ((holder.packages ||= {})[name] ||= {});
+  }
+
+  setPackageState(name, key, value) {
+    this.packageState(name)[key] = value;
+    clearTimeout(this.packageStateTimer);
+    this.packageStateTimer = setTimeout(() => this.saveSession(), 500);
   }
 
   async persistState() {

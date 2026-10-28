@@ -132,6 +132,8 @@ Forgot one? Hold `⌘` for a moment and every shortcut on screen gets a label: t
 | ``Ctrl-` `` | Toggle terminal (``Ctrl-⇧-` `` for a new one) |
 | `F5` / `⌘⇧R` | Run the current file (`⇧F5` stops, `⌘⌥R` runs it again) |
 | `⌘⇧B` | Run a task: npm scripts, Makefile targets, Cargo, Go, or any command |
+| `⌥F5` | Debug the current Python or JavaScript file (while debugging: `F5` continues, `⇧F5` stops, `⌘⇧F5` restarts) |
+| `F9` / `F10` / `F11` / `⇧F11` | Toggle breakpoint / step over / step into / step out |
 | `⌘⇧↩` | Send the selection (or current line) to the terminal |
 | `⌘\` | Split right |
 | `⌘K ⌘→` / `⌘K ⌘←` | Focus next / previous pane |
@@ -168,6 +170,7 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `source-control` | Git panel (`⌃⇧G`): stage, unstage, discard, commit, amend, push, pull, and side-by-side or inline diffs |
 | `terminal` | A real terminal (xterm.js + node-pty) in tabs; click `file:line` in output to jump there |
 | `runner` | Run the current file with `F5` (Python, JS/TS, Go, Rust, C/C++, Java, Ruby, shell and more) or a project task with `⌘⇧B` |
+| `debugger` | Breakpoints (click the gutter or `F9`, optionally with a condition), stepping, call stack, variables, watch expressions and a Debug Console, for Python (needs `debugpy`) and JavaScript (Node.js 22+) |
 | `markdown-preview` | Live, sanitized preview in a split pane |
 | `settings-view` | Settings, themes, packages and keybindings, generated from schemas |
 | `status-bar` | Cursor, selection, language, indentation, line endings |
