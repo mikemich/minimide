@@ -267,6 +267,7 @@ const SUITES = [
       'haiku.fallbacks': 'absent',
       missingModel: /model wasn't found/,
       'ollama.answer': 'Local model answer.', 'ollama.remoteRejected': /this machine/,
+      claudeCode: [['run', 'claude', true, 'claude-code'], ['show', 'claude-code']],
       noKeyInState: true,
     }),
   },

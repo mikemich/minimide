@@ -154,6 +154,19 @@
   out.ollama.remoteRejected = (await ask('Remote?')).querySelector('.ai-error')?.textContent;
   await app.config.set('ai.provider', 'anthropic');
 
+  // Open Claude Code starts `claude` in a terminal in the project, or brings the running one forward.
+  const terminal = app.packages.services.get('terminal');
+  const calls = [];
+  const realRun = terminal.run, realRunning = terminal.isRunning, realShow = terminal.show;
+  let running = false;
+  terminal.run = (command, opts) => { calls.push(['run', command, opts.cwd === ws.project, opts.key]); running = true; return null; };
+  terminal.isRunning = (key) => key === 'claude-code' && running;
+  terminal.show = (key) => { calls.push(['show', key]); return true; };
+  await app.commands.run('ai:open-claude-code');
+  await app.commands.run('ai:open-claude-code');
+  Object.assign(terminal, { run: realRun, isRunning: realRunning, show: realShow });
+  out.claudeCode = calls;
+
   // The key is never written into settings or saved state.
   await app.persistState?.();
   await sleep(300);

@@ -171,7 +171,7 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `command-palette` | Fuzzy-search every command, most recently used first |
 | `fuzzy-finder` | Open files and tabs by fuzzy name |
 | `find-in-project` | Regex / case-sensitive search and replace across the project |
-| `ai` | Chat about your code, edit a selection with a side-by-side preview, fix the problem on a line, explain code and get suggestions at the cursor, with Claude (your own API key, stored encrypted and only ever used by the main process) or a local Ollama model. Nothing is sent until you ask, and it asks first |
+| `ai` | Chat about your code, edit a selection with a side-by-side preview, fix the problem on a line, explain code and get suggestions at the cursor, with Claude (your own API key, stored encrypted and only ever used by the main process) or a local Ollama model. Nothing is sent until you ask, and it asks first. **AI: Open Claude Code** runs Anthropic's Claude Code in a terminal in your project, signed in with your Claude plan (Pro or Max) or a key |
 | `lsp` | Language servers: completions (with auto-import), diagnostics, hover with go-to links, signature help, go to / peek definition, references, rename, quick fixes with a 💡, formatting, file and project symbols, Problems panel |
 | `git` | Branch switcher, tree status, change markers in the editor gutter |
 | `source-control` | Git panel (`⌃⇧G`): stage, unstage, discard, commit, amend, push, pull, and side-by-side or inline diffs |

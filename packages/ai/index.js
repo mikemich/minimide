@@ -79,6 +79,23 @@ export function activate(mide) {
     }
   }
 
+  // Claude Code is Anthropic's own coding agent. It signs in by itself, with a Claude plan (Pro or
+  // Max) or an API key; this only starts it in a terminal in the project folder.
+  function openClaudeCode() {
+    const terminal = mide.services.get('terminal');
+    if (!terminal) return mide.notify.warn('The terminal is turned off', 'Turn on the Terminal package to run Claude Code.');
+    if (terminal.isRunning('claude-code')) return terminal.show('claude-code');
+    terminal.run('claude', {
+      cwd: mide.workspace.project || mide.user.home,
+      title: 'Claude Code',
+      key: 'claude-code',
+      onExit: (code) => {
+        // 127: the shell couldn't find the program.
+        if (code === 127) mide.notify.info('Claude Code isn\'t installed', 'Install it with "npm install -g @anthropic-ai/claude-code", then run AI: Open Claude Code again.', { timeout: 0 });
+      },
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // What a request sends about the open file
 
@@ -147,6 +164,7 @@ export function activate(mide) {
         { label: `Suggest as You Type: ${suggest ? 'On' : 'Off'}`, detail: suggest ? 'Turn off' : 'Turn on (each pause in typing sends a request)', run: () => mide.config.set('ai.suggestAsYouType', !suggest) },
         { label: 'Set API Key…', run: setKey },
         { label: 'Choose Model…', detail: modelLabel(), run: chooseModel },
+        { label: 'Open Claude Code', detail: 'In a terminal; signs in with your Claude plan or a key', run: openClaudeCode },
       ],
       onSelect: (i) => i.run(),
     });
@@ -571,6 +589,7 @@ export function activate(mide) {
     'ai:toggle-suggest-as-you-type': { title: 'Toggle Suggest as You Type', category: 'AI', run: () => mide.config.set('ai.suggestAsYouType', !cfg('suggestAsYouType')) },
     'ai:choose-model': { title: 'Choose Model…', category: 'AI', run: chooseModel },
     'ai:set-key': { title: 'Set API Key…', category: 'AI', run: setKey },
+    'ai:open-claude-code': { title: 'Open Claude Code', category: 'AI', run: openClaudeCode },
     'ai:clear-key': {
       title: 'Remove Saved API Key', category: 'AI',
       run: async () => { await mide.ai.clearKey(); mide.notify.info('Removed the saved API key'); },
