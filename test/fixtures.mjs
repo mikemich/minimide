@@ -186,6 +186,22 @@ function ftproj(root) {
   write(path.join(d, '.env'), 'KEY=value\n');
 }
 
+/** `extras`: a Markdown file of exactly 1,234 words, a text file and a JS file with brackets (editorExtras). */
+function extras(root) {
+  const d = path.join(root, 'extras');
+  const words = Array.from({ length: 1234 }, (_, i) => `word${i + 1}`);
+  const lines = [];
+  for (let i = 0; i < words.length; i += 20) lines.push(words.slice(i, i + 20).join(' '));
+  write(path.join(d, 'notes.md'), lines.join('\n') + '\n');
+  write(path.join(d, 'plain.txt'), 'one two three\n');
+  // Line 1 is the nested example; the strings and comments hold brackets that must not count.
+  // The long run of lines pushes the closing "]})" far below the first screen.
+  const code = ['const a = ({[ ]});', 'const s = "([{";', '// ( [ {', '/* ) ] } */', 'const list = ({['];
+  for (let i = 0; i < 150; i++) code.push('  0,');
+  code.push(']});');
+  write(path.join(d, 'code.js'), code.join('\n') + '\n');
+}
+
 /**
  * Create all fixtures under `root` (default: a new dir in os.tmpdir()). Homes that need no
  * pre-seeded files are created empty: the app fills in its defaults on first launch.
@@ -205,7 +221,8 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   ftproj(root);
   chproj(root);
   large(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  extras(root);
+  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 

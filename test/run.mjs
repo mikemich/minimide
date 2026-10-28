@@ -188,6 +188,17 @@ const SUITES = [
     }),
   },
   {
+    name: 'editorExtras', home: 'extrah', project: 'extras', timeout: 90,
+    expect: () => ({
+      md: '1,234 words · 6 min read', selected: '120 of 1,234 words', typed: '1,236 words · 6 min read',
+      txt: '3 words · 1 min read', jsHidden: true,
+      offByDefault: 0,
+      top: ['(|d0', '{|d1', '[|d2', ']|d2', '}|d1', ')|d0', '(|d0', '{|d1', '[|d2'],
+      bottom: [']|d2', '}|d1', ')|d0'],
+      commandOff: { config: false, spans: 0 },
+    }),
+  },
+  {
     name: 'terminal', home: 'termh', project: 'rproj', timeout: 150, requires: ['python3', 'cc'],
     expect: () => ({
       runButton: true, prompt: true, python: 'Hello, Mike! 2+2=4', pyExit: true, buttonBackToPlay: true, c: 'C says 42', task: 'task-ran-ok',

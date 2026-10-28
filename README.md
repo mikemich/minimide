@@ -170,7 +170,7 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `runner` | Run the current file with `F5` (Python, JS/TS, Go, Rust, C/C++, Java, Ruby, shell and more) or a project task with `⌘⇧B` |
 | `markdown-preview` | Live, sanitized preview in a split pane |
 | `settings-view` | Settings, themes, packages and keybindings, generated from schemas |
-| `status-bar` | Cursor, selection, language, indentation, line endings |
+| `status-bar` | Cursor, selection, language, indentation, line endings, and word count with reading time for Markdown and text files |
 | `editor-guides` | Scope-aware indent guides; optional rainbow brackets |
 | `image-viewer` | Opens PNG, JPG, GIF, WebP, SVG and more in a tab with zoom (`⌘+` / `⌘-` / pinch) |
 | `sticky-scroll` | Pins the headers of the function, class or block you're in to the top of the editor |

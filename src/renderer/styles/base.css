@@ -281,6 +281,13 @@ body.compact-tabs { --tab-height: 30px; }
 .cm-gutters:hover .cm-fold-marker { opacity: 1; }
 .cm-editor .cm-foldPlaceholder { background: var(--bg-selected); border: 0; color: var(--fg-muted); padding: 0 6px; border-radius: 4px; margin: 0 2px; }
 .cm-editor .cm-matchingBracket { background: var(--bracket-match); color: inherit !important; border-radius: 2px; }
+/* Bracket pair colors (editor.bracketPairColors), one color per nesting level. */
+.cm-editor .cm-bracket-d0 { color: var(--c-blue); }
+.cm-editor .cm-bracket-d1 { color: var(--c-magenta); }
+.cm-editor .cm-bracket-d2 { color: var(--c-yellow); }
+.cm-editor .cm-bracket-d3 { color: var(--c-green); }
+.cm-editor .cm-bracket-d4 { color: var(--c-cyan); }
+.cm-editor .cm-bracket-d5 { color: var(--c-orange); }
 .cm-editor .cm-nonmatchingBracket { background: color-mix(in srgb, var(--error) 30%, transparent); }
 .cm-editor .cm-selectionMatch { background: var(--match); border-radius: 2px; }
 .cm-editor .cm-searchMatch { background: var(--match); outline: 1px solid var(--match-border); border-radius: 2px; }

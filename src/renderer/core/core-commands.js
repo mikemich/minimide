@@ -199,6 +199,7 @@ export function registerCoreCommands(app) {
     'editor:toggle-soft-wrap': { title: 'Toggle Soft Wrap', run: () => config.set('editor.softWrap', !config.get('editor.softWrap')) },
     'editor:toggle-line-numbers': { title: 'Toggle Line Numbers', run: () => config.set('editor.showLineNumbers', !config.get('editor.showLineNumbers')) },
     'editor:toggle-invisibles': { title: 'Toggle Invisibles', run: () => config.set('editor.showInvisibles', !config.get('editor.showInvisibles')) },
+    'editor:toggle-bracket-pair-colors': { title: 'Toggle Bracket Pair Colors', run: () => config.set('editor.bracketPairColors', !config.get('editor.bracketPairColors')) },
     'editor:go-to-line': { title: 'Go to Line…', when: hasEditor, run: () => app.quickOpen.open(':') },
     'editor:duplicate-lines': { title: 'Duplicate Lines', when: hasEditor, run: () => copyLineDown(view()) },
     'editor:select-line': { title: 'Select Line', when: hasEditor, run: () => selectLine(view()) },

@@ -38,6 +38,7 @@ const richHighlighter = tagHighlighter([
   { tag: t.regexp, class: 'tok-regexp' },
 ]);
 import { Emitter } from './events.js';
+import { bracketPairColors } from './bracket-colors.js';
 import { h, basename } from './dom.js';
 
 const syncAnnotation = Annotation.define();
@@ -163,6 +164,7 @@ export const compartments = {
   lineNumbers: new Compartment(),
   activeLine: new Compartment(),
   whitespace: new Compartment(),
+  bracketColors: new Compartment(),
   scrollPastEnd: new Compartment(),
   plugins: new Compartment(),
   readOnly: new Compartment(),
@@ -308,6 +310,7 @@ function baseExtensions(ws) {
     compartments.tabSize.of(tabExtensions(cfg)),
     compartments.lineWrapping.of(cfg.get('editor.softWrap') ? EditorView.lineWrapping : []),
     compartments.whitespace.of(cfg.get('editor.showInvisibles') ? highlightWhitespace() : []),
+    compartments.bracketColors.of(cfg.get('editor.bracketPairColors') ? bracketPairColors : []),
     compartments.scrollPastEnd.of(cfg.get('editor.scrollPastEnd') ? scrollPastEnd() : []),
     compartments.readOnly.of([]),
     highlightSpecialChars(),
@@ -399,6 +402,7 @@ export function bindEditorConfig(ws) {
     cfg.onDidChange('editor.highlightActiveLine', (v) => all(() => compartments.activeLine.reconfigure(v ? highlightActiveLine() : []))),
     cfg.onDidChange('editor.showInvisibles', (v) => all(() => compartments.whitespace.reconfigure(v ? highlightWhitespace() : []))),
     cfg.onDidChange('editor.scrollPastEnd', (v) => all(() => compartments.scrollPastEnd.reconfigure(v ? scrollPastEnd() : []))),
+    cfg.onDidChange('editor.bracketPairColors', (v) => all(() => compartments.bracketColors.reconfigure(v ? bracketPairColors : []))),
   ];
   ws.on('editor-extensions-changed', () => all(() => compartments.plugins.reconfigure(ws.editorExtensions())));
   return subs;

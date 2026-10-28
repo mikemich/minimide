@@ -27,6 +27,7 @@ export const CORE_SCHEMA = {
   'editor.showLineNumbers': { type: 'boolean', default: true, title: 'Line Numbers' },
   'editor.highlightActiveLine': { type: 'boolean', default: true, title: 'Highlight Active Line' },
   'editor.showInvisibles': { type: 'boolean', default: false, title: 'Show Invisibles' },
+  'editor.bracketPairColors': { type: 'boolean', default: false, title: 'Bracket Pair Colors', description: 'Color (), [] and {} by nesting depth, so matching pairs are easy to spot.' },
   'editor.scrollPastEnd': { type: 'boolean', default: true, title: 'Scroll Past End' },
   'editor.trimTrailingWhitespace': { type: 'boolean', default: false, title: 'Trim Trailing Whitespace on Save' },
   'editor.ensureFinalNewline': { type: 'boolean', default: false, title: 'Ensure Final Newline on Save' },

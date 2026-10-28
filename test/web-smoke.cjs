@@ -30,7 +30,7 @@ const CHECKS = `(async () => {
   app.quickOpen.open('>');
   await wait(100);
   const input = document.querySelector('.select-list .select-input');
-  input.value = '>colors'; input.dispatchEvent(new Event('input'));
+  input.value = '>select theme'; input.dispatchEvent(new Event('input'));
   await wait(100);
   out.colors = document.querySelector('.select-item .select-label')?.textContent;
   app.ui.closeModal();
