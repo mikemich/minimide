@@ -1,7 +1,7 @@
 {
   "name": "runner",
   "displayName": "Code Runner",
-  "description": "Run the current file or a project task in the terminal with one key.",
+  "description": "Run the current file or a project task in its own terminal tab with one key.",
   "version": "0.1.0",
   "main": "index.js",
   "keymap": {
@@ -15,6 +15,7 @@
     "commands": { "type": "object", "default": {}, "title": "Commands by File Type", "description": "Override how files run, by extension: { \"py\": \"python3 {file}\" }. Placeholders: {file} {dir} {name} {base} {root} (paths are quoted for you)." },
     "tasks": { "type": "object", "default": {}, "title": "Custom Tasks", "description": "Extra entries for Run Task: { \"Deploy\": \"./scripts/deploy.sh\" }." },
     "cwd": { "type": "string", "default": "file", "enum": ["file", "project"], "title": "Working Directory", "description": "Run files from their own folder, or from the project root." },
+    "notifyAfter": { "type": "number", "default": 10, "title": "Notify After (seconds)", "description": "Tell me when a task that ran at least this long finishes while its terminal is out of sight." },
     "saveBeforeRun": { "type": "boolean", "default": true, "title": "Save Before Running" }
   }
 }

@@ -1,13 +1,14 @@
 {
   "name": "terminal",
   "displayName": "Terminal",
-  "description": "A real integrated terminal (xterm.js + node-pty) with tabs and clickable file paths.",
+  "description": "A real integrated terminal (xterm.js + node-pty) with tabs, side-by-side splits and clickable file paths.",
   "version": "0.1.0",
   "main": "index.js",
   "styles": ["vendor/xterm.css", "style.css"],
   "keymap": {
     "Ctrl-`": "terminal:toggle",
     "Ctrl-Shift-`": "terminal:new",
+    "Mod-Shift-5": "terminal:split",
     "Mod-Shift-Enter": "terminal:run-selection"
   },
   "configSchema": {
