@@ -108,6 +108,23 @@ const SUITES = [
     expect: () => ({ restored: [['crlf.txt', 'image.png'], ['README.md']], 'cursor.line': 2, 'cursor.col': 4, sidebar: 'source-control' }),
   },
   {
+    name: 'splitPanes', home: 'splith', project: 'qa', timeout: 90,
+    expect: () => ({
+      'down.below': true, 'down.sameLeft': true, 'down.sameWidth': true, 'down.shape': 'col(pane,pane)', 'down.divider': true,
+      'nested.shape': 'col(pane,row(pane,pane))', 'nested.order': [0, 1, 2], 'nested.rightOfB': true, 'nested.sameTop': true, 'nested.belowA': true, 'nested.topFull': true,
+      'focus.next': true, 'focus.wrapped': true, 'focus.above': true, 'focus.below': true, 'focus.nothingAbove': true,
+      'keys.splitDown': true, 'keys.above': true, 'keys.below': true,
+      'resize.aGrew': true, 'resize.bShrank': true, 'resize.cursorReset': true,
+      'tiling.tiledBefore': true, 'tiling.tiledAfter': true, 'tiling.restored': true,
+      'dragTab.moved': true, 'dragTab.closed': true,
+      'roundTrip.saved': 'col(pane,row(pane,pane))', 'roundTrip.shape': 'col(pane,row(pane,pane))', 'roundTrip.titles': [['crlf.txt'], ['README.md'], ['image.png']], 'roundTrip.sameSizes': true, 'roundTrip.active': true,
+      'collapse.afterRight.panes': 2, 'collapse.afterRight.shape': 'col(pane,pane)', 'collapse.afterRight.onlyColumn': true,
+      'collapse.afterTop.panes': 1, 'collapse.afterTop.isPane': true, 'collapse.afterTop.shape': 'pane', 'collapse.fills': true,
+      'merge.nestedShape': 'row(pane,col(pane,pane))', 'merge.shape': 'row(pane,pane)', 'merge.panes': 2,
+      'oldFormat.shape': 'row(pane,pane)', 'oldFormat.titles': [['crlf.txt'], ['README.md']], 'oldFormat.activeIsSecond': true, 'oldFormat.widthRatio': 3,
+    }),
+  },
+  {
     name: 'regressions', home: 'qbh', project: 'qb', timeout: 180,
     expect: () => ({
       'cmdShiftShortcutsInEditor.paletteOpened': true, 'cmdShiftShortcutsInEditor.plainTypingNotIntercepted': true,

@@ -133,8 +133,9 @@ Forgot one? Hold `⌘` for a moment and every shortcut on screen gets a label: t
 | `F5` / `⌘⇧R` | Run the current file (`⇧F5` stops, `⌘⌥R` runs it again) |
 | `⌘⇧B` | Run a task: npm scripts, Makefile targets, Cargo, Go, or any command |
 | `⌘⇧↩` | Send the selection (or current line) to the terminal |
-| `⌘\` | Split right |
+| `⌘\` / `⌘K ⌘\` | Split right / down (drag the dividers to resize) |
 | `⌘K ⌘→` / `⌘K ⌘←` | Focus next / previous pane |
+| `⌘K ⌘↑` / `⌘K ⌘↓` | Focus the pane above / below |
 | `Ctrl-G` | Go to line |
 | `⌘,` | Settings |
 | `⌘K ⌘S` | Search all keybindings (`⌘K ⌘⇧S` opens them in Settings) |

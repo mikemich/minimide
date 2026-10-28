@@ -109,6 +109,7 @@ mide.workspace.getActiveEditor();             // EditorItem or null
 mide.workspace.getItems();
 mide.workspace.save(item);
 mide.workspace.splitRight({ empty: true });   // returns the new pane
+mide.workspace.splitDown({ empty: true });    // same, below instead of to the right
 mide.workspace.relativePath(absPath);
 
 mide.workspace.observeActiveItem((item) => …);

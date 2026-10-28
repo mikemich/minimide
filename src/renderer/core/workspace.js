@@ -5,6 +5,20 @@ import { Document, EditorItem, BinaryItem, bindEditorConfig } from './editor.js'
 
 const MAX_TEXT_SIZE = 8 * 1024 * 1024;
 
+/** A row or column of panes (or of further splits). Each child has a `flex` share of the space. */
+class Split {
+  constructor(dir, children = []) {
+    this.dir = dir; // 'row' (side by side) or 'col' (stacked)
+    this.children = children;
+    this.parent = null;
+    this.flex = 1;
+    this.element = h(`div.pane-split.${dir}`);
+    for (const c of children) c.parent = this;
+  }
+  leaves() { return this.children.flatMap((c) => (c instanceof Split ? c.leaves() : [c])); }
+  serialize() { return { dir: this.dir, flex: this.flex, children: this.children.map((c) => c.serialize()) }; }
+}
+
 export class Pane extends Emitter {
   constructor(ws) {
     super();
@@ -12,6 +26,7 @@ export class Pane extends Emitter {
     this.items = [];
     this.active = null;
     this.flex = 1;
+    this.parent = null;
     this.tabBar = h('div.tab-bar', { ondragover: (e) => this.onDragOver(e), ondrop: (e) => this.onDrop(e), ondblclick: (e) => { if (e.target === this.tabBar || e.target === this.tabsEl) ws.commands.run('file:new'); } });
     this.tabsEl = h('div.tabs');
     this.customActions = h('div.tab-actions-custom');
@@ -172,6 +187,7 @@ export class Pane extends Emitter {
       { id: 'all', label: 'Close All Tabs' },
       { type: 'separator' },
       { id: 'split', label: 'Split Right' },
+      { id: 'split-down', label: 'Split Down' },
       { type: 'separator' },
       { id: 'copy', label: 'Copy Path', enabled: !!path },
       { id: 'copy-rel', label: 'Copy Relative Path', enabled: !!path && !!this.ws.project },
@@ -186,6 +202,7 @@ export class Pane extends Emitter {
       case 'right': for (const i of this.items.slice(idx + 1)) if (!await this.ws.closeItem(i)) break; return;
       case 'all': for (const i of [...this.items]) if (!await this.ws.closeItem(i)) break; return;
       case 'split': return this.ws.splitRight(this, item);
+      case 'split-down': return this.ws.splitDown(this, item);
       case 'copy': return window.native.clipboard.write(path);
       case 'copy-rel': return window.native.clipboard.write(this.ws.relativePath(path));
       case 'reveal': return window.native.shell.reveal(path);
@@ -244,7 +261,7 @@ export class Workspace extends Emitter {
     this.ui = ui;
     this.project = null;
     this.documents = new Map(); // path -> Document
-    this.panes = [];
+    this.root = null; // a Pane, or a Split of them; `panes` lists the leaves in reading order
     this.activePane = null;
     this.openers = [];
     this.paneActions = [];
@@ -292,55 +309,105 @@ export class Workspace extends Emitter {
   }
 
   // --- panes ---------------------------------------------------------------
-  addPane(after) {
+  get panes() { return this.root instanceof Split ? this.root.leaves() : this.root ? [this.root] : []; }
+
+  /** A new pane next to `after` (default: the last one): to its right, or below it for dir 'col'. */
+  addPane(after = this.panes.at(-1), dir = 'row') {
     const pane = new Pane(this);
-    const idx = after ? this.panes.indexOf(after) + 1 : this.panes.length;
-    this.panes.splice(idx, 0, pane);
+    const parent = after?.parent;
+    if (!after) this.root = pane;
+    else if (parent?.dir === dir) {
+      after.flex /= 2;
+      pane.flex = after.flex;
+      pane.parent = parent;
+      parent.children.splice(parent.children.indexOf(after) + 1, 0, pane);
+    } else {
+      // Not in a split of this direction yet: swap in a new one holding both panes.
+      const split = new Split(dir);
+      split.flex = after.flex;
+      after.flex = 1;
+      this.replaceNode(after, split);
+      split.children.push(after, pane);
+      after.parent = pane.parent = split;
+    }
     this.layoutPanes();
     this.setActivePane(pane, false);
     return pane;
   }
 
+  replaceNode(node, by) {
+    const parent = node.parent;
+    by.parent = parent;
+    if (parent) parent.children[parent.children.indexOf(node)] = by;
+    else this.root = by;
+  }
+
   removePane(pane) {
-    const idx = this.panes.indexOf(pane);
-    if (idx < 0 || this.panes.length <= 1) return; // already gone (e.g. emptied by its last close)
+    const panes = this.panes;
+    const idx = panes.indexOf(pane);
+    if (idx < 0 || panes.length <= 1) return; // already gone (e.g. emptied by its last close)
     for (const item of [...pane.items]) pane.removeItem(item, { destroy: true });
-    this.panes.splice(idx, 1);
+    const parent = pane.parent;
+    if (!parent) return; // removing its last item already removed it
+    parent.children.splice(parent.children.indexOf(pane), 1);
+    pane.parent = null;
+    if (parent.children.length === 1) this.collapse(parent);
     this.layoutPanes();
     if (this.activePane === pane) this.setActivePane(this.panes[Math.max(0, idx - 1)]);
     this.notifyActiveItem();
   }
 
+  /** A split with a single child left is replaced by that child, merged into its parent if they run the same way. */
+  collapse(split) {
+    const [child] = split.children;
+    child.flex = split.flex;
+    this.replaceNode(split, child);
+    const parent = child.parent;
+    if (child instanceof Split && parent?.dir === child.dir) {
+      const sum = child.children.reduce((n, c) => n + c.flex, 0);
+      for (const c of child.children) { c.flex = (c.flex / sum) * child.flex; c.parent = parent; }
+      parent.children.splice(parent.children.indexOf(child), 1, ...child.children);
+    }
+  }
+
   layoutPanes() {
-    this.panesEl.replaceChildren();
-    this.panes.forEach((pane, i) => {
-      if (i > 0) this.panesEl.append(this.paneResizer(this.panes[i - 1], pane));
-      pane.element.style.flex = `${pane.flex} 1 0`;
-      this.panesEl.append(pane.element);
-    });
+    const draw = (node) => {
+      if (node instanceof Split) {
+        node.element.replaceChildren(...node.children.flatMap((c, i) => {
+          draw(c);
+          return i ? [this.paneResizer(node.children[i - 1], c, node.dir), c.element] : [c.element];
+        }));
+      }
+      node.element.style.flex = `${node.parent ? node.flex : 1} 1 0`;
+    };
+    draw(this.root);
+    this.panesEl.replaceChildren(this.root.element);
     this.panesEl.classList.toggle('split', this.panes.length > 1);
     this.updateEmptyState();
   }
 
-  paneResizer(left, right) {
-    const el = h('div.resizer.resizer-v.pane-resizer');
+  /** The draggable divider between two neighbours: vertical in a row, horizontal in a column. */
+  paneResizer(a, b, dir) {
+    const row = dir === 'row';
+    const el = h(`div.resizer.pane-resizer.${row ? 'resizer-v' : 'resizer-h'}`);
+    const min = row ? 160 : 80;
     el.addEventListener('mousedown', (e) => {
       e.preventDefault();
-      const startX = e.clientX;
-      const lw = left.element.getBoundingClientRect().width;
-      const rw = right.element.getBoundingClientRect().width;
-      const total = left.flex + right.flex;
-      document.body.classList.add('resizing-h');
+      const at = (ev) => (row ? ev.clientX : ev.clientY);
+      const size = (n) => n.element.getBoundingClientRect()[row ? 'width' : 'height'];
+      const start = at(e), sa = size(a), sb = size(b), total = a.flex + b.flex;
+      const cls = row ? 'resizing-h' : 'resizing-v';
+      document.body.classList.add(cls);
       const move = (ev) => {
-        const dx = ev.clientX - startX;
-        const nl = Math.max(160, lw + dx);
-        const nr = Math.max(160, rw - dx);
-        left.flex = (nl / (nl + nr)) * total;
-        right.flex = (nr / (nl + nr)) * total;
-        left.element.style.flex = `${left.flex} 1 0`;
-        right.element.style.flex = `${right.flex} 1 0`;
+        const d = at(ev) - start;
+        const na = Math.max(min, sa + d);
+        const nb = Math.max(min, sb - d);
+        a.flex = (na / (na + nb)) * total;
+        b.flex = (nb / (na + nb)) * total;
+        a.element.style.flex = `${a.flex} 1 0`;
+        b.element.style.flex = `${b.flex} 1 0`;
       };
-      const up = () => { document.body.classList.remove('resizing-h'); window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); this.emit('layout-changed'); };
+      const up = () => { document.body.classList.remove(cls); window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); this.emit('layout-changed'); };
       window.addEventListener('mousemove', move);
       window.addEventListener('mouseup', up);
     });
@@ -356,8 +423,11 @@ export class Workspace extends Emitter {
     if (focus) pane.active?.focus();
   }
 
-  splitRight(pane = this.activePane, item = pane.active) {
-    const newPane = this.addPane(pane);
+  splitRight(pane = this.activePane, item = pane.active) { return this.split(pane, item, 'row'); }
+  splitDown(pane = this.activePane, item = pane.active) { return this.split(pane, item, 'col'); }
+
+  split(pane, item, dir) {
+    const newPane = this.addPane(pane, dir);
     if (item?.type === 'editor') {
       const copy = new EditorItem(item.document, this, item.view);
       newPane.addItem(copy);
@@ -372,10 +442,25 @@ export class Workspace extends Emitter {
     this.setActivePane(to);
   }
 
+  /** Next or previous pane in reading order (left to right, top to bottom within each split). */
   focusPaneOffset(delta) {
-    if (this.panes.length < 2) return;
-    const i = (this.panes.indexOf(this.activePane) + delta + this.panes.length) % this.panes.length;
-    this.setActivePane(this.panes[i]);
+    const panes = this.panes;
+    if (panes.length < 2) return;
+    this.setActivePane(panes[(panes.indexOf(this.activePane) + delta + panes.length) % panes.length]);
+  }
+
+  /** The nearest pane above (dy -1) or below (dy 1) that overlaps the active one horizontally. */
+  focusPaneVertical(dy) {
+    const r = this.activePane.element.getBoundingClientRect();
+    let best = null;
+    for (const p of this.panes) {
+      const q = p.element.getBoundingClientRect();
+      const gap = dy < 0 ? r.top - q.bottom : q.top - r.bottom;
+      const overlap = Math.min(r.right, q.right) - Math.max(r.left, q.left);
+      if (p === this.activePane || gap < -1 || overlap <= 0) continue;
+      if (!best || gap < best.gap - 1 || (Math.abs(gap - best.gap) <= 1 && overlap > best.overlap)) best = { p, gap, overlap };
+    }
+    if (best) this.setActivePane(best.p);
   }
 
   allItems() { return this.panes.flatMap((p) => p.items); }
@@ -707,31 +792,47 @@ export class Workspace extends Emitter {
 
   // --- session -------------------------------------------------------------
   serialize() {
-    return { panes: this.panes.map((p) => p.serialize()), activePane: this.panes.indexOf(this.activePane) };
+    return { layout: this.root.serialize(), activePane: this.panes.indexOf(this.activePane) };
   }
 
   async restore(state) {
-    if (!state?.panes?.length) return;
-    const panes = state.panes;
+    // Older sessions saved a flat list of panes: that is one row.
+    const layout = state?.layout || (state?.panes?.length && { dir: 'row', children: state.panes });
+    if (!layout) return;
+    let first = this.panes[0];
+    const build = (d) => {
+      const node = d.children?.length
+        ? new Split(d.dir === 'col' ? 'col' : 'row', d.children.map(build))
+        : (first ? first : new Pane(this));
+      first = null;
+      node.flex = d.flex > 0 ? d.flex : 1;
+      return node;
+    };
+    const old = this.panes.slice(1);
+    this.root = build(layout);
+    this.root.parent = null;
+    for (const p of old) for (const item of [...p.items]) p.removeItem(item, { destroy: true });
+    this.layoutPanes();
+    const saved = [];
+    (function walk(d) { if (d.children?.length) d.children.forEach(walk); else saved.push(d); })(layout);
+    const panes = this.panes;
     for (let i = 0; i < panes.length; i++) {
-      const ps = panes[i];
-      const pane = i === 0 ? this.panes[0] : this.addPane(this.panes[i - 1]);
-      pane.flex = ps.flex || 1;
-      for (const s of ps.items) {
+      const ps = saved[i], pane = panes[i];
+      for (const s of ps.items || []) {
         if (!s?.path) continue; // editors and any other item that serializes a path (images…)
         const stat = await window.native.fs.stat(s.path);
         if (!stat?.isFile) continue;
         const item = await this.open(s.path, { pane, focus: false, activate: false });
         item?.restore?.(s);
       }
-      const activePath = ps.items[ps.active]?.path;
+      const activePath = ps.items?.[ps.active]?.path;
       const active = pane.items.find((i) => activePath && i.getPath?.() === activePath) || pane.items[0];
       if (active) pane.activate(active);
     }
-    this.panes.filter((p) => !p.items.length && this.panes.length > 1).forEach((p) => this.removePane(p));
+    const ap = panes[state.activePane] || panes[0];
+    panes.filter((p) => !p.items.length && this.panes.length > 1).forEach((p) => this.removePane(p));
     this.layoutPanes();
-    const ap = this.panes[state.activePane] || this.panes[0];
-    this.setActivePane(ap, false);
-    requestAnimationFrame(() => ap.active?.focus());
+    this.setActivePane(this.panes.includes(ap) ? ap : this.panes[0], false);
+    requestAnimationFrame(() => this.activePane.active?.focus());
   }
 }

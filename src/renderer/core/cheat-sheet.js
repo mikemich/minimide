@@ -37,6 +37,7 @@ const SECTIONS = [
     ['Sidebar', 'sidebar:toggle'],
     ['Terminal', 'terminal:toggle'],
     ['Split right', 'pane:split-right'],
+    ['Split down', 'pane:split-down'],
     ['Zen mode', 'window:toggle-zen-mode'],
   ]],
 ];

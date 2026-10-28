@@ -21,6 +21,9 @@ export const CORE_KEYMAP = {
   'Mod-1': 'tab:go-1', 'Mod-2': 'tab:go-2', 'Mod-3': 'tab:go-3', 'Mod-4': 'tab:go-4', 'Mod-5': 'tab:go-5',
   'Mod-6': 'tab:go-6', 'Mod-7': 'tab:go-7', 'Mod-8': 'tab:go-8', 'Mod-9': 'tab:go-last',
   'Mod-\\': 'pane:split-right',
+  'Mod-k Mod-\\': 'pane:split-down',
+  'Mod-k Mod-ArrowUp': 'pane:focus-above',
+  'Mod-k Mod-ArrowDown': 'pane:focus-below',
   'Mod-k Mod-ArrowRight': 'pane:focus-next',
   'Mod-k Mod-ArrowLeft': 'pane:focus-previous',
   'Mod-k Mod-w': 'pane:close',
@@ -159,8 +162,11 @@ export function registerCoreCommands(app) {
       run: () => { const p = ws.activePane; const it = p.items[n - 1]; if (it) { p.activate(it); it.focus(); } },
     }])),
     'pane:split-right': { title: 'Split Right', run: () => ws.splitRight() },
+    'pane:split-down': { title: 'Split Down', run: () => ws.splitDown() },
     'pane:focus-next': { title: 'Focus Next Pane', run: () => ws.focusPaneOffset(1) },
     'pane:focus-previous': { title: 'Focus Previous Pane', run: () => ws.focusPaneOffset(-1) },
+    'pane:focus-above': { title: 'Focus Pane Above', run: () => ws.focusPaneVertical(-1) },
+    'pane:focus-below': { title: 'Focus Pane Below', run: () => ws.focusPaneVertical(1) },
     'pane:close': { title: 'Close Pane', run: () => ws.closeActivePane() },
 
     // --- layout ------------------------------------------------------------
