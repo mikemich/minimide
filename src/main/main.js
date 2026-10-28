@@ -1,5 +1,5 @@
 // Minimide main process: windows, the mide:// protocol, and the native bridge.
-import { app, BrowserWindow, Menu, protocol, ipcMain, dialog, shell, clipboard, nativeTheme, session, net, nativeImage, ClipboardItem } from 'electron';
+import { app, BrowserWindow, Menu, protocol, ipcMain, dialog, shell, clipboard, nativeTheme, session, net, nativeImage, ClipboardItem, safeStorage } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import fss from 'node:fs';
@@ -10,6 +10,8 @@ import { createRequire } from 'node:module';
 import { Worker } from 'node:worker_threads';
 import { createPackageManager } from './package-manager.js';
 import { createUpdater } from './updater.js';
+import { createVscodeReader } from './vscode.js';
+import { createSecrets, createGist } from './sync.js';
 import dns from 'node:dns/promises';
 import net_ from 'node:net';
 
@@ -485,6 +487,22 @@ function pngFromDataUrl(dataUrl, maxBytes) {
 const winQuote = (a) => (/^[\w.\\/:=-]+$/.test(a) ? a : `"${String(a).replace(/"/g, '""')}"`);
 const winShell = (commandLine) => [process.env.COMSPEC || 'cmd.exe', ['/d', '/s', '/c', `"${commandLine}"`], { windowsVerbatimArguments: true, windowsHide: true }];
 
+// Import from VS Code and settings sync. The test overrides are ignored in packaged builds.
+const vscodeReader = createVscodeReader({ home: os.homedir(), platform: process.platform, appData: process.env.APPDATA, override: DEV_BUILD ? process.env.MINIMIDE_VSCODE_DIR : undefined });
+const secrets = createSecrets({ file: path.join(USER_DIR, 'secrets.json'), safeStorage, plain: DEV_BUILD && process.env.MINIMIDE_SECRETS_PLAIN === '1' });
+const gist = createGist({
+  secrets, fetch: (url, opts) => net.fetch(url, opts), version: app.getVersion(),
+  apiBase: (DEV_BUILD && process.env.MINIMIDE_GIST_API) || undefined,
+  // `gh auth token` through the login shell, so Homebrew's gh is found when launched from the Dock.
+  gh: () => new Promise((resolve, reject) => {
+    const bin = DEV_BUILD && process.env.MINIMIDE_GH_BIN;
+    const [cmd, args] = bin ? [bin, ['auth', 'token']] : IS_WIN ? [resolveCommand('gh'), ['auth', 'token']] : [USER_SHELL, ['-lc', 'gh auth token']];
+    execFile(cmd, args, { timeout: 10000, windowsHide: true }, (err, stdout) => (err ? reject(err) : resolve(stdout.trim().split(/\r?\n/).pop() || '')));
+  }),
+  getId: async () => (await readState()).settingsSync?.gistId || null,
+  setId: (id) => saveState({ settingsSync: { gistId: id } }, { trusted: true }),
+});
+
 function registerIpc() {
   // filesystem
   handle('fs:read', (_e, p) => fs.readFile(p, 'utf8'));
@@ -773,6 +791,23 @@ function registerIpc() {
     try { process.platform === 'win32' ? term.kill() : term.kill(signal || 'SIGHUP'); } catch {}
   });
 
+  // Import from VS Code: read-only, by install id, limited to its settings and theme files (see vscode.js).
+  handle('vscode:scan', () => vscodeReader.scan());
+  handle('vscode:read', (_e, id) => vscodeReader.read(String(id)));
+  handle('vscode:theme', (_e, id, name) => vscodeReader.theme(String(id), String(name)));
+
+  // Settings sync: the token is stored encrypted and never handed back to the page. The page can
+  // only ask for the gist calls below, which are fixed to the user's own sync gist.
+  handle('secrets:set', (_e, name, value) => secrets.set(name, value));
+  handle('secrets:has', (_e, name) => secrets.has(name));
+  handle('secrets:delete', (_e, name) => secrets.delete(name));
+  handle('gist:status', () => gist.status());
+  handle('gist:cliAvailable', () => gist.cliAvailable());
+  handle('gist:cliLogin', () => gist.cliLogin());
+  handle('gist:upload', (_e, files) => gist.upload(files));
+  handle('gist:download', () => gist.download());
+  handle('gist:forget', () => gist.forget());
+
   // user dir, packages & state
   handle('user:info', () => ({ appRoot: ROOT, dir: USER_DIR, packagesDir: USER_PACKAGES, platform: process.platform, home: os.homedir(), shell: USER_SHELL, version: app.getVersion(), runDir: RUN_DIR,
     // Test runs only: treat every folder as trusted so suites don't stop at the trust prompt.
@@ -865,11 +900,13 @@ let stateWrites = 0; // queued writes, so quitting can wait for them (see will-q
 async function readState() {
   try { return JSON.parse(await fs.readFile(STATE_FILE(), 'utf8')); } catch { return {}; }
 }
-function saveState(incoming) {
+function saveState(incoming, { trusted = false } = {}) {
   stateWrites++;
   stateQueue = stateQueue.then(async () => {
     const disk = await readState();
     const merged = { ...disk, ...incoming, sessions: { ...disk.sessions, ...incoming.sessions } };
+    // The sync gist id belongs to the main process: a page's older copy of the state can't change it.
+    if (!trusted) { if (disk.settingsSync) merged.settingsSync = disk.settingsSync; else delete merged.settingsSync; }
     const tmp = `${STATE_FILE()}.${process.pid}.tmp`;
     await fs.writeFile(tmp, JSON.stringify(merged, null, 2));
     await fs.rename(tmp, STATE_FILE());

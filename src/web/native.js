@@ -394,6 +394,9 @@ window.native = {
     checkUpdates: async () => [], search: async () => [], permissions: async () => ({}),
   },
   net: { fetch: desktopOnly },
+  vscode: { scan: desktopOnly, read: desktopOnly, theme: desktopOnly },
+  secrets: { set: desktopOnly, has: desktopOnly, delete: desktopOnly },
+  gist: { status: desktopOnly, cliAvailable: desktopOnly, cliLogin: desktopOnly, upload: desktopOnly, download: desktopOnly, forget: desktopOnly },
   trust: { list: async () => [], add: async () => [], remove: async () => [], onChange: noop },
   updates: {
     check: async () => { throw new Error('The browser demo always runs the latest version. Download the app from GitHub.'); },

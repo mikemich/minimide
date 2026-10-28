@@ -1,0 +1,22 @@
+.ss-view { overflow: auto; background: var(--bg); }
+.ss-content { max-width: 860px; padding: 36px 48px 80px; }
+.ss-content h1 { margin: 0 0 6px; font-size: 1.8em; font-weight: 600; color: var(--fg-strong); letter-spacing: -0.02em; }
+.ss-source { margin: 0 0 6px; color: var(--fg-muted); font-size: 0.93em; }
+.ss-intro { margin: 0 0 20px; color: var(--fg); }
+.ss-note { margin: 4px 0 8px; color: var(--fg-muted); font-size: 0.93em; }
+.ss-file { border-bottom: 1px solid var(--border); padding: 4px 0; }
+.ss-file-head { display: flex; align-items: center; gap: 10px; padding: 5px 0; cursor: pointer; }
+.ss-file-name { color: var(--fg-strong); font-family: var(--editor-font); font-size: 0.93em; }
+.ss-file-stat { color: var(--fg-muted); font-size: 0.88em; }
+.ss-file-warn { margin: 0 0 4px 26px; color: var(--c-orange); font-size: 0.88em; }
+.ss-file details { margin: 0 0 6px 26px; }
+.ss-file summary { cursor: pointer; color: var(--fg-muted); font-size: 0.88em; }
+.ss-diff { margin: 6px 0 4px; padding: 6px 0; overflow: auto; max-height: 340px; border: 1px solid var(--border); border-radius: 6px; font-family: var(--editor-font); font-size: 0.86em; line-height: 1.5; }
+.ss-line { white-space: pre; padding: 0 10px; }
+.ss-line.add { background: color-mix(in srgb, var(--success, #3fb950) 18%, transparent); }
+.ss-line.del { background: color-mix(in srgb, var(--error, #f85149) 18%, transparent); }
+.ss-line.gap { color: var(--fg-muted); font-style: italic; }
+.ss-section-title { margin: 22px 0 6px; color: var(--fg-strong); font-weight: 600; }
+.ss-pkg { margin: 4px 0; color: var(--fg); font-family: var(--editor-font); font-size: 0.93em; }
+.ss-actions { display: flex; gap: 8px; margin-top: 18px; }
+.ss-actions .btn:disabled { opacity: 0.5; }

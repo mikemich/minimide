@@ -339,6 +339,8 @@ export function activate(mide) {
         card('Stylesheet', 'Your CSS, loaded last. Change any color variable, font or spacing.', 'settings:open-stylesheet', 'Open styles.css'),
         card('Keymap', 'Rebind anything. Use "Mod" for ⌘ on macOS and Ctrl elsewhere.', 'settings:open-keymap', 'Open keymap.json'),
         card('Config', 'Every setting as JSON (comments allowed).', 'settings:open-config-file', 'Open config.json'),
+        card('Coming from VS Code?', 'Bring over your settings, keybindings, snippets and color theme. You see a preview first.', 'vscode-import:run', 'Import from VS Code…'),
+        card('Settings sync', 'Keep config, keymap, styles, init script and snippets the same on every computer, in a private GitHub gist.', 'settings-sync:set-up', 'Set Up Sync…'),
         card('New package', 'Scaffold a package with a command, a keybinding, a setting and a status bar item.', 'packages:create', 'Create Package'),
         card('API docs', 'Commands, workspace, editor extensions, panels, services and more.', 'help:plugin-docs', 'Read the docs')));
   }

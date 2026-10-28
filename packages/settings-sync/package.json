@@ -1,0 +1,8 @@
+{
+  "name": "settings-sync",
+  "displayName": "Settings Sync",
+  "description": "Keep your config, keymap, styles, init script and snippets the same on every computer, in a private GitHub gist.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"]
+}

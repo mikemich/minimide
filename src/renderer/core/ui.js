@@ -194,10 +194,10 @@ export function selectList(opts) {
 // ---------------------------------------------------------------------------
 // Prompt: a single-line input in the select-list style.
 
-export function prompt({ title, placeholder, value = '', selection, validate } = {}) {
+export function prompt({ title, placeholder, value = '', selection, validate, secret = false } = {}) {
   return new Promise((resolve) => {
     let done = false;
-    const input = h('input.select-input', { type: 'text', placeholder: placeholder || '', value, spellcheck: false });
+    const input = h('input.select-input', { type: secret ? 'password' : 'text', placeholder: placeholder || '', value, spellcheck: false, autocomplete: 'off' });
     const message = h('div.prompt-message', title || '');
     const panel = h('div.select-list.prompt', message, input);
     const modal = openModal(panel, { onClose: () => { if (!done) resolve(null); } });

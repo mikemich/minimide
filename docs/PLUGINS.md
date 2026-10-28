@@ -84,6 +84,7 @@ mide.keymap.add({ 'Mod-k Mod-c': 'word-count:toggle' });
 // claim ⌘= only while its own view is active and the editor keeps it otherwise.
 mide.keymap.bindingsFor('file:save');   // ['Cmd-s']
 mide.keymap.pretty('Shift-Cmd-p');      // '⇧⌘P'
+mide.keymap.normalize('mod-shift-P');   // 'Shift-Cmd-p' (the form the keymap compares)
 ```
 
 ### config
@@ -94,6 +95,7 @@ mide.config.get('editor.fontSize');
 await mide.config.set('editor.softWrap', true);
 mide.config.observe('core.theme', (value) => …);   // runs now and on change
 mide.config.onDidChange('editor.tabSize', (value) => …);
+mide.config.parseJSONC(text);   // JSON with comments and trailing commas, like config.json
 ```
 
 Schema types: `boolean`, `number`, `string` (with optional `enum`), `array`.
@@ -223,6 +225,7 @@ mide.ui.addQuickOpenMode({
   onSelect: (item) => mide.workspace.open(item.b.path, { line: item.b.line }),
 });
 const name = await mide.ui.prompt({ title: 'Name?', value: 'untitled', validate: (v) => v ? null : 'Required' });
+const token = await mide.ui.prompt({ title: 'Paste a token', secret: true });   // masked input
 const choice = await mide.ui.confirm({ message: 'Sure?', buttons: ['Yes', 'No'] }); // index
 const picked = await mide.ui.contextMenu([{ id: 'a', label: 'A', accelerator: 'Cmd+Shift+A' }, { type: 'separator' }, { id: 'b', label: 'B' }, { role: 'copy' }]);
 ```
@@ -295,6 +298,29 @@ mide.subscriptions.add(disposable);   // anything with dispose()
 // e.g. the debugger's breakpoints and watch expressions.
 mide.state.set('watches', ['total / count']);
 mide.state.get('watches');
+```
+
+### VS Code import and settings sync (full-access packages)
+
+These back the built-in `vscode-import` and `settings-sync` packages. They are not available to
+sandboxed packages.
+
+```js
+// Read-only view of the user folder of VS Code, Insiders, Cursor and VSCodium. You name an install by id.
+const installs = await mide.vscode.scan();                  // [{ id: 'code', label: 'VS Code', dir }]
+const { settings, keybindings, snippets } = await mide.vscode.read('code');   // text; snippets: [{ name, text }]
+const theme = await mide.vscode.theme('code', 'Some Theme');                  // parsed theme from an installed extension, or null
+const { slug, packageJson, themeCss } = mide.vscode.convertTheme(theme);      // with faint text made readable
+
+// Settings sync through one private gist. The token lives in the main process: you can store it
+// and ask whether it is set, but never read it back.
+await mide.sync.status();            // { hasToken, gistId }
+await mide.sync.cliAvailable();      // is `gh auth token` usable?
+await mide.sync.useGitHubCli();      // { ok, error? }: moves gh's token into the secret store
+await mide.sync.setToken(token);
+await mide.sync.upload({ 'config.json': text });   // { name: text }; creates the gist the first time
+const gist = await mide.sync.download();           // { url, updatedAt, files } or null
+await mide.sync.signOut();
 ```
 
 ## Themes
