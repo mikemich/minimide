@@ -285,6 +285,23 @@ mide.services.provide('git-status', { statuses, onDidChange, refresh });
 mide.services.consume('git-status', (git) => { … });
 ```
 
+### AI requests
+
+Full-access packages can ask a model through `mide.ai`. The main process makes the request, so
+the API key never reaches page JavaScript; text streams back as it's written.
+
+```js
+const res = await mide.ai.request({
+  model: 'claude-opus-5-5',            // or provider: 'ollama' with a local model name
+  system: 'You review code.',
+  messages: [{ role: 'user', content: 'Is this function safe?' }],
+  maxTokens: 16000, effort: 'medium',
+}, { onText: (t) => output.append(t), signal: controller.signal });
+res.content;     // the answer's content blocks; send them back unchanged as the next assistant turn
+res.stopReason;  // 'end_turn', 'max_tokens', 'refusal'…  (res.refusal explains a refusal)
+await mide.ai.status(); // { savedKey, environmentKey }
+```
+
 ### styles, packages and misc
 
 ```js

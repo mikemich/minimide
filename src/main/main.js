@@ -12,6 +12,7 @@ import { createPackageManager } from './package-manager.js';
 import { createUpdater } from './updater.js';
 import { createVscodeReader } from './vscode.js';
 import { createSecrets, createGist } from './sync.js';
+import { registerAi } from './ai.js';
 import dns from 'node:dns/promises';
 import net_ from 'node:net';
 
@@ -504,6 +505,8 @@ const gist = createGist({
 });
 
 function registerIpc() {
+  // AI requests (packages/ai). Tests point them at a fake API server.
+  registerAi({ handle, userDir: USER_DIR, testBaseUrl: DEV_BUILD ? process.env.MINIMIDE_AI_BASE_URL : null });
   // filesystem
   handle('fs:read', (_e, p) => fs.readFile(p, 'utf8'));
   handle('fs:write', async (_e, p, data) => { await fs.mkdir(path.dirname(p), { recursive: true }); await fs.writeFile(p, data); });

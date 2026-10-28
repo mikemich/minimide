@@ -17,6 +17,7 @@ import { packageUrl } from './urls.js';
 import { prettyBinding, normalizeBinding } from './keymap.js';
 import { parseJSONC } from './config.js';
 import { convertTheme } from './vscode-theme.js';
+import { aiClient } from './ai-client.js';
 import { convertSnippet } from './snippet.js';
 import { SandboxedPackage, loadSandboxedStyles } from './sandbox.js';
 
@@ -467,6 +468,8 @@ export class PackageManager extends Emitter {
         reveal: (p) => window.native.shell.reveal(p),
         openPath: (p) => window.native.shell.openPath(p),
       },
+      /** AI requests run by the main process, which keeps the API key. See src/renderer/core/ai-client.js. */
+      ai: aiClient,
       clipboard: window.native.clipboard,
       /** Read-only access to the user folder of VS Code (and Cursor, VSCodium, Insiders). Desktop app only. */
       vscode: {

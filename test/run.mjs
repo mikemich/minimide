@@ -17,6 +17,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { createFixtures } from './fixtures.mjs';
 import { gistServer, vscodeEnv } from './servers.mjs';
+import { startFakeAnthropic } from './fake-anthropic.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SUITES_DIR = path.join(REPO, 'test/suites');
@@ -244,6 +245,28 @@ const SUITES = [
       hintsShown: true, hintsHidden: true, boxOpen: true,
       noEditorBefore: true, editorOpened: 'README.md', menu: (m) => Array.isArray(m) && m.includes('Command Palette…') && m.includes('copy'),
       closed: true, notAgain: true, notAfterReload: true, commandShows: 1, inPalette: true, closeButton: true,
+    }),
+  },
+  {
+    // The AI package against a fake Anthropic API (test/fake-anthropic.mjs): nothing leaves the machine.
+    name: 'ai', home: 'aih', project: 'aiproj', timeout: 300,
+    server: (fixtures) => startFakeAnthropic(path.join(fixtures, 'aih')),
+    expect: () => ({
+      'status.environmentKey': true, badKeyRejected: /sk-ant-/,
+      'chat.answer': 'console.log("hi");', 'chat.meta': /^claude-opus-5-5 · 1\.2k in \(800 cached\) · 42 out$/,
+      'chat.request': { model: 'claude-opus-5-5', stream: true, max_tokens: 64000, effort: 'medium', fallbacks: 'default', cache: 'ephemeral', apiKey: 'test-key', fallbackBeta: true, systemOk: true, hasContext: true, hasFile: true },
+      'chat.second': { messages: 3, thinkingPassedBack: 'sig-test-123', fileUnchangedNote: true },
+      inserted: true,
+      'edit.applied': 'const total = items.reduce((sum, x) => sum + x, 0);', 'edit.selectionMarked': true, 'edit.rejectedUnchanged': true,
+      'fix.noProblem': true,
+      'suggest.ghost': 'return a + b;', 'suggest.accepted': true, 'suggest.request': { max_tokens: 4096, effort: 'low' },
+      refusal: /declined in the test/,
+      'stop.stopped': true, 'stop.historyKept': true,
+      'noFile.sentFile': false,
+      'haiku.fallbacks': 'absent',
+      missingModel: /model wasn't found/,
+      'ollama.answer': 'Local model answer.', 'ollama.remoteRejected': /this machine/,
+      noKeyInState: true,
     }),
   },
   {
@@ -587,6 +610,7 @@ async function main() {
       continue;
     }
     process.stdout.write(`run   ${suite.name}… `);
+    // A suite may need a stand-in server (e.g. the AI API); its settings reach the app as env vars.
     const server = suite.server ? await suite.server(fixtures) : null;
     const r = await runSuite(suite, { electron, fixtures, env: server?.env });
     await server?.close();
