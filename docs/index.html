@@ -121,6 +121,7 @@
         <a href="#keys">Keys</a>
         <a href="#hack">Hack it</a>
         <a href="#features">Features</a>
+        <a href="#ai">AI</a>
         <a href="#themes">Themes</a>
         <a href="#safe">Security</a>
         <a class="gh" href="https://github.com/mikemich/minimide">GitHub ↗</a>
@@ -149,7 +150,7 @@
         <img src="media/shortcuts-poster.jpg" alt="" loading="lazy">
         <button class="btn primary" id="try-start" type="button">▶&nbsp; Start Minimide</button>
       </div>
-      <p class="shot-caption"><a href="try/">Open it full screen ↗</a> · Best on a computer. Terminals, git and language servers need the app.</p>
+      <p class="shot-caption"><a href="try/">Open it full screen ↗</a> · Or open any public GitHub repo in it: <a href="try/?repo=mikemich/minimide">try/?repo=owner/name</a> · Best on a computer. Terminals, git and language servers need the app.</p>
     </section>
 
     <section id="keys">
@@ -173,7 +174,7 @@
       <p class="sub">Atom made hacking your tools feel fun. Editors have since grown into platforms nobody fully understands: you can configure them, but you can't really change them. Minimide is small enough to own.</p>
       <div class="grid3">
         <div class="card"><div class="num">~5<span>k</span></div><h3>Lines in the core</h3><p>Plain JavaScript. No framework, no build magic. Every line that runs is one you can read.</p></div>
-        <div class="card"><div class="num">42</div><h3>Built-in packages</h3><p>Tree view, git, terminal, language servers, Vim, themes, even settings: all on the same public API you get.</p></div>
+        <div class="card"><div class="num">49</div><h3>Built-in packages</h3><p>Tree view, git, terminal, debugger, language servers, Vim, AI, even settings: all on the same public API you get.</p></div>
         <div class="card"><div class="num">0<span>s</span></div><h3>Restarts to see a change</h3><p>Save a package, your stylesheet or keymap and it reloads instantly. Tweak the editor while you use it.</p></div>
       </div>
     </section>
@@ -211,17 +212,31 @@
       <p class="sub">Simple by default, with power tools a keystroke away.</p>
       <div class="features">
         <div class="feature"><b>Language servers</b><span>Completions with auto-import, diagnostics, go to or peek definition, project symbols, rename, quick fixes.</span></div>
-        <div class="feature"><b>Real terminal</b><span>Tabs, your own shell, clickable <code>file:line</code> output.</span></div>
-        <div class="feature"><b>One-key run</b><span>F5 runs Python, JS/TS, Go, Rust, C/C++ and more. ⌘⇧B runs tasks.</span></div>
+        <div class="feature"><b>Debugger</b><span>Breakpoints, stepping, variables, watches and a console for Python and JavaScript. <kbd>⌥F5</kbd> to start.</span></div>
+        <div class="feature"><b>Real terminal</b><span>Tabs and side-by-side splits, your own shell, clickable <code>file:line</code> output.</span></div>
+        <div class="feature"><b>One-key run</b><span>F5 runs Python, JS/TS, Go, Rust, C/C++ and more. ⌘⇧B runs tasks, each in its own tab.</span></div>
+        <div class="feature"><b>Remote over SSH</b><span>Open a folder on another machine. It syncs through your own <code>ssh</code> and asks when both sides changed.</span></div>
         <div class="feature"><b>Git panel</b><span>Stage, commit, push, pull, side-by-side diffs, blame and gutter markers.</span></div>
         <div class="feature"><b>One search box</b><span>Files, commands in plain words, symbols and lines, all from <code>⌘P</code>.</span></div>
         <div class="feature"><b>Vim mode</b><span>Motions, registers, macros, <code>:w</code> and <code>:q</code>. Off until you want it.</span></div>
         <div class="feature"><b>160+ languages</b><span>From Python and Rust to Terraform, Nix, Zig, Makefiles, <code>.env</code> and logs.</span></div>
-        <div class="feature"><b>Snippets</b><span>171 built in for 25 languages, words from the file as you type, or your VS Code snippets.</span></div>
+        <div class="feature"><b>Snippets &amp; Emmet</b><span>171 snippets for 25 languages or your VS Code ones, and Emmet: <code>ul&gt;li*3</code> plus Tab.</span></div>
         <div class="feature"><b>Big repos</b><span>Indexes and searches 250,000 files without freezing the editor.</span></div>
+        <div class="feature"><b>Move in from VS Code</b><span>Bring your settings, keybindings, snippets and theme over, after a preview of each one.</span></div>
+        <div class="feature"><b>Sync settings</b><span>Keep your setup the same on every computer through a private GitHub gist.</span></div>
         <div class="feature"><b>Updates itself</b><span>Checks GitHub once a day and verifies every download.</span></div>
         <div class="feature"><b>27 fonts</b><span>JetBrains Mono, Fira Code, Iosevka, Monaspace, Geist and more, previewed live.</span></div>
-        <div class="feature"><b>And more</b><span>Sticky scroll, minimap, image viewer, Markdown preview, project-wide replace.</span></div>
+        <div class="feature"><b>And more</b><span>Copy code as an image, spell check for prose, bracket pair colors, split down, Markdown preview that scrolls along.</span></div>
+      </div>
+    </section>
+
+    <section id="ai">
+      <h2>AI when you ask, not before.</h2>
+      <p class="sub">The optional AI package uses Claude with your own Anthropic API key, or a model running on your machine through Ollama. Nothing is sent until you ask, and it tells you what will be sent the first time.</p>
+      <div class="grid3">
+        <div class="card"><h3>Chat about your code</h3><p><kbd>⌘I</kbd> opens a chat that sees the open file and your selection. Code in answers comes with Insert and Replace buttons.</p></div>
+        <div class="card"><h3>Edits you review</h3><p>Select code, say what to change, and the proposal opens as a side-by-side diff. Accept with <kbd>⌘↩</kbd>, or Esc and nothing changed. Fix and Explain work the same way.</p></div>
+        <div class="card"><h3>Your key stays put</h3><p>The key is encrypted with your system keychain and only used by the app's main process. Page code, packages and settings files never see it.</p></div>
       </div>
     </section>
 
