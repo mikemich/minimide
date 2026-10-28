@@ -11,7 +11,7 @@ const USER_DIR = `${HOME}/.minimide`;
 const STORE = 'minimide-demo-fs-v1';
 const STATE = 'minimide-demo-state-v1';
 // Need a desktop: language servers, terminals, running code and git.
-const LEFT_OUT = new Set(['lsp', 'terminal', 'runner', 'git', 'git-blame', 'source-control']);
+const LEFT_OUT = new Set(['lsp', 'terminal', 'runner', 'git', 'git-blame', 'source-control', 'remote-ssh']);
 const DESKTOP_ONLY = 'This needs the desktop app. Download Minimide from GitHub to use it.';
 
 // --- in-memory file system ----------------------------------------------------
@@ -276,6 +276,10 @@ window.native = {
     checkUpdates: async () => [], search: async () => [], permissions: async () => ({}),
   },
   net: { fetch: desktopOnly },
+  remote: {
+    connect: desktopOnly, lookup: async () => null, sync: desktopOnly, push: desktopOnly, pull: desktopOnly,
+    disconnect: async () => {}, terminalCommand: desktopOnly,
+  },
   trust: { list: async () => [], add: async () => [], remove: async () => [], onChange: noop },
   updates: {
     check: async () => { throw new Error('The browser demo always runs the latest version. Download the app from GitHub.'); },

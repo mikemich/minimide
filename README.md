@@ -167,6 +167,7 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `git` | Branch switcher, tree status, change markers in the editor gutter |
 | `source-control` | Git panel (`⌃⇧G`): stage, unstage, discard, commit, amend, push, pull, and side-by-side or inline diffs |
 | `terminal` | A real terminal (xterm.js + node-pty) in tabs; click `file:line` in output to jump there |
+| `remote-ssh` | **Remote: Open Folder over SSH…** edits a folder on another machine through a local copy, kept in sync with your own `ssh` and `rsync` (uploads on save, asks when both copies changed). macOS and Linux |
 | `runner` | Run the current file with `F5` (Python, JS/TS, Go, Rust, C/C++, Java, Ruby, shell and more) or a project task with `⌘⇧B` |
 | `markdown-preview` | Live, sanitized preview in a split pane |
 | `settings-view` | Settings, themes, packages and keybindings, generated from schemas |

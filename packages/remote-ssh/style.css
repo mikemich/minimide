@@ -1,0 +1,4 @@
+.remote-ssh-status { display: inline-flex; align-items: center; gap: 5px; }
+.remote-ssh-note { color: var(--fg-muted); font-size: 0.9em; }
+.remote-ssh-note.error { color: var(--c-red); font-weight: 600; }
+.remote-ssh-status[data-state="offline"] { color: var(--fg-muted); }

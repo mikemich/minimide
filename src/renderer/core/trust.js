@@ -32,7 +32,19 @@ export class Trust extends Emitter {
   isTrusted(path = this.app.workspace.project) {
     if (!this.enabled) return true;
     if (!path) return false;
-    return this.folders.some((t) => within(path, t.path) || within(path, t.real));
+    const remote = this.remoteOf(path);
+    return this.folders.some((t) => [t.path, t.real].some((f) => within(path, f) && (!remote || within(f, remote.dir))));
+  }
+
+  /**
+   * The local copy of a remote folder (~/.minimide/remote/<host>/…) is trusted only by an entry
+   * for that host or inside it: trusting your home folder doesn't trust every server you open.
+   */
+  remoteOf(path) {
+    const base = `${this.app.userInfo?.dir}/remote/`;
+    if (!path?.startsWith(base)) return null;
+    const host = path.slice(base.length).split('/')[0];
+    return host ? { host, dir: base + host } : null;
   }
 
   async trust(folder) {
@@ -49,13 +61,14 @@ export class Trust extends Emitter {
   async prompt(folder = this.app.workspace.project) {
     if (!folder || this.isTrusted(folder)) return true;
     const name = folder.split('/').filter(Boolean).pop() || folder;
-    const parent = folder.replace(/\/[^/]+\/?$/, '') || '/';
+    const remote = this.remoteOf(folder);
+    const parent = remote ? remote.dir : folder.replace(/\/[^/]+\/?$/, '') || '/';
     const choice = await window.native.dialog.confirm({
       type: 'question',
-      message: `Do you trust the files in “${name}”?`,
-      detail: 'Minimide runs git and language servers for folders you trust. Those tools can run code that comes with a folder, for example from its git settings or its node_modules.\n\n'
+      message: remote ? `Do you trust the files in “${name}” on ${remote.host}?` : `Do you trust the files in “${name}”?`,
+      detail: `Minimide runs git and language servers${remote ? ' on this computer' : ''} for folders you trust. Those tools can run code that comes with a folder, for example from its git settings or its node_modules.\n\n`
         + 'In Restricted Mode they stay off. You can still read and edit everything, and trust the folder later from the status bar.',
-      buttons: ['Trust Folder', `Trust Everything in “${parent.split('/').pop() || parent}”`, 'Restricted Mode'],
+      buttons: ['Trust Folder', remote ? `Trust Everything on ${remote.host}` : `Trust Everything in “${parent.split('/').pop() || parent}”`, 'Restricted Mode'],
       cancelId: 2,
     });
     if (choice === 0) await this.trust(folder);

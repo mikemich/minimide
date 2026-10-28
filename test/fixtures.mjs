@@ -187,6 +187,60 @@ function ftproj(root) {
 }
 
 /**
+ * `remote`: a fake ssh (MINIMIDE_SSH_BIN) that runs the "remote" command locally in remote/server,
+ * as if that were the remote home folder, plus a project there (remoteSsh). The host "pwhost"
+ * asks for a password until it's logged in once without BatchMode; "down…" hosts can't be reached.
+ */
+export function remote(root) {
+  const d = path.join(root, 'remote');
+  write(path.join(d, 'fake-ssh'), [
+    '#!/bin/sh',
+    'here=$(cd "$(dirname "$0")" && pwd)',
+    'batch=0; nocmd=0; control=',
+    'while [ $# -gt 0 ]; do',
+    '  case "$1" in',
+    '    -o) [ "$2" = BatchMode=yes ] && batch=1; shift 2 ;;',
+    '    -O) control=$2; shift 2 ;;',
+    '    -N) nocmd=1; shift ;;',
+    '    --) shift; break ;;',
+    '    -*) shift ;;',
+    '    *) break ;;',
+    '  esac',
+    'done',
+    'host=$1; shift',
+    'echo "$host ${control:+-O $control }$*" >> "$here/ssh.log"',
+    '[ "$control" = check ] && exit 255',
+    '[ -n "$control" ] && exit 0',
+    'case "$host" in',
+    '  pwhost)',
+    '    if [ ! -f "$here/logged-in" ]; then',
+    '      if [ $batch = 1 ]; then echo "pwhost: Permission denied (publickey,password)." >&2; exit 255; fi',
+    '      touch "$here/logged-in"',
+    '    fi ;;',
+    '  down*) echo "ssh: connect to host $host port 22: Connection refused" >&2; exit 255 ;;',
+    'esac',
+    '[ $nocmd = 1 ] && exit 0',
+    'cd "$here/server" && HOME="$here/server" exec sh -c "$*"',
+    '',
+  ].join('\n'));
+  fs.chmodSync(path.join(d, 'fake-ssh'), 0o755);
+  const p = path.join(d, 'server/proj');
+  write(path.join(p, 'a.txt'), 'hello from the server\n');
+  write(path.join(p, 'notes.md'), '# Notes\n');
+  write(path.join(p, 'clash.txt'), 'original\n');
+  write(path.join(p, 'clash2.txt'), 'original\n');
+  write(path.join(p, 'sub dir/b c.txt'), 'in a folder with a space\n');
+  write(path.join(p, "it's.txt"), 'quote in the name\n');
+  write(path.join(p, 'docs/one.md'), 'one\n');
+  write(path.join(p, 'docs/two.md'), 'two\n');
+  write(path.join(p, 'old/name.txt'), 'renamed folder\n');
+  write(path.join(p, 'gone.txt'), 'delete me\n');
+  write(path.join(p, 'move-me.txt'), 'rename me\n');
+  write(path.join(p, '.git/config'), '[core]\n');
+  write(path.join(p, 'node_modules/m/index.js'), 'module.exports = 1;\n');
+}
+
+/**
  * Create all fixtures under `root` (default: a new dir in os.tmpdir()). Homes that need no
  * pre-seeded files are created empty: the app fills in its defaults on first launch.
  * Returns the root dir.
@@ -205,7 +259,8 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   ftproj(root);
   chproj(root);
   large(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  remote(root);
+  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'remoteh']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 

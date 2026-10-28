@@ -27,6 +27,7 @@ const IS_LINUX = process.platform === 'linux';
 // the value as a string), a function (must return true) or anything else (compared as JSON).
 // `env.has(cmd)` says whether a program is on PATH, for checks that depend on optional tools.
 // Every suite also gets the generic checks in genericFailures().
+// `env(fixtures)` adds environment variables for the app.
 // `knownIssues` maps an expect path to a description of an app bug that is not fixed yet: a failure
 // there is reported but doesn't fail the run, and a pass is flagged so the entry can be removed.
 
@@ -194,6 +195,25 @@ const SUITES = [
       stopWorks: true, shell: 'shell-42', ctrlBPassedThrough: true, escapeKeptPanel: true, cmdPStillWorks: true,
     }),
   },
+  {
+    // A fake ssh (fixtures: remote/fake-ssh) and the real rsync.
+    name: 'remoteSsh', home: 'remoteh', project: null, timeout: 150, requires: ['rsync'],
+    env: (fixtures) => ({ MINIMIDE_SSH_BIN: path.join(fixtures, 'remote/fake-ssh') }),
+    expect: () => ({
+      rejected: 'all', unreachable: /Couldn't connect to downhost: .*Connection refused/, passwordHost: 'needs login',
+      opened: true, loggedIn: true, status: /SSH: pwhost/,
+      'mirrored.a': 'hello from the server\n', 'mirrored.spaced': 'in a folder with a space\n', 'mirrored.quoted': 'quote in the name\n',
+      'mirrored.git': false, 'mirrored.nodeModules': false,
+      saveUploads: true, remoteChangePulled: true, dirtyNotOverwritten: true, conflictKeepMine: true, conflictUseTheirs: true,
+      'deleteAndRename.deleted': true, 'deleteAndRename.renamed': true, 'deleteAndRename.folderRenamed': true,
+      'incompleteMirror.knownDeleted': true, 'incompleteMirror.unknownKept': true, 'incompleteMirror.unknownDownloaded': true,
+      'incompleteMirror.missingRedownloaded': true, 'incompleteMirror.serverKeptMissing': true,
+      'trust.parentIgnored': true, 'trust.hostTrusted': true, 'trust.otherHost': true,
+      terminalCommand: /-t pwhost 'cd \/.*\/remote\/server\/proj && exec "\$\{SHELL:-sh\}" -l'$/,
+      'disconnectReconnect.offline': true, 'disconnectReconnect.back': true,
+      'secondHost.root': true, 'secondHost.a': 'EDITED hello from the server\n', 'secondHost.lookup': 'devbox',
+    }),
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -289,6 +309,7 @@ function runSuite(suite, { electron, fixtures }) {
     MINIMIDE_WINDOW: '1440x900',
     // Suites trust every folder unless they test workspace trust itself.
     ...(suite.trust === false ? {} : { MINIMIDE_TRUST_ALL: '1' }),
+    ...suite.env?.(fixtures),
   };
   delete env.ELECTRON_RUN_AS_NODE;
   delete env.MINIMIDE_FRAMES;
