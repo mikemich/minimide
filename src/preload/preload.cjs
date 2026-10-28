@@ -1,5 +1,5 @@
 // The only bridge between the renderer and Node. Everything here is async.
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
 const call = (ch) => (...args) => ipcRenderer.invoke(ch, ...args);
 
@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('native', {
   fs: {
     read: call('fs:read'),
     readDataUrl: call('fs:readDataUrl'),
+    writeDataUrl: call('fs:writeDataUrl'),
     write: call('fs:write'),
     readdir: call('fs:readdir'),
     stat: call('fs:stat'),
@@ -61,7 +62,12 @@ contextBridge.exposeInMainWorld('native', {
     reveal: call('shell:reveal'),
     openPath: call('shell:openPath'),
   },
-  clipboard: { write: call('clipboard:write'), read: call('clipboard:read') },
+  clipboard: { write: call('clipboard:write'), read: call('clipboard:read'), writeImage: call('clipboard:writeImage') },
+  // Chromium's spell checker, for the right-click menu: is this word misspelled, and what could it be?
+  spell: {
+    check: (word) => (webFrame.isWordMisspelled(word) ? { misspelled: true, suggestions: webFrame.getWordSuggestions(word) } : { misspelled: false, suggestions: [] }),
+    addWord: call('spell:addWord'),
+  },
   proc: {
     exec: call('proc:exec'),
     spawn: call('proc:spawn'),

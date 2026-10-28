@@ -86,6 +86,7 @@ const subtree = (p) => [...files.keys()].filter((f) => within(f, p));
 
 const fs = {
   async read(p) { const f = files.get(p); if (!f) throw notFound(p); return f.text; },
+  async writeDataUrl() { throw new Error(DESKTOP_ONLY); },
   async readDataUrl(p) {
     const f = files.get(p);
     if (!f) throw notFound(p);
@@ -289,7 +290,13 @@ window.native = {
   clipboard: {
     write: async (text) => navigator.clipboard.writeText(text).catch(() => {}),
     read: async () => navigator.clipboard.readText().catch(() => ''),
+    writeImage: async (dataUrl) => {
+      const blob = await (await fetch(dataUrl)).blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      return {};
+    },
   },
+  spell: { check: () => ({ misspelled: false, suggestions: [] }), addWord: async () => {} },
   proc: {
     exec: async () => ({ code: 127, stdout: '', stderr: DESKTOP_ONLY }),
     spawn: desktopOnly, write: async () => {}, kill: async () => {}, spawnRpc: desktopOnly, send: async () => {},

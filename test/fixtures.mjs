@@ -172,6 +172,25 @@ function chproj(root) {
   write(path.join(d, 'notes.txt'), 'one\ntwo\nthree\n');
 }
 
+/** `cimproj`: a small module, a long file, Markdown (one with a space in its name) and plain text (codeImage). */
+function cimproj(root) {
+  const d = path.join(root, 'cimproj');
+  write(path.join(d, 'main.js'), [
+    '// A tiny module',
+    "import { readFile } from 'node:fs/promises';",
+    '',
+    'export async function load(path) {',
+    "  const text = await readFile(path, 'utf8');",
+    "  return text.split('\\n').map((line, i) => ({ line, n: i + 1, ok: /\\S/.test(line) }));",
+    '}',
+    '',
+  ].join('\n'));
+  write(path.join(d, 'long.js'), Array.from({ length: 250 }, (_, i) => `const line${i + 1} = ${i + 1};`).join('\n') + '\n');
+  write(path.join(d, 'notes.md'), '# Notes\n\nteh quick brown fox\n');
+  write(path.join(d, 'my notes.md'), '# My notes\n');
+  write(path.join(d, 'plain.txt'), 'just some words\n');
+}
+
 /** `ftproj`: one small file per extra file type, plus a shell script for completion. */
 function ftproj(root) {
   const d = path.join(root, 'ftproj');
@@ -204,8 +223,9 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   evilrepo(root);
   ftproj(root);
   chproj(root);
+  cimproj(root);
   large(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'cih']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 

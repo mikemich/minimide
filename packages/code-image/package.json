@@ -1,0 +1,15 @@
+{
+  "name": "code-image",
+  "displayName": "Code Image",
+  "description": "Copy the selected code (or the file) as a polished picture, in your theme and font.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "configSchema": {
+    "lineNumbers": {
+      "type": "boolean",
+      "default": false,
+      "title": "Line Numbers in Images",
+      "description": "Number the lines in pictures made with Copy as Image."
+    }
+  }
+}

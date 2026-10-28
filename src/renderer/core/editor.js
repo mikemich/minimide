@@ -18,7 +18,7 @@ import { lintKeymap } from '@codemirror/lint';
 import { classHighlighter, tagHighlighter, tags as t } from '@lezer/highlight';
 
 // Extra token classes on top of classHighlighter so CSS-only themes can style more.
-const richHighlighter = tagHighlighter([
+export const richHighlighter = tagHighlighter([
   { tag: [t.function(t.variableName), t.function(t.propertyName)], class: 'tok-function' },
   { tag: t.function(t.definition(t.variableName)), class: 'tok-function tok-definition' },
   { tag: t.tagName, class: 'tok-tagName' },
@@ -176,6 +176,7 @@ export class EditorItem extends Emitter {
     this.document = document;
     this.workspace = workspace;
     this.langCompartment = compartments.language();
+    this.spellCompartment = new Compartment();
     this.element = h('div.editor-item');
     document.views.add(this);
 
@@ -186,6 +187,7 @@ export class EditorItem extends Emitter {
       selection: sourceView ? sourceView.state.selection : undefined,
       extensions: [
         this.langCompartment.of([]),
+        this.spellCompartment.of([]),
         ...baseExtensions(ws),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) document.updateDirty();
@@ -218,7 +220,15 @@ export class EditorItem extends Emitter {
     this.applyLanguage();
   }
 
+  /** Spell check only prose: Markdown and plain text (Chromium's checker, so the OS dictionary and menu apply). */
+  applySpellcheck() {
+    const prose = !this.document.language || this.document.language.name === 'Markdown';
+    const on = prose && this.workspace.config.get('editor.spellcheck') !== false;
+    this.view?.dispatch({ effects: this.spellCompartment.reconfigure(on ? EditorView.contentAttributes.of({ spellcheck: 'true', autocorrect: 'off' }) : []) });
+  }
+
   async applyLanguage() {
+    this.applySpellcheck();
     const desc = this.document.language;
     if (!desc) {
       this.view.dispatch({ effects: this.langCompartment.reconfigure([]) });
@@ -398,6 +408,7 @@ export function bindEditorConfig(ws) {
     cfg.onDidChange('editor.showLineNumbers', (v) => all(() => compartments.lineNumbers.reconfigure(v ? [lineNumbers(), highlightActiveLineGutter()] : []))),
     cfg.onDidChange('editor.highlightActiveLine', (v) => all(() => compartments.activeLine.reconfigure(v ? highlightActiveLine() : []))),
     cfg.onDidChange('editor.showInvisibles', (v) => all(() => compartments.whitespace.reconfigure(v ? highlightWhitespace() : []))),
+    cfg.onDidChange('editor.spellcheck', () => { for (const item of ws.allItems()) if (item.type === 'editor') item.applySpellcheck(); }),
     cfg.onDidChange('editor.scrollPastEnd', (v) => all(() => compartments.scrollPastEnd.reconfigure(v ? scrollPastEnd() : []))),
   ];
   ws.on('editor-extensions-changed', () => all(() => compartments.plugins.reconfigure(ws.editorExtensions())));

@@ -168,7 +168,7 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `source-control` | Git panel (`⌃⇧G`): stage, unstage, discard, commit, amend, push, pull, and side-by-side or inline diffs |
 | `terminal` | A real terminal (xterm.js + node-pty) in tabs; click `file:line` in output to jump there |
 | `runner` | Run the current file with `F5` (Python, JS/TS, Go, Rust, C/C++, Java, Ruby, shell and more) or a project task with `⌘⇧B` |
-| `markdown-preview` | Live, sanitized preview in a split pane |
+| `markdown-preview` | Live, sanitized preview in a split pane. (In the editor itself, pasting an image into a Markdown file saves it to `images/` and inserts the link, and Markdown and plain text get spell check with suggestions in the right-click menu; turn it off with `editor.spellcheck`) |
 | `settings-view` | Settings, themes, packages and keybindings, generated from schemas |
 | `status-bar` | Cursor, selection, language, indentation, line endings |
 | `editor-guides` | Scope-aware indent guides; optional rainbow brackets |
@@ -178,6 +178,7 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `color-preview` | Inline swatches for `#hex`, `rgb()` and `hsl()`; click a hex swatch to pick a new color |
 | `git-blame` | Who changed the current line, and when, shown at its end (like GitLens) |
 | `todos` | Highlights TODO / FIXME / HACK / NOTE in comments, plus a sidebar listing them all (`⌘K ⌘T`) |
+| `code-image` | **Copy as Image** (right-click menu or `>`) draws the selection, or the file, as a PNG in your theme and font: a rounded window with the file name on a soft accent backdrop. **Save as Image…** writes it to a file. Optional line numbers |
 | `vim-mode` | Full Vim emulation with `:w`, `:q`, `:wq`, `gt`, `jj` escape and relative numbers. *Off by default* |
 | `minimap` | A zoomed-out map of the file (`⌘K ⌘M`). *Off by default* |
 | `focus-mode` | Typewriter scrolling and paragraph dimming for writing. *Off by default* |

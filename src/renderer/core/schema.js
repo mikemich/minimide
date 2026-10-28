@@ -28,6 +28,7 @@ export const CORE_SCHEMA = {
   'editor.highlightActiveLine': { type: 'boolean', default: true, title: 'Highlight Active Line' },
   'editor.showInvisibles': { type: 'boolean', default: false, title: 'Show Invisibles' },
   'editor.scrollPastEnd': { type: 'boolean', default: true, title: 'Scroll Past End' },
+  'editor.spellcheck': { type: 'boolean', default: true, title: 'Spell Check', description: 'Underline misspelled words in Markdown and plain text files. Right-click one for suggestions.' },
   'editor.trimTrailingWhitespace': { type: 'boolean', default: false, title: 'Trim Trailing Whitespace on Save' },
   'editor.ensureFinalNewline': { type: 'boolean', default: false, title: 'Ensure Final Newline on Save' },
 };
