@@ -14,6 +14,7 @@ import { Trust } from './core/trust.js';
 import { wordCompletion } from './core/word-completion.js';
 import { Navigation } from './core/navigation.js';
 import { editorContextMenu } from './core/editor-menu.js';
+import { pasteImage } from './core/paste-image.js';
 import { bindKeyHints } from './core/key-hints.js';
 import { QuickOpen } from './core/quick-open.js';
 import { userFileUrl } from './core/urls.js';
@@ -74,6 +75,7 @@ class App {
     this.workspace = new Workspace({ config: this.config, commands: this.commands, keymap: this.keymap, ui: this.ui });
     this.workspace.addCompletionSource(wordCompletion(this));
     this.workspace.addEditorExtension(editorContextMenu(this));
+    this.workspace.addEditorExtension(pasteImage(this));
     this.navigation = new Navigation(this.workspace);
     this.quickOpen = new QuickOpen(this);
     this.workspace.renderWelcome = () => this.renderWelcome();

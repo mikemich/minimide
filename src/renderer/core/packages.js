@@ -12,7 +12,7 @@ import * as lezerHighlight from '@lezer/highlight';
 import { Emitter, Disposable } from './events.js';
 import { h, icon, fileIcon, registerIcon, basename, dirname } from './dom.js';
 import { fuzzyFilter, fuzzyMatch, highlightMatches } from './fuzzy.js';
-import { registerLanguage, detectLanguage, createPreviewView } from './editor.js';
+import { registerLanguage, detectLanguage, createPreviewView, richHighlighter } from './editor.js';
 import { packageUrl } from './urls.js';
 import { prettyBinding } from './keymap.js';
 import { convertSnippet } from './snippet.js';
@@ -369,6 +369,8 @@ export class PackageManager extends Emitter {
         /** Add a completion source that runs alongside the language's own (and the LSP's). */
         addCompletionSource: (source) => track(ws.addCompletionSource(source)),
         extraCompletionSource: ws.extraCompletionSource,
+        /** The highlighters that give tokens their tok-* classes, for highlightTree() to match what the editor shows. */
+        highlighters: [lezerHighlight.classHighlighter, richHighlighter],
         /** LSP/VS Code snippet text -> CodeMirror snippet template (escapes handled). */
         convertSnippet: (text, resolveVariable) => convertSnippet(text, resolveVariable),
         /** A small read-only, highlighted EditorView of `text`, scrolled to `line`. Destroy it when done. */

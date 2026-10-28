@@ -181,8 +181,8 @@ const SUITES = [
       'back.line': 1, 'forward.line': 90, smallMovesNotRecorded: true,
       'crossFile.file': 'long.js', 'crossFile.line': 90, 'crossFileForward.file': 'notes.txt',
       backKey: 90,
-      // Right-click: no language server for .txt, so only the clipboard, comment and palette entries.
-      txtMenu: 'cut,copy,paste,|,Toggle Comment,|,Command Palette…',
+      // Right-click: no language server for .txt, so only the clipboard, comment, image and palette entries.
+      txtMenu: 'cut,copy,paste,|,Toggle Comment,Copy as Image,|,Command Palette…',
       menuMovedCursor: 3, menuRanComment: '// const line3 = 3;',
       modSlash: 'const line3 = 3;',
       'accelerators.back': /^(Ctrl\+-|Alt\+Left)$/, 'accelerators.definition': 'F12', 'accelerators.palette': /P$/,
@@ -211,6 +211,28 @@ const SUITES = [
       // Markdown preview: scrolling either side moves the other, matched by source line.
       'md.previewHasLines': true, 'md.editorToPreview': true, 'md.previewToEditor': true, 'md.stable': true, 'md.clickMovesCursor': true, 'md.offStaysPut': true,
       totalErrors: 0,
+      }),
+    },
+    {
+    name: 'codeImage', home: 'cih', project: 'cimproj', timeout: 90,
+    expect: () => ({
+      'copy.lines': 4, 'copy.truncated': false, 'copy.onClipboard': true, 'copy.toast': true, 'copy.sizeOk': true,
+      'copy.cornerIsBackdrop': true, 'copy.codeColors': (n) => n >= 6, 'copy.titleBarDots': true, 'copy.notBlank': true,
+      'wholeFile.lines': 200, 'wholeFile.truncated': true, 'wholeFile.note': true, lineNumbersWider: true,
+      'save.path': true, 'save.isPng': true, 'save.notEmpty': true, saveCancelled: true,
+      'refuses.html': 'refused', 'refuses.notPng': 'refused', 'refuses.relative': 'refused', 'refuses.clipboard': 'refused', 'refuses.nothingWritten': true,
+      'jsMenu.copyAsImage': true, 'jsMenu.afterToggleComment': 'Copy as Image', menuCopies: true,
+      'pasteImage.prevented': true, 'pasteImage.linked': true, 'pasteImage.written': true, 'pasteImage.atCursor': true,
+      'pasteImage.twoDistinct': true, 'pasteImage.spacedName': true,
+      'textPaste.inserted': true, 'textPaste.noNewImage': true,
+      'otherFiles.jsIgnored': true, 'otherFiles.txtIgnored': true,
+      'untitled.prevented': true, 'untitled.toast': true, 'untitled.empty': true, imagesFolder: 3,
+      'spellcheck.md': 'true', 'spellcheck.txt': 'true', 'spellcheck.js': 'false', 'spellcheck.untitled': 'true',
+      'spellcheck.offMd': 'false', 'spellcheck.offTxt': 'false', 'spellcheck.backOn': 'true',
+      'spellcheck.renamedToMd': 'true', 'spellcheck.renamedToJs': 'false', 'spellcheck.autocorrectMd': 'off', nativeSpell: 'boolean',
+      'spellMenu.top': ['Replace with "the"', 'Replace with "tech"', 'Replace with "ten"', 'Replace with "tea"', 'Replace with "tee"', 'Add to Dictionary', '|'],
+      'spellMenu.hasDictionary': true, 'spellMenu.hasCopyImage': true, 'spellMenu.asked': 'teh',
+      'spellMenu.replaced': 'tech quick brown fox', 'spellMenu.codeFilesNotChecked': true,
     }),
   },
   {

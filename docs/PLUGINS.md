@@ -170,6 +170,9 @@ const support = await mide.editor.languageFor('src/app.ts'); // LanguageSupport 
 // A small read-only, highlighted editor (what Peek Definition uses). Destroy it when done.
 const preview = await mide.editor.createPreview({ text, path: 'src/app.ts', line: 42, parent: someElement });
 
+// The highlighters behind the editor's tok-* classes: pass to highlightTree() to color text like the editor does.
+mide.editor.highlighters;
+
 // Completions that run alongside the language's own and the language server's:
 mide.editor.addCompletionSource((ctx) => {
   const word = ctx.matchBefore(/\w+$/);
@@ -266,6 +269,7 @@ const server = mide.process.spawnRpc(['clangd'], { onMessage: (msg) => …, onSt
 server.send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { … } });
 
 mide.shell.openExternal(url); mide.shell.reveal(path); mide.clipboard.write(text);
+mide.clipboard.writeImage(pngDataUrl);   // a PNG data URL (max 20 MB); mide.fs.writeDataUrl(path, pngDataUrl) saves one
 ```
 
 ### services (packages talking to packages)

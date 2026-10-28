@@ -1,5 +1,5 @@
 // Minimide main process: windows, the mide:// protocol, and the native bridge.
-import { app, BrowserWindow, Menu, protocol, ipcMain, dialog, shell, clipboard, nativeTheme, session, net, nativeImage } from 'electron';
+import { app, BrowserWindow, Menu, protocol, ipcMain, dialog, shell, clipboard, nativeTheme, session, net, nativeImage, ClipboardItem } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import fss from 'node:fs';
@@ -470,6 +470,18 @@ function resolveCommand(cmd) {
 }
 
 // Windows: run a command line through cmd.exe exactly as written (no libuv re-quoting).
+// The bytes of a PNG data URL, or an error: the type, size and signature are all checked.
+const MAX_CLIPBOARD_IMAGE = 20 * 1024 * 1024;
+const MAX_WRITE_IMAGE = 50 * 1024 * 1024;
+function pngFromDataUrl(dataUrl, maxBytes) {
+  const prefix = 'data:image/png;base64,';
+  if (typeof dataUrl !== 'string' || !dataUrl.startsWith(prefix)) throw new Error('Only PNG images are accepted');
+  if ((dataUrl.length - prefix.length) * 0.75 > maxBytes) throw new Error(`The image is too large (over ${Math.round(maxBytes / 1048576)} MB)`);
+  const bytes = Buffer.from(dataUrl.slice(prefix.length), 'base64');
+  if (bytes.length < 8 || !bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) throw new Error('That is not a PNG image');
+  return bytes;
+}
+
 const winQuote = (a) => (/^[\w.\\/:=-]+$/.test(a) ? a : `"${String(a).replace(/"/g, '""')}"`);
 const winShell = (commandLine) => [process.env.COMSPEC || 'cmd.exe', ['/d', '/s', '/c', `"${commandLine}"`], { windowsVerbatimArguments: true, windowsHide: true }];
 
@@ -491,6 +503,13 @@ function registerIpc() {
     const type = { '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.bmp': 'image/bmp', '.avif': 'image/avif' }[path.extname(p).toLowerCase()]
       || MIME[path.extname(p).toLowerCase()] || 'application/octet-stream';
     return `data:${type};base64,${(await fs.readFile(p)).toString('base64')}`;
+  });
+  // Images the renderer drew or pasted (rendered code, screenshots): PNG only, checked before it touches the disk.
+  handle('fs:writeDataUrl', async (_e, p, dataUrl) => {
+    if (typeof p !== 'string' || !path.isAbsolute(p)) throw new Error('Needs a full file path');
+    const png = pngFromDataUrl(dataUrl, MAX_WRITE_IMAGE);
+    await fs.mkdir(path.dirname(p), { recursive: true });
+    await fs.writeFile(p, png);
   });
   handle('fs:mkdir', (_e, p) => fs.mkdir(p, { recursive: true }));
   handle('fs:copy', (_e, from, to) => fs.cp(from, to, { recursive: true, errorOnExist: true, force: false }));
@@ -618,6 +637,18 @@ function registerIpc() {
   handle('shell:openPath', (_e, p) => shell.openPath(p));
   handle('clipboard:write', (_e, text) => clipboard.writeText(text));
   handle('clipboard:read', () => clipboard.readText());
+  handle('clipboard:writeImage', async (_e, dataUrl) => {
+    const png = pngFromDataUrl(dataUrl, MAX_CLIPBOARD_IMAGE);
+    const img = nativeImage.createFromBuffer(png);
+    if (img.isEmpty()) throw new Error('That is not a valid image');
+    await clipboard.write([new ClipboardItem({ 'image/png': new Blob([png], { type: 'image/png' }) })]);
+    return img.getSize();
+  });
+  // "Add to Dictionary" in the editor's right-click menu.
+  handle('spell:addWord', (event, word) => {
+    if (typeof word !== 'string' || !word || word.length > 100) throw new Error('Not a word');
+    event.sender.session.addWordToSpellCheckerDictionary(word);
+  });
 
   // processes
   handle('proc:exec', (_e, cmd, args = [], opts = {}) => new Promise((resolve) => {
@@ -996,6 +1027,12 @@ app.whenReady().then(async () => {
   protocol.handle('mide', handleProtocol);
   registerIpc();
   buildMenu();
+  // Spell check (Markdown and plain text only; the editor turns it on per file). macOS uses the system's dictionaries.
+  if (process.platform !== 'darwin') {
+    const have = session.defaultSession.availableSpellCheckerLanguages;
+    const locale = app.getLocale();
+    session.defaultSession.setSpellCheckerLanguages([[locale, locale.split('-')[0], 'en-US'].find((l) => have.includes(l))].filter(Boolean));
+  }
   app.setAboutPanelOptions({ applicationName: 'Minimide', applicationVersion: app.getVersion(), copyright: 'The editor you can read in an afternoon.' });
   // Deny-by-default for browser permission prompts (camera, mic, location…) packages might trigger.
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => callback(['fullscreen', 'clipboard-sanitized-write'].includes(permission)));

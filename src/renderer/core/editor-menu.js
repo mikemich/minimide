@@ -6,11 +6,13 @@ const GROUPS = [
   ['lsp:go-to-definition', 'lsp:peek-definition', 'lsp:find-references'],
   ['lsp:rename', 'lsp:code-actions', 'lsp:format-document'],
   [{ role: 'cut' }, { role: 'copy' }, { role: 'paste' }],
-  ['editor:toggle-comment'],
+  ['editor:toggle-comment', 'code-image:copy'],
   [{ id: 'command-palette:toggle', label: 'Command Palette…' }],
 ];
 
 export function editorContextMenu(app) {
+  // Chromium's spell checker; tests swap in a fixed answer.
+  app.spellLookup ??= (word) => window.native.spell?.check(word);
   return EditorView.domEventHandlers({
     contextmenu(e, view) {
       e.preventDefault();
@@ -20,14 +22,34 @@ export function editorContextMenu(app) {
         view.dispatch({ selection: { anchor: pos } });
       }
       view.focus();
-      show(app);
+      show(app, view, pos);
       return true;
     },
   });
 }
 
-async function show(app) {
+/** The word around pos when the spell checker flags it, with its suggestions. */
+async function misspelling(app, view, pos) {
+  if (pos == null || view.contentDOM.getAttribute('spellcheck') !== 'true') return null;
+  const line = view.state.doc.lineAt(pos);
+  for (const m of line.text.matchAll(/\p{L}[\p{L}\p{M}'’]*/gu)) {
+    const word = m[0].replace(/['’]+$/, '');
+    const from = line.from + m.index;
+    if (pos < from || pos > from + word.length) continue;
+    const verdict = await app.spellLookup(word);
+    return verdict?.misspelled ? { word, from, to: from + word.length, suggestions: verdict.suggestions.slice(0, 5) } : null;
+  }
+  return null;
+}
+
+async function show(app, view, pos) {
   const items = [];
+  const bad = await misspelling(app, view, pos);
+  if (bad) {
+    items.push(...bad.suggestions.map((s, i) => ({ id: `spell:${i}`, label: `Replace with "${s}"` })));
+    if (!bad.suggestions.length) items.push({ id: 'spell:none', label: 'No spelling suggestions', enabled: false });
+    items.push({ id: 'spell:add', label: 'Add to Dictionary' });
+  }
   for (const group of GROUPS) {
     const entries = group.map((x) => (typeof x === 'string' ? { id: x } : x))
       .filter((x) => x.role || app.commands.isEnabled(x.id))
@@ -37,5 +59,11 @@ async function show(app) {
     items.push(...entries);
   }
   const id = await window.native.menu.popup(items);
-  if (id) app.commands.run(id);
+  if (!id) return;
+  if (!id.startsWith('spell:')) return app.commands.run(id);
+  if (id === 'spell:add') return window.native.spell.addWord(bad.word).catch((err) => app.ui.notify.error('Could not add the word', err.message));
+  const replacement = bad.suggestions[Number(id.slice(6))];
+  if (replacement != null && view.state.sliceDoc(bad.from, bad.to) === bad.word) {
+    view.dispatch({ changes: { from: bad.from, to: bad.to, insert: replacement }, selection: { anchor: bad.from + replacement.length }, userEvent: 'input.complete' });
+  }
 }

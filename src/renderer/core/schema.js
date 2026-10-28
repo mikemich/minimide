@@ -29,6 +29,7 @@ export const CORE_SCHEMA = {
   'editor.showInvisibles': { type: 'boolean', default: false, title: 'Show Invisibles' },
   'editor.bracketPairColors': { type: 'boolean', default: false, title: 'Bracket Pair Colors', description: 'Color (), [] and {} by nesting depth, so matching pairs are easy to spot.' },
   'editor.scrollPastEnd': { type: 'boolean', default: true, title: 'Scroll Past End' },
+  'editor.spellcheck': { type: 'boolean', default: true, title: 'Spell Check', description: 'Underline misspelled words in Markdown and plain text files. Right-click one for suggestions.' },
   'editor.trimTrailingWhitespace': { type: 'boolean', default: false, title: 'Trim Trailing Whitespace on Save' },
   'editor.ensureFinalNewline': { type: 'boolean', default: false, title: 'Ensure Final Newline on Save' },
 };
