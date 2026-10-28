@@ -189,6 +189,7 @@ const { vim, Vim } = await mide.cm.extras.vim();                         // @rep
 const { showMinimap } = await mide.cm.extras.minimap();                  // @replit/codemirror-minimap
 const { indentationMarkers } = await mide.cm.extras.indentationMarkers(); // @replit/codemirror-indentation-markers
 const { MergeView, unifiedMergeView } = await mide.cm.extras.merge();     // @codemirror/merge (diff views)
+const emmet = await mide.cm.extras.emmet();                             // @emmetio/codemirror6-plugin
 ```
 
 Available: `mide.cm.state`, `.view`, `.language`, `.commands`, `.autocomplete`,

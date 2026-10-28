@@ -153,6 +153,7 @@ Forgot one? Hold `⌘` for a moment and every shortcut on screen gets a label: t
 | `⌘K ⌘P` | Problems panel |
 | `⌃⇧G` | Source control panel (`⌘K ⌘D` diffs the current file) |
 | `log` + `Tab` | Expand a snippet (`Snippets: Insert Snippet…` lists them all) |
+| `ul>li*3` + `Tab` | Expand an Emmet abbreviation in HTML, JSX, Vue and CSS files |
 
 On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `keymap.json`.
 
@@ -169,13 +170,14 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `source-control` | Git panel (`⌃⇧G`): stage, unstage, discard, commit, amend, push, pull, and side-by-side or inline diffs |
 | `terminal` | A real terminal (xterm.js + node-pty) in tabs; click `file:line` in output to jump there |
 | `runner` | Run the current file with `F5` (Python, JS/TS, Go, Rust, C/C++, Java, Ruby, shell and more) or a project task with `⌘⇧B` |
-| `markdown-preview` | Live, sanitized preview in a split pane |
+| `markdown-preview` | Live, sanitized preview in a split pane that scrolls with the editor (and the other way round) |
 | `settings-view` | Settings, themes, packages and keybindings, generated from schemas |
 | `status-bar` | Cursor, selection, language, indentation, line endings, and word count with reading time for Markdown and text files |
 | `editor-guides` | Scope-aware indent guides; optional rainbow brackets |
 | `image-viewer` | Opens PNG, JPG, GIF, WebP, SVG and more in a tab with zoom (`⌘+` / `⌘-` / pinch) |
 | `sticky-scroll` | Pins the headers of the function, class or block you're in to the top of the editor |
 | `snippets` | 170+ built-in snippets in 25 languages, offered as you type or expanded with Tab, plus your own in VS Code format. Autocomplete also suggests words already in the file |
+| `emmet` | `div#app`, `ul>li.item*3` or `m10` plus Tab in HTML, JSX, Vue and CSS, plus Wrap with Abbreviation and Balance Tag commands |
 | `color-preview` | Inline swatches for `#hex`, `rgb()` and `hsl()`; click a hex swatch to pick a new color |
 | `git-blame` | Who changed the current line, and when, shown at its end (like GitLens) |
 | `todos` | Highlights TODO / FIXME / HACK / NOTE in comments, plus a sidebar listing them all (`⌘K ⌘T`) |

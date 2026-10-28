@@ -16,6 +16,12 @@
       "default": false,
       "title": "Load Remote Images",
       "description": "Show https:// images in previews. Off by default, because loading them tells the image server when you opened the file."
+    },
+    "syncScroll": {
+      "type": "boolean",
+      "default": true,
+      "title": "Sync Scrolling",
+      "description": "Scrolling the editor scrolls the preview to the same place, and the other way round. Clicking the preview moves the editor's cursor there."
     }
   }
 }
