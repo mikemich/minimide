@@ -54,6 +54,6 @@ export function renderMarkdown(md, codeBlock) {
 
 /** The text of the first fenced code block, or the whole answer when there is none. */
 export function firstCodeBlock(text) {
-  const m = /^\s*(`{3,}|~{3,})[^\n]*\n([\s\S]*?)(?:\n\s*\1\s*(?:\n|$)|$)/m.exec(text);
+  const m = /^[ \t]*(`{3,}|~{3,})[^\n]*\n([\s\S]*?)(?:\n[ \t]*\1[ \t]*(?:\n|$)|(?![\s\S]))/m.exec(text);
   return m ? m[2] : text.trim();
 }

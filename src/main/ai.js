@@ -18,6 +18,7 @@ const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
 const REQUEST_ID = /^[\w-]{1,40}$/;
 const MAX_REQUEST_CHARS = 1_500_000; // everything a request sends, together
 // Models that take server-side fallbacks: a declined request is re-run on another model.
+const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 const FALLBACK_MODELS = new Set(['claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5-5', 'claude-fable-5-1']);
 
 export function registerAi({ handle, userDir, testBaseUrl }) {
@@ -63,13 +64,20 @@ export function registerAi({ handle, userDir, testBaseUrl }) {
     const controller = new AbortController();
     running.set(key, controller);
     const send = (payload) => { if (!sender.isDestroyed()) sender.send('ai:event', id, payload); };
+    // Closing, reloading or crashing the page stops the request: nobody is left to read the answer.
     const stopOnClose = () => controller.abort();
+    const stopOnNavigate = (details) => { if (details?.isMainFrame && !details.isSameDocument) controller.abort(); };
     sender.once('destroyed', stopOnClose);
+    sender.once('render-process-gone', stopOnClose);
+    sender.on('did-start-navigation', stopOnNavigate);
     const run = req.provider === 'ollama' ? runOllama(req, controller.signal, send) : runClaude(req, controller.signal, send);
     run.catch((err) => send(describeError(err)))
       .finally(() => {
         running.delete(key);
-        if (!sender.isDestroyed()) sender.removeListener('destroyed', stopOnClose);
+        if (sender.isDestroyed()) return;
+        sender.removeListener('destroyed', stopOnClose);
+        sender.removeListener('render-process-gone', stopOnClose);
+        sender.removeListener('did-start-navigation', stopOnNavigate);
       });
     return true;
   });
@@ -80,10 +88,13 @@ export function registerAi({ handle, userDir, testBaseUrl }) {
       max_tokens: req.maxTokens,
       messages: req.messages,
       output_config: { effort: req.effort },
-      cache_control: { type: 'ephemeral' }, // the file context repeats across a chat: cache it
     };
+    // A chat resends the same file context each turn, so it's worth caching; edits and suggestions aren't reused.
+    if (req.cache) params.cache_control = { type: 'ephemeral' };
     if (req.system) params.system = req.system;
-    if (FALLBACK_MODELS.has(req.model)) Object.assign(params, { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' });
+    if (FALLBACK_MODELS.has(req.model)) Object.assign(params, { betas: [FALLBACK_BETA], fallbacks: 'default' });
+    // A chat that went through a fallback keeps that block in its history; sending it back needs the beta.
+    else if (req.messages.some((m) => Array.isArray(m.content) && m.content.some((b) => b.type === 'fallback'))) params.betas = [FALLBACK_BETA];
     const ai = await client();
     const stream = ai.beta.messages.stream(params, { signal });
     for await (const ev of stream) {
@@ -114,23 +125,27 @@ export function registerAi({ handle, userDir, testBaseUrl }) {
         ],
       }),
       signal,
+      redirect: 'error', // a redirect could carry the code off this machine
     });
     if (!res.ok) throw new Error(`Ollama answered ${res.status}: ${(await res.text()).slice(0, 200)}`);
     let text = '';
     let buffer = '';
     const decoder = new TextDecoder();
+    const take = (line) => {
+      if (!line) return;
+      const part = JSON.parse(line);
+      if (part.error) throw new Error(part.error);
+      if (part.message?.content) { text += part.message.content; send({ type: 'text', text: part.message.content }); }
+    };
     for await (const chunk of res.body) {
       buffer += decoder.decode(chunk, { stream: true });
       let nl;
       while ((nl = buffer.indexOf('\n')) >= 0) {
-        const line = buffer.slice(0, nl).trim();
+        take(buffer.slice(0, nl).trim());
         buffer = buffer.slice(nl + 1);
-        if (!line) continue;
-        const part = JSON.parse(line);
-        if (part.error) throw new Error(part.error);
-        if (part.message?.content) { text += part.message.content; send({ type: 'text', text: part.message.content }); }
       }
     }
+    take((buffer + decoder.decode()).trim()); // the last line may have no newline
     send({ type: 'done', stopReason: 'end_turn', refusal: null, content: [{ type: 'text', text }], model: req.model, usage: {} });
   }
 }
@@ -148,7 +163,7 @@ function validate(r) {
     const ok = typeof m.content === 'string' || (Array.isArray(m.content) && m.content.every((b) => b && typeof b.type === 'string'));
     if (!ok) throw new Error('Bad message content');
   }
-  if (JSON.stringify(r.messages).length + (r.system?.length || 0) > MAX_REQUEST_CHARS) throw new Error('This request is too large to send.');
+  if (JSON.stringify(r.messages).length + (r.system?.length || 0) > MAX_REQUEST_CHARS) throw new Error('This request is too large to send. In a long chat, start a new one.');
   const maxTokens = Number.isInteger(r.maxTokens) ? Math.min(Math.max(r.maxTokens, 256), 64000) : 16000;
   const effort = EFFORTS.has(r.effort) ? r.effort : 'medium';
   let ollamaUrl = 'http://127.0.0.1:11434';
@@ -158,7 +173,7 @@ function validate(r) {
     if (u.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(u.hostname)) throw new Error('Ollama must run on this machine (http://127.0.0.1:…)');
     ollamaUrl = u.origin;
   }
-  return { provider, model: r.model, system: r.system || '', messages: r.messages, maxTokens, effort, ollamaUrl };
+  return { provider, model: r.model, system: r.system || '', messages: r.messages, maxTokens, effort, ollamaUrl, cache: r.cache === true };
 }
 
 // Typed SDK errors, most specific first, turned into something a person can act on.

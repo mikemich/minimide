@@ -23,7 +23,7 @@ function replyFor(body) {
   if (system.includes('<cursor/>')) return { text: 'return a + b;' };
   if (system.includes('<selection>')) {
     if (text.includes('Fix this problem')) return { text: '```js\nconst fixed = true;\n```' };
-    return { text: 'Here you go:\n```js\nconst total = items.reduce((sum, x) => sum + x, 0);\n```' };
+    return { text: 'Here you go:\n```js\nconst total = items.reduce((sum, x) => sum + x, 0);\nconsole.log("sum", total);\n```' };
   }
   if (text.includes('SLOW')) return { text: 'Counting slowly. '.repeat(20), slow: true };
   return { text: 'It logs a greeting.\n\n```js\nconsole.log("hi");\n```' };

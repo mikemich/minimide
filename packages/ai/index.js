@@ -48,7 +48,7 @@ export function activate(mide) {
         message: local ? 'Send code to your local model?' : 'Send code to Anthropic?',
         detail: (local
           ? 'AI features send the code you ask about to the Ollama model running on this computer. It doesn\'t leave your machine.'
-          : 'AI features send the code you ask about to Anthropic\'s API to get an answer: your question, the selected code and, unless you turn "Send the Open File" off, the rest of the open file.')
+          : 'AI features send the code you ask about to Anthropic\'s API to get an answer: your question, the selected code and, unless you turn "Send the Open File" off, the rest of the open file. Edit and Fix always send the code around the selection.')
           + '\n\nNothing is sent until you ask, and nothing is sent in the background unless you turn on "Suggest as You Type".',
         buttons: ['Continue', 'Cancel'],
       });
@@ -99,7 +99,11 @@ export function activate(mide) {
         // A big file: the part around the cursor.
         const from = Math.max(1, ctx.line - 500);
         const to = Math.min(state.doc.lines, ctx.line + 500);
-        ctx.text = { body: state.sliceDoc(state.doc.line(from).from, state.doc.line(to).to), note: ` (lines ${from}–${to} of ${state.doc.lines})` };
+        let start = state.doc.line(from).from;
+        let end = state.doc.line(to).to;
+        // Minified code can be one huge line: keep to about 150k characters around the cursor.
+        if (end - start > 150_000) { start = Math.max(start, sel.head - 75_000); end = Math.min(end, start + 150_000); }
+        ctx.text = { body: state.sliceDoc(start, end), note: ` (part of lines ${from}–${to} of ${state.doc.lines})` };
       }
     }
     return ctx;
@@ -173,7 +177,7 @@ export function activate(mide) {
   // ---------------------------------------------------------------------------
   // Chat (a sidebar view)
 
-  const chat = { messages: [], lastText: null, controller: null };
+  const chat = { messages: [], lastText: null, controller: null, busy: false };
   const list = h('div.ai-messages', h('div.ai-empty',
     h('p', 'Ask about the open file or the selected code.'),
     h('p.ai-hint', 'Answers come with buttons to insert or copy code. Your question, the selection and the open file are sent; untick "Include the open file" to send less.')));
@@ -264,12 +268,26 @@ export function activate(mide) {
     if (href) { e.preventDefault(); mide.shell.openExternal(href); }
   });
 
-  async function send(question = input.value.trim(), editor = mide.workspace.getActiveEditor()) {
-    if (!question || chat.controller) return;
-    if (!(await ensureReady())) return;
-    input.value = '';
+  async function send(question, editor = mide.workspace.getActiveEditor()) {
+    const typed = question == null;
+    if (typed) question = input.value.trim();
+    if (!question || chat.busy) return;
+    chat.busy = true; // set before the first await, so a second Enter can't send it again
+    try {
+      if (!(await ensureReady())) return;
+      await ask(question, editor, typed);
+    } finally {
+      chat.busy = false;
+    }
+  }
+
+  async function ask(question, editor, typed) {
+    if (typed) input.value = '';
+    // "New chat" may replace the conversation while this answer is on its way; it then goes nowhere.
+    const conv = chat.messages;
+    const current = () => conv === chat.messages;
     const ctx = editor ? contextOf(editor, includeFile.checked && cfg('sendFileContext')) : null;
-    chat.messages.push({ role: 'user', content: ctx ? `${contextBlock(ctx, chat.lastText)}\n\n${question}` : question });
+    conv.push({ role: 'user', content: ctx ? `${contextBlock(ctx, chat.lastText)}\n\n${question}` : question });
     const asked = bubble('user');
     asked.text(question);
     if (ctx) asked.meta(ctx.selection ? `${ctx.file}, lines ${ctx.selection.from}–${ctx.selection.to}` : ctx.file);
@@ -282,14 +300,15 @@ export function activate(mide) {
     let streamed = '';
     try {
       const res = await mide.ai.request(
-        { ...modelOptions('chat'), system: CHAT_SYSTEM, messages: chat.messages, maxTokens: 64000 },
+        { ...modelOptions('chat'), system: CHAT_SYSTEM, messages: conv, maxTokens: 64000, cache: true },
         { signal: chat.controller.signal, onText: (t) => { if (!streamed) answer.clearNotes(); streamed += t; answer.markdown(streamed); } },
       );
       answer.clearNotes();
-      if (res.refusal) chat.messages.pop(); // a declined question isn't kept in the conversation
+      if (!current()) return;
+      if (res.refusal) conv.pop(); // a declined question isn't kept in the conversation
       else {
         // Kept exactly as returned, and sent back unchanged with the next question.
-        chat.messages.push({ role: 'assistant', content: res.content });
+        conv.push({ role: 'assistant', content: res.content });
         if (ctx?.text) chat.lastText = ctx.text.body;
       }
       const text = textOf(res.content) || streamed;
@@ -299,7 +318,7 @@ export function activate(mide) {
       if (res.stopReason === 'max_tokens') answer.note('The answer was cut off because it got too long.', 'note');
       answer.meta([res.model, usageText(res.usage)].filter(Boolean).join(' · '));
     } catch (err) {
-      chat.messages.pop(); // unanswered: leave the history as it was before the question
+      if (current()) conv.pop(); // unanswered: leave the history as it was before the question
       answer.clearNotes();
       if (streamed) answer.markdown(streamed);
       else answer.text('');
@@ -405,7 +424,7 @@ export function activate(mide) {
     };
     const keys = (e) => {
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(null); }
-      else if (e.key === 'Enter' && (isMac ? e.metaKey : e.ctrlKey) && !accept.disabled) { e.preventDefault(); e.stopPropagation(); close(merge.b.state.doc.toString()); }
+      else if (e.key === 'Enter' && (isMac ? e.metaKey : e.ctrlKey)) { e.preventDefault(); e.stopPropagation(); if (!accept.disabled) close(merge.b.state.doc.toString()); }
     };
     window.addEventListener('keydown', keys, true);
     reject.onclick = () => close(null);
@@ -473,14 +492,16 @@ export function activate(mide) {
     },
     provide: (f) => EditorView.decorations.from(f, (g) => (g ? Decoration.set([Decoration.widget({ widget: new Ghost(g.text), side: 1 }).range(g.pos)]) : Decoration.none)),
   });
+  const { completionStatus, hasNextSnippetField } = mide.cm.autocomplete;
   const takeGhost = (v) => {
     const g = v.state.field(ghostField, false);
-    if (!g) return false;
+    // An open completion list or a snippet's next field gets Tab first.
+    if (!g || completionStatus(v.state) || hasNextSnippetField(v.state)) return false;
     v.dispatch({ changes: { from: g.pos, insert: g.text }, selection: { anchor: g.pos + g.text.length }, effects: setGhost.of(null), userEvent: 'input.ai' });
     return true;
   };
   const dropGhost = (v) => {
-    if (!v.state.field(ghostField, false)) return false;
+    if (!v.state.field(ghostField, false) || completionStatus(v.state)) return false; // Esc closes the list first
     v.dispatch({ effects: setGhost.of(null) });
     return true;
   };

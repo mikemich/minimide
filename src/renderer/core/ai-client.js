@@ -32,9 +32,8 @@ export const aiClient = {
     const id = `r${Date.now().toString(36)}${(seq++).toString(36)}`;
     return new Promise((resolve, reject) => {
       pending.set(id, { onText, resolve, reject });
-      if (signal?.aborted) window.native.ai.cancel(id);
       signal?.addEventListener('abort', () => window.native.ai.cancel(id), { once: true });
-      window.native.ai.start(id, req).catch((err) => {
+      window.native.ai.start(id, req).then(() => { if (signal?.aborted) window.native.ai.cancel(id); }, (err) => {
         pending.delete(id);
         reject(Object.assign(new Error(String(err.message).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')), { kind: 'request' }));
       });

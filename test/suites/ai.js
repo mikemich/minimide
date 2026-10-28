@@ -85,6 +85,8 @@
   await sleep(150);
   out.edit = {
     applied: editor.view.state.doc.line(5).text,
+    secondLine: editor.view.state.doc.line(6).text,
+    cache: editRequest.body.cache_control ? 'sent' : 'absent',
     selectionMarked: editRequest.body.messages[0].content.includes('<selection>let total = 0;\nfor (const x of items) total += x;</selection>'),
   };
   const textBefore = editor.getText();
@@ -109,7 +111,7 @@
   await app.commands.run('ai:suggest');
   const ghost = await until(() => editor.view.dom.querySelector('.cm-ai-ghost'));
   const sr = await lastRequest();
-  out.suggest = { ghost: ghost?.textContent, request: { max_tokens: sr.body.max_tokens, effort: sr.body.output_config?.effort } };
+  out.suggest = { ghost: ghost?.textContent, request: { max_tokens: sr.body.max_tokens, effort: sr.body.output_config?.effort, cache: sr.body.cache_control ? 'sent' : 'absent' } };
   editor.view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', bubbles: true, cancelable: true }));
   await sleep(100);
   out.suggest.accepted = editor.view.state.doc.line(2).text === '  return a + b;' && !editor.view.dom.querySelector('.cm-ai-ghost');
