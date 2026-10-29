@@ -249,6 +249,77 @@ function extras(root) {
   write(path.join(d, 'code.js'), code.join('\n') + '\n');
 }
 
+/**
+ * `outlineproj`: symbols in JavaScript, Markdown, Python, CSS and JSON (from the syntax tree) and a
+ * TypeScript file served by the fake language server (test/fake-lsp.mjs), which the `outlineh` home
+ * configures in place of typescript-language-server (outline).
+ */
+function outlineproj(root) {
+  const d = path.join(root, 'outlineproj');
+  write(path.join(d, 'src/app.js'), [
+    'export class Cart {',
+    '  constructor() {',
+    '    this.items = [];',
+    '  }',
+    '  add(item) {',
+    '    this.items.push(item);',
+    '  }',
+    '  total() {',
+    '    return this.items.reduce((sum, item) => sum + item.price, 0);',
+    '  }',
+    '}',
+    '',
+    'export function checkout(cart) {',
+    '  const amount = cart.total();',
+    '  return amount;',
+    '}',
+    '',
+    'export const format = (n) => `$${n.toFixed(2)}`;',
+    '',
+    'const config = {',
+    "  currency: 'USD',",
+    '  round(n) { return Math.round(n); },',
+    '};',
+    '',
+  ].join('\n'));
+  write(path.join(d, 'notes.md'), [
+    '# Guide', '', 'Intro text.', '', '## Install', '', 'Steps here.', '', '### From source', '', 'Build it.', '',
+    '```sh', '# not a heading', '```', '', '## Usage', '', 'Run it.', '', '# Appendix', '', 'The end.', '',
+  ].join('\n'));
+  write(path.join(d, 'tool.py'), [
+    'class Greeter:', '    def __init__(self, name):', '        self.name = name', '', '    def greet(self):', '        return "hi " + self.name',
+    '', '', 'def main():', '    Greeter("x").greet()', '', '', 'VERSION = "1.0"', '',
+  ].join('\n'));
+  write(path.join(d, 'style.css'), 'body { margin: 0; }\n.card, .panel > h2 {\n  color: red;\n}\n@media (max-width: 600px) {\n  .card { padding: 0; }\n}\n');
+  write(path.join(d, 'data.json'), '{\n  "name": "demo",\n  "scripts": { "build": "x", "test": "y" },\n  "tags": ["a"]\n}\n');
+  write(path.join(d, 'shapes.ts'), [
+    '// Shapes, served by the fake language server.',
+    'export class Circle {',
+    '  radius = 1;',
+    '  constructor(r: number) {',
+    '    this.radius = r;',
+    '  }',
+    '  area() {',
+    '    return Math.PI * this.radius * this.radius;',
+    '  }',
+    '}',
+    '',
+    'function scale(value: number, factor: number) {',
+    '  return value * factor;',
+    '}',
+    '',
+    'const big = scale(10, 3);',
+    'const size = 42;',
+    '',
+  ].join('\n'));
+  // The fake server stands in for TypeScript (.ts only, so app.js keeps the syntax-tree symbols).
+  const home = path.join(root, 'outlineh');
+  write(path.join(home, 'config.json'), JSON.stringify({
+    core: { theme: 'nightfall' },
+    lsp: { servers: { typescript: { command: [process.execPath, path.join(REPO, 'test/fake-lsp.mjs'), path.join(home, 'fake-lsp.json')], extensions: ['ts'] } } },
+  }, null, 2) + '\n');
+}
+
 /** `dbgproj`: the same small program in JavaScript and Python, to step through (debugger). */
 function dbgproj(root) {
   const d = path.join(root, 'dbgproj');
@@ -382,10 +453,11 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   extras(root);
   cimproj(root);
   dbgproj(root);
+  outlineproj(root);
   vsc(root);
   aiproj(root);
   remote(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih', 'dbgh', 'vsih', 'sync1', 'sync2', 'aih', 'remoteh']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih', 'dbgh', 'vsih', 'sync1', 'sync2', 'aih', 'remoteh', 'outlineh']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 
