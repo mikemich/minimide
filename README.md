@@ -172,7 +172,7 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `fuzzy-finder` | Open files and tabs by fuzzy name |
 | `find-in-project` | Regex / case-sensitive search and replace across the project |
 | `ai` | Chat about your code, edit a selection with a side-by-side preview, fix the problem on a line, explain code and get suggestions at the cursor, with Claude (your own API key, stored encrypted and only ever used by the main process) or a local Ollama model. Nothing is sent until you ask, and it asks first. **AI: Open Claude Code** runs Anthropic's Claude Code in a terminal in your project, signed in with your Claude plan (Pro or Max) or a key |
-| `lsp` | Language servers: completions (with auto-import), diagnostics, hover with go-to links, signature help, go to / peek definition, references, rename, quick fixes with a 💡, formatting, file and project symbols, Problems panel |
+| `lsp` | Language servers: completions (with auto-import), diagnostics, hover with go-to links, signature help, go to / peek definition, references, rename, quick fixes with a 💡, formatting, file and project symbols, inlay hints for parameter names and types (**LSP: Toggle Inlay Hints**, `lsp.inlayHints`), Problems panel |
 | `git` | Branch switcher, tree status, change markers in the editor gutter |
 | `source-control` | Git panel (`⌃⇧G`): stage, unstage, discard, commit, amend, push, pull, and side-by-side or inline diffs |
 | `terminal` | A real terminal (xterm.js + node-pty) in tabs, with side-by-side splits; click `file:line` in output to jump there |
@@ -184,6 +184,7 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 | `status-bar` | Cursor, selection, language, indentation, line endings, and word count with reading time for Markdown and text files |
 | `editor-guides` | Scope-aware indent guides |
 | `image-viewer` | Opens PNG, JPG, GIF, WebP, SVG and more in a tab with zoom (`⌘+` / `⌘-` / pinch) |
+| `outline` | Breadcrumbs above each editor (`src › app.js › Cart › total`: click a symbol to jump to the ones next to it, a folder to show the file in the tree) and an **Outline** view in the sidebar with the file's symbols as a tree that follows the cursor, with a filter. Symbols come from the language server, or without one from the syntax for JavaScript, TypeScript, Python, Markdown headings, CSS and JSON. **Outline: Toggle Breadcrumbs** turns the bar off |
 | `sticky-scroll` | Pins the headers of the function, class or block you're in to the top of the editor |
 | `snippets` | 170+ built-in snippets in 25 languages, offered as you type or expanded with Tab, plus your own in VS Code format. Autocomplete also suggests words already in the file |
 | `emmet` | `div#app`, `ul>li.item*3` or `m10` plus Tab in HTML, JSX, Vue and CSS, plus Wrap with Abbreviation and Balance Tag commands |
