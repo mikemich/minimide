@@ -124,6 +124,7 @@ let builtinNames = new Set();
 const packageManager = createPackageManager({
   userDir: USER_DIR, packagesDir: USER_PACKAGES, builtinNames: () => builtinNames,
   trash: (p) => shell.trashItem(p), version: app.getVersion(),
+  apiBase: (DEV_BUILD && process.env.MINIMIDE_GITHUB_API) || undefined, // the tests' stand-in for api.github.com
 });
 async function listPackages() {
   const builtin = await readPackageDir(BUILTIN_PACKAGES, true);
@@ -862,8 +863,9 @@ function registerIpc() {
   handle('pkgmgr:discard', (_e, id) => packageManager.discard(id));
   handle('pkgmgr:uninstall', (_e, name) => packageManager.uninstall(name));
   handle('pkgmgr:grant', (_e, name, permissions, access) => packageManager.grant(name, permissions, access));
-  handle('pkgmgr:checkUpdates', () => packageManager.checkUpdates());
-  handle('pkgmgr:search', (_e, query) => packageManager.search(query));
+  handle('pkgmgr:checkUpdates', (_e, opts) => packageManager.checkUpdates({ force: !!opts?.force }));
+  handle('pkgmgr:search', (_e, query, opts) => packageManager.search(String(query ?? ''), { sort: opts?.sort }));
+  handle('pkgmgr:details', (_e, fullName) => packageManager.details(fullName));
   handle('pkgmgr:permissions', () => packageManager.PERMISSIONS);
   // Network access for sandboxed packages that were granted "network". http(s) only, size- and time-limited.
   handle('net:fetch', (_e, url, opts = {}) => safeFetch(url, opts));

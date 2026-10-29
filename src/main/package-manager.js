@@ -32,11 +32,39 @@ const MAX_DOWNLOAD = 50 * 1024 * 1024;
 const MAX_FILES = 5000;
 const MAX_UNPACKED = 100 * 1024 * 1024;
 const GITHUB_TOPIC = 'minimide-package';
+const SEARCH_TTL = 2 * 60 * 1000; // searches and READMEs are kept this long, to stay clear of GitHub's rate limits
+const DETAILS_TTL = 5 * 60 * 1000;
+const UPDATE_CHECK_EVERY = 24 * 3600 * 1000;
+const MAX_README = 400 * 1024;
+const OFFLINE = "Can't reach GitHub. Check your internet connection and try again.";
 
-export function createPackageManager({ userDir, packagesDir, builtinNames, trash, version }) {
+const isPermission = (p) => typeof p === 'string' && Object.hasOwn(PERMISSIONS, p);
+
+/** What a package.json says about the package, in the shape the install dialog and the details page show. */
+function describeManifest(manifest) {
+  const asked = Array.isArray(manifest.permissions) ? manifest.permissions : [];
+  return {
+    name: manifest.name, displayName: manifest.displayName || manifest.name, description: manifest.description || '', version: manifest.version || '',
+    access: manifest.access === 'full' ? 'full' : 'sandboxed',
+    hasCode: manifest.main !== false && !manifest.theme,
+    permissions: asked.filter(isPermission),
+    unknownPermissions: asked.filter((p) => !isPermission(p)),
+  };
+}
+
+/**
+ * apiBase replaces https://api.github.com (the tests point it at a fake server; main.js only passes it
+ * in dev builds). With it set, downloads and raw files come from <apiBase>/_codeload and <apiBase>/_raw.
+ */
+export function createPackageManager({ userDir, packagesDir, builtinNames, trash, version, apiBase }) {
   const recordsFile = path.join(userDir, 'installed.json');
+  const updatesFile = path.join(userDir, 'package-updates.json'); // what the last update check found, so it runs once a day
   const staged = new Map(); // id -> { dir, info }
   const headers = { 'user-agent': `Minimide/${version}`, accept: 'application/vnd.github+json' };
+  const API = (apiBase || 'https://api.github.com').replace(/\/+$/, '');
+  const CODELOAD = apiBase ? `${API}/_codeload` : 'https://codeload.github.com';
+  const RAW = apiBase ? `${API}/_raw` : 'https://raw.githubusercontent.com';
+  const cache = new Map(); // key -> { at, promise }
 
   async function readRecords() {
     try { return JSON.parse(await fs.readFile(recordsFile, 'utf8')).packages || {}; } catch { return {}; }
@@ -47,13 +75,41 @@ export function createPackageManager({ userDir, packagesDir, builtinNames, trash
     await fs.rename(tmp, recordsFile);
   }
 
-  async function github(pathname) {
-    const res = await net.fetch(`https://api.github.com${pathname}`, { headers });
-    if (res.status === 403 || res.status === 429) throw new Error('GitHub is rate-limiting requests from this network. Try again in a minute.');
-    if (res.status === 404) throw new Error('Repository not found. Check the name, and that it is public.');
-    if (!res.ok) throw new Error(`GitHub returned ${res.status}`);
-    return res.json();
+  /** Remembers a result for a while (and a load in progress, so two callers share one request). */
+  function cached(key, ttl, load) {
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.at < ttl) return hit.promise;
+    if (cache.size > 100) cache.delete(cache.keys().next().value);
+    const entry = { at: Date.now(), promise: load() };
+    cache.set(key, entry);
+    entry.promise.catch(() => { if (cache.get(key) === entry) cache.delete(key); });
+    return entry.promise;
   }
+
+  async function githubRequest(pathname, accept) {
+    let res;
+    try { res = await net.fetch(`${API}${pathname}`, { headers: accept ? { ...headers, accept } : headers }); } catch { throw new Error(OFFLINE); }
+    if (res.status === 403 || res.status === 429) {
+      const retry = Number(res.headers.get('retry-after'));
+      if (res.status === 429 || res.headers.get('x-ratelimit-remaining') === '0' || retry) {
+        const seconds = retry || Number(res.headers.get('x-ratelimit-reset')) - Date.now() / 1000;
+        const minutes = Math.max(1, Math.ceil(seconds / 60) || 1);
+        const err = new Error(`GitHub's ${pathname.startsWith('/search') ? 'search' : 'request'} limit was reached; try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`);
+        err.rateLimited = true;
+        throw err;
+      }
+      throw new Error('GitHub refused the request (403). Is this network blocked from GitHub?');
+    }
+    if (!res.ok) {
+      const err = new Error(res.status === 404 ? 'Repository not found. Check the name, and that it is public.' : `GitHub returned ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    return res;
+  }
+  const github = async (pathname) => (await githubRequest(pathname)).json();
+  const githubText = async (pathname) => (await githubRequest(pathname, 'application/vnd.github.raw+json')).text();
+  const orNull = (promise) => promise.catch((err) => (err.status === 404 ? null : Promise.reject(err)));
 
   /** "owner/repo", "github:owner/repo", a github.com URL (optionally #ref), or an absolute folder path. */
   function parseSource(source) {
@@ -65,7 +121,7 @@ export function createPackageManager({ userDir, packagesDir, builtinNames, trash
   }
 
   async function download(url, dest) {
-    const res = await net.fetch(url, { headers: { 'user-agent': headers['user-agent'] } });
+    const res = await net.fetch(url, { headers: { 'user-agent': headers['user-agent'] } }).catch(() => { throw new Error(OFFLINE); });
     if (!res.ok) throw new Error(`Download failed (${res.status})`);
     const chunks = [];
     let size = 0;
@@ -110,7 +166,7 @@ export function createPackageManager({ userDir, packagesDir, builtinNames, trash
         const repo = await github(`/repos/${src.owner}/${src.repo}`);
         const commit = await github(`/repos/${repo.full_name}/commits/${encodeURIComponent(src.ref || repo.default_branch)}`);
         const archive = path.join(work, 'package.tar.gz');
-        await download(`https://codeload.github.com/${repo.full_name}/tar.gz/${commit.sha}`, archive);
+        await download(`${CODELOAD}/${repo.full_name}/tar.gz/${commit.sha}`, archive);
         const out = path.join(work, 'x');
         await fs.mkdir(out);
         // bsdtar (macOS, Windows) and GNU tar both refuse entries that escape the target by default.
@@ -138,15 +194,10 @@ export function createPackageManager({ userDir, packagesDir, builtinNames, trash
         if (!main.startsWith(root + path.sep)) throw new Error('The package\'s "main" points outside the package.');
         await fs.access(main).catch(() => { throw new Error(`The package's main file (${manifest.main || 'index.js'}) is missing.`); });
       }
-      const asked = Array.isArray(manifest.permissions) ? manifest.permissions : [];
       const id = path.basename(work);
       const records = await readRecords();
       const info = {
-        id, name, displayName: manifest.displayName || name, description: manifest.description || '', version: manifest.version || '',
-        access: manifest.access === 'full' ? 'full' : 'sandboxed',
-        hasCode: manifest.main !== false && !manifest.theme,
-        permissions: asked.filter((p) => p in PERMISSIONS),
-        unknownPermissions: asked.filter((p) => !(p in PERMISSIONS)),
+        id, ...describeManifest(manifest),
         existing: records[name] || null,
         localConflict: !records[name] && !!(await fs.stat(path.join(packagesDir, name)).catch(() => null)),
         ...meta,
@@ -187,6 +238,7 @@ export function createPackageManager({ userDir, packagesDir, builtinNames, trash
     };
     await writeRecords(records);
     await discard(id);
+    cache.delete(`details:${info.source.replace(/^github:/, '').toLowerCase()}`);
     return records[info.name];
   }
 
@@ -203,35 +255,133 @@ export function createPackageManager({ userDir, packagesDir, builtinNames, trash
   async function grant(name, permissions, access) {
     const records = await readRecords();
     if (!records[name]) throw new Error(`${name} wasn't installed with the package manager.`);
-    records[name].permissions = permissions.filter((p) => p in PERMISSIONS);
+    records[name].permissions = permissions.filter(isPermission);
     if (access) records[name].access = access === 'full' ? 'full' : 'sandboxed';
     await writeRecords(records);
     return records[name];
   }
 
-  async function checkUpdates() {
-    const records = await readRecords();
+  // --- updates -------------------------------------------------------------
+  // The commit each GitHub package's branch was at when we last looked is kept in package-updates.json.
+  // An update is pending while that differs from the commit that was installed, so the "update
+  // available" badges need no network, and a check runs at most once a day unless forced.
+  async function readUpdateCache() {
+    try {
+      const c = JSON.parse(await fs.readFile(updatesFile, 'utf8'));
+      return { checkedAt: Number(c.checkedAt) || 0, latest: c.latest && typeof c.latest === 'object' ? c.latest : {} };
+    } catch { return { checkedAt: 0, latest: {} }; }
+  }
+
+  const githubFull = (r) => (r.source?.startsWith('github:') ? r.source.slice('github:'.length) : null);
+
+  function pendingUpdates(records, latest) {
     const out = [];
     for (const [name, r] of Object.entries(records)) {
-      if (!r.source?.startsWith('github:')) continue;
-      try {
-        const full = r.source.slice('github:'.length);
-        const commit = await github(`/repos/${full}/commits/${encodeURIComponent(r.branch || 'HEAD')}`);
-        if (commit.sha !== r.ref) out.push({ name, source: full + (r.branch ? `#${r.branch}` : ''), current: r.ref, latest: commit.sha });
-      } catch (err) { out.push({ name, error: err.message }); }
+      const full = githubFull(r);
+      if (full && latest[name] && latest[name] !== r.ref) out.push({ name, fullName: full, source: full + (r.branch ? `#${r.branch}` : ''), current: r.ref, latest: latest[name] });
     }
     return out;
   }
 
-  async function search(query = '') {
-    const q = encodeURIComponent(`topic:${GITHUB_TOPIC} ${query}`.trim());
-    const res = await github(`/search/repositories?q=${q}&sort=stars&order=desc&per_page=40`);
+  /**
+   * Compares each installed GitHub package with the latest commit on its branch.
+   * Returns { checkedAt, updates: [{ name, fullName, source, current, latest }], errors: [{ name, error }] }.
+   * Without `force` a check made in the last day is reused.
+   */
+  async function checkUpdates({ force = false } = {}) {
     const records = await readRecords();
-    return res.items.map((r) => ({
-      fullName: r.full_name, name: r.name, owner: r.owner?.login, description: r.description || '',
-      stars: r.stargazers_count, url: r.html_url, updatedAt: r.pushed_at, installed: Object.values(records).some((x) => x.source === `github:${r.full_name}`),
-    }));
+    let state = await readUpdateCache();
+    const errors = [];
+    if (force || Date.now() - state.checkedAt > UPDATE_CHECK_EVERY) {
+      const latest = {};
+      let tried = 0;
+      for (const [name, r] of Object.entries(records)) {
+        const full = githubFull(r);
+        if (!full) continue;
+        tried++;
+        try {
+          latest[name] = (await github(`/repos/${full}/commits/${encodeURIComponent(r.branch || 'HEAD')}`)).sha;
+        } catch (err) {
+          errors.push({ name, error: err.message });
+          if (err.rateLimited) break;
+        }
+      }
+      // Nothing could be checked (offline, rate-limited): say so, and try again next time.
+      if (tried && !Object.keys(latest).length) throw new Error(errors[0].error);
+      state = { checkedAt: Date.now(), latest };
+      await fs.writeFile(updatesFile, JSON.stringify(state) + '\n').catch(() => {});
+      for (const key of [...cache.keys()]) if (key.startsWith('details:')) cache.delete(key);
+    }
+    return { checkedAt: state.checkedAt, updates: pendingUpdates(records, state.latest), errors };
   }
 
-  return { stage, install, discard, uninstall, grant, checkUpdates, search, records: readRecords, PERMISSIONS };
+  // --- browsing ------------------------------------------------------------
+  const installedFrom = (records) => new Map(Object.entries(records).filter(([, r]) => githubFull(r)).map(([name, r]) => [githubFull(r).toLowerCase(), { name, ...r }]));
+
+  /** Repositories with the minimide-package topic. sort: 'stars' | 'updated'. */
+  async function search(query = '', { sort = 'stars' } = {}) {
+    if (sort !== 'updated') sort = 'stars';
+    const q = `topic:${GITHUB_TOPIC} ${String(query).trim()}`.trim();
+    const items = await cached(`search:${sort}:${q}`, SEARCH_TTL, async () => (await github(`/search/repositories?q=${encodeURIComponent(q)}&sort=${sort}&order=desc&per_page=40`)).items || []);
+    const records = await readRecords();
+    const mine = installedFrom(records);
+    const pending = new Set(pendingUpdates(records, (await readUpdateCache()).latest).map((u) => u.name));
+    return items.map((r) => {
+      const own = mine.get(String(r.full_name).toLowerCase());
+      return {
+        fullName: r.full_name, name: r.name, owner: r.owner?.login, description: r.description || '',
+        stars: r.stargazers_count, url: r.html_url, updatedAt: r.pushed_at,
+        installed: !!own, installedName: own?.name || null, installedVersion: own?.version || '', updateAvailable: !!own && pending.has(own.name),
+      };
+    });
+  }
+
+  /**
+   * Everything the details page shows for a repository, read from GitHub before anything is
+   * downloaded: the repository, its README, and its package.json (so the permissions it will ask for
+   * are known before installing). Install itself re-reads them from the exact commit it downloads.
+   */
+  async function details(fullName) {
+    const m = /^([\w.-]+)\/([\w.-]+)$/.exec(String(fullName || ''));
+    if (!m) throw new Error('That is not a GitHub repository name.');
+    const data = await cached(`details:${fullName.toLowerCase()}`, DETAILS_TTL, async () => {
+      const repo = await github(`/repos/${m[1]}/${m[2]}`);
+      const [manifestText, readme] = await Promise.all([
+        orNull(githubText(`/repos/${repo.full_name}/contents/package.json`)),
+        orNull(githubText(`/repos/${repo.full_name}/readme`)),
+      ]);
+      let manifest = null;
+      let problem = null;
+      if (manifestText == null) problem = "This repository has no package.json at its root, so it can't be installed.";
+      else {
+        try { manifest = describeManifest(JSON.parse(manifestText)); } catch { problem = "Its package.json isn't valid JSON, so it can't be installed."; }
+      }
+      if (manifest) {
+        if (!NAME_RE.test(manifest.name || '')) problem = `"${manifest.name}" isn't a valid package name.`;
+        else if (builtinNames().has(manifest.name)) problem = `"${manifest.name}" is the name of a built-in package.`;
+        else if (RESERVED.has(manifest.name)) problem = `"${manifest.name}" is reserved for Minimide itself.`;
+      }
+      return {
+        repo: {
+          fullName: repo.full_name, name: repo.name, owner: repo.owner?.login, description: repo.description || '', stars: repo.stargazers_count,
+          url: repo.html_url, updatedAt: repo.pushed_at, branch: repo.default_branch, license: repo.license?.spdx_id && repo.license.spdx_id !== 'NOASSERTION' ? repo.license.spdx_id : '',
+        },
+        manifest, problem,
+        readme: readme == null ? null : readme.slice(0, MAX_README),
+        // Where the README's relative links and images point.
+        rawBase: `${RAW}/${repo.full_name}/${repo.default_branch}/`,
+        blobBase: `https://github.com/${repo.full_name}/blob/${repo.default_branch}/`,
+      };
+    });
+    const records = await readRecords();
+    const own = installedFrom(records).get(data.repo.fullName.toLowerCase());
+    const pending = own && pendingUpdates(records, (await readUpdateCache()).latest).some((u) => u.name === own.name);
+    return {
+      ...data,
+      installed: own ? { name: own.name, version: own.version || '', access: own.access, permissions: own.permissions || [], branch: own.branch } : null,
+      updateAvailable: !!pending,
+    };
+  }
+
+  return { stage, install, discard, uninstall, grant, checkUpdates, search, details, records: readRecords, PERMISSIONS };
 }
