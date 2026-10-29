@@ -21,12 +21,15 @@ export function activate(mide) {
       this.iconName = 'gear';
       this.section = 'general';
       this.filter = '';
+      this.details = new Map(); // owner/name -> { data } or { error }, for the package details page
+      this.detailsLoading = new Set();
+      this.pkgDetail = null; // owner/name of the package whose details are open
       this.nav = h('nav.settings-nav');
       this.content = h('div.settings-content');
       this.element = h('div.settings-view', this.nav, this.content);
       this.subs = [
         mide.config.onDidChangeAny(() => this.maybeRerender()),
-        mide.packages.onDidChange(() => this.maybeRerender()),
+        mide.packages.onDidChange(() => { this.details.clear(); this.maybeRerender(); }),
         mide.keymap.onDidChange(() => { if (this.section === 'keybindings') this.maybeRerender(); }),
       ];
       this.render();
@@ -46,7 +49,7 @@ export function activate(mide) {
       }, 30);
     }
 
-    show(section) { this.section = section; this.render(); }
+    show(section) { this.section = section; this.pkgDetail = null; this.render(); }
 
     render() {
       this.nav.replaceChildren(
@@ -208,11 +211,76 @@ export function activate(mide) {
       h('p.settings-note', 'Tip: ', h('a', { href: '#', onclick: (e) => { e.preventDefault(); mide.commands.run('theme:select'); } }, 'Select Theme'), ' previews themes live as you move through the list.'));
   }
 
+  // --- packages ------------------------------------------------------------
+  const cleanErr = (err) => String(err?.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
+  const inBrowser = () => !!window.native.web;
+  const githubSource = (p) => (p.install?.source?.startsWith('github:') ? p.install.source.slice('github:'.length) : null);
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  const ago = (iso) => {
+    const s = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (!(s >= 0)) return '';
+    if (s < 90) return 'just now';
+    if (s < 3600) return `${plural(Math.round(s / 60), 'minute')} ago`;
+    if (s < 86400) return `${plural(Math.round(s / 3600), 'hour')} ago`;
+    const days = Math.round(s / 86400);
+    if (days < 45) return `${plural(days, 'day')} ago`;
+    return days < 365 ? `${plural(Math.round(days / 30), 'month')} ago` : `${plural(Math.round(days / 365), 'year')} ago`;
+  };
+  const day = (iso) => (Date.parse(iso) ? new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '');
+
+  // What the last update check found: { checkedAt, updates: [{ name, fullName, … }], errors }. Kept in
+  // main (once a day at most); the button asks for a fresh look.
+  const pendingUpdate = (view, name) => view.updates?.updates.find((u) => u.name === name);
+
+  async function checkForUpdates(view, { force }) {
+    if (view.checking) return;
+    view.checking = true;
+    view.updateError = null;
+    view.maybeRerender();
+    try { view.updates = await mide.packages.checkUpdates({ force }); view.details.clear(); } catch (err) { if (force) view.updateError = cleanErr(err); }
+    view.checking = false;
+    if (view.section === 'packages') view.maybeRerender();
+  }
+
+  /** Updates one package ("name") or all of them (no argument), then refreshes what is shown. */
+  async function applyUpdates(view, name) {
+    view.updating = name || true;
+    view.maybeRerender();
+    try {
+      if (name) await mide.packages.update(name);
+      else await mide.packages.updateAll();
+    } catch (err) { mide.notify.error("Couldn't update", cleanErr(err)); }
+    view.updating = null;
+    view.updates = await mide.packages.checkUpdates().catch(() => view.updates);
+    view.details.clear();
+    if (view.section === 'packages') view.maybeRerender();
+  }
+
+  function openDetails(view, fullName) {
+    view.listScroll = view.content.scrollTop;
+    view.pkgDetail = fullName;
+    view.renderContent();
+    view.content.scrollTop = 0;
+  }
+
+  function closeDetails(view) {
+    view.pkgDetail = null;
+    view.renderContent();
+    view.content.scrollTop = view.listScroll || 0;
+  }
+
   function packagesSection(view) {
+    if (view.pkgDetail) return h('section', detailsView(view));
     view.pkgTab ??= 'installed';
+    // The first time this screen opens, look for updates (the check itself runs at most once a day).
+    if (!view.autoChecked) {
+      view.autoChecked = true;
+      if (!inBrowser() && mide.config.get('core.checkForUpdates') !== false) checkForUpdates(view, { force: false });
+    }
     const tabs = h('div.pkg-tabs',
       ['installed', 'discover'].map((t) => h('button.pkg-tab', { class: view.pkgTab === t ? 'active' : '', onclick: () => { view.pkgTab = t; view.renderContent(); } },
-        t === 'installed' ? 'Installed' : 'Discover')));
+        t === 'installed' ? 'Installed' : 'Discover',
+        t === 'installed' && view.updates?.updates.length ? h('span.pkg-tab-count', { title: 'Updates available' }, String(view.updates.updates.length)) : null)));
     const intro = header('Packages', 'Everything in Minimide is a package — including the tree view and this screen.');
     if (view.pkgTab === 'discover') return h('section', intro, tabs, discoverTab(view));
 
@@ -231,38 +299,71 @@ export function activate(mide) {
         h('button.btn', { onclick: () => mide.commands.run('packages:install') }, 'Install…'),
         h('button.btn', { onclick: () => mide.commands.run('packages:create') }, icon('plus', 14), 'New Package'),
         h('button.btn', { onclick: () => mide.commands.run('packages:open-folder') }, 'Open Folder')),
+      updatesBar(view),
       list);
+  }
+
+  // "3 updates available · Update All" and the button that looks for new ones. Only shown once something came from GitHub.
+  function updatesBar(view) {
+    if (inBrowser() || !mide.packages.list().some(githubSource)) return null;
+    const found = view.updates;
+    const n = found?.updates.length || 0;
+    let text = '';
+    if (view.checking) text = 'Checking GitHub for updates…';
+    else if (view.updateError) text = view.updateError;
+    else if (view.updating) text = 'Updating…';
+    else if (n) text = `${plural(n, 'update')} available`;
+    else if (found?.checkedAt) text = `Everything from GitHub is up to date. Checked ${ago(found.checkedAt)}.`;
+    return h('div.pkg-updates', { class: view.updateError ? 'error' : n ? 'available' : '' },
+      h('span.pkg-updates-text', text),
+      n ? h('button.btn.small.primary', { disabled: !!view.updating, onclick: () => applyUpdates(view) }, 'Update All') : null,
+      h('button.btn.small', { disabled: view.checking || !!view.updating, onclick: () => checkForUpdates(view, { force: true }) }, 'Check for Updates'));
   }
 
   // Packages are GitHub repositories tagged with the "minimide-package" topic.
   function discoverTab(view) {
+    if (inBrowser()) return h('p.settings-note', 'Browsing and installing packages from GitHub is available in the desktop app. Download it from the project page to try it.');
+    view.discoverSort ??= 'stars';
     const results = h('div.discover-grid');
     const status = h('p.settings-note.discover-status');
     let seq = 0;
-    const run = async () => {
+    // quiet: refreshing what is already shown (e.g. after an install), so no "Searching…" and errors are ignored.
+    const run = async ({ quiet = false } = {}) => {
       const mine = ++seq;
-      status.textContent = 'Searching GitHub…';
+      if (!quiet) { status.className = 'settings-note discover-status'; status.textContent = 'Searching GitHub…'; }
       try {
-        const items = await mide.packages.search(view.discoverQuery || '');
+        const items = await mide.packages.search(view.discoverQuery || '', { sort: view.discoverSort });
         if (mine !== seq) return;
         view.discoverCache = items;
         render(items);
       } catch (err) {
-        if (mine !== seq) return;
-        status.textContent = String(err.message).replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
+        if (mine !== seq || quiet) return;
+        view.discoverCache = null;
+        results.replaceChildren();
+        status.className = 'settings-note discover-status error';
+        status.replaceChildren(cleanErr(err), ' ', h('button.btn.small', { onclick: () => run() }, 'Try Again'));
       }
     };
     const render = (items) => {
-      status.textContent = items.length ? '' : 'No packages found. Publish yours by adding the "minimide-package" topic to its GitHub repository.';
-      results.replaceChildren(...items.map((r) => h('div.discover-card',
-        h('div.discover-head', h('span.discover-name', r.name), h('span.discover-stars', `★ ${r.stars}`)),
-        h('div.discover-owner', r.owner),
-        h('div.discover-desc', r.description || 'No description.'),
-        h('div.discover-actions',
-          h('button.btn.small', { onclick: () => mide.shell.openExternal(r.url) }, 'View'),
-          r.installed ? h('span.badge', 'installed') : h('button.btn.small.primary', {
-            onclick: async (e) => { e.target.disabled = true; const done = await mide.packages.install(r.fullName); if (done) { r.installed = true; render(items); } else e.target.disabled = false; },
-          }, 'Install')))));
+      status.className = 'settings-note discover-status';
+      status.textContent = items.length ? '' : view.discoverQuery
+        ? `No packages match "${view.discoverQuery}". Publish yours by adding the "minimide-package" topic to its GitHub repository.`
+        : 'No packages found. Publish yours by adding the "minimide-package" topic to its GitHub repository.';
+      results.replaceChildren(...items.map((r) => {
+        const busy = (e, fn) => async () => { e.disabled = true; try { await fn(); } finally { e.disabled = false; } };
+        const action = r.updateAvailable
+          ? h('button.btn.small.primary', { onclick: (e) => busy(e.currentTarget, async () => { await applyUpdates(view, r.installedName); run({ quiet: true }); })() }, 'Update')
+          : r.installed ? null : h('button.btn.small.primary', { onclick: (e) => busy(e.currentTarget, async () => { await mide.packages.install(r.fullName); run({ quiet: true }); })() }, 'Install');
+        return h('div.discover-card', { dataset: { repo: r.fullName }, onclick: (e) => { if (!e.target.closest('button')) openDetails(view, r.fullName); } },
+          h('div.discover-head', h('button.discover-name', { onclick: () => openDetails(view, r.fullName) }, r.name), h('span.discover-stars', `★ ${r.stars}`)),
+          h('div.discover-owner', r.owner, r.updatedAt ? ` · updated ${ago(r.updatedAt)}` : ''),
+          h('div.discover-desc', r.description || 'No description.'),
+          h('div.discover-actions',
+            h('button.btn.small', { onclick: () => openDetails(view, r.fullName) }, 'Details'),
+            action,
+            r.updateAvailable ? h('span.badge.update', 'update available') : null,
+            r.installed && !r.updateAvailable ? h('span.badge.installed', r.installedVersion ? `installed v${r.installedVersion}` : 'installed') : null));
+      }));
     };
     let timer = null;
     const input = h('input.input.settings-search', {
@@ -270,11 +371,164 @@ export function activate(mide) {
       oninput: (e) => { view.discoverQuery = e.target.value; clearTimeout(timer); timer = setTimeout(run, 450); },
       onkeydown: (e) => { if (e.key === 'Enter') { clearTimeout(timer); run(); } },
     });
-    if (view.discoverCache) render(view.discoverCache); else run();
+    const sort = h('select.input.settings-select.discover-sort', { title: 'Sort by', onchange: (e) => { view.discoverSort = e.target.value; run(); } },
+      [['stars', 'Most stars'], ['updated', 'Recently updated']].map(([value, label]) => h('option', { value, selected: value === view.discoverSort }, label)));
+    // Show the last results straight away (so coming back from a details page keeps your place), then refresh the badges.
+    if (view.discoverCache) { render(view.discoverCache); run({ quiet: true }); } else run();
     return h('div',
-      h('div.settings-toolbar', input, h('button.btn', { onclick: () => mide.commands.run('packages:install-from-folder') }, 'Install from Folder…')),
+      h('div.settings-toolbar', input, sort, h('button.btn', { onclick: () => mide.commands.run('packages:install-from-folder') }, 'Install from Folder…')),
       h('p.settings-desc.discover-note', 'Installed packages run in a sandbox: they can only touch your files, run programs or use the internet if you allow it when you install them.'),
       status, results);
+  }
+
+  // --- package details -----------------------------------------------------
+  // The README is Markdown from the internet: rendered with the same marked + DOMPurify the Markdown
+  // preview ships, with scripts, styles and forms removed. Images may come from GitHub only, and
+  // links open in the browser.
+  let markdown = null;
+  const loadMarkdown = () => markdown ??= Promise.all(['marked.esm.js', 'purify.es.mjs'].map((f) => import(/* @vite-ignore */ new URL(`../markdown-preview/vendor/${f}`, mide.package.url).href)))
+    .then(([m, p]) => ({ marked: m.marked, DOMPurify: p.default }), () => null);
+
+  const isGithubHost = (host) => host === 'github.com' || host.endsWith('.githubusercontent.com');
+  const resolveIn = (base, ref) => new URL(ref.startsWith('/') && !ref.startsWith('//') ? ref.slice(1) : ref, base);
+
+  async function renderReadme(d) {
+    const box = h('article.pkg-readme');
+    if (d.readme == null) { box.append(h('p.pkg-readme-empty', 'This repository has no README.')); return box; }
+    const md = await loadMarkdown();
+    if (!md) { box.append(h('pre.pkg-readme-plain', d.readme)); return box; }
+    box.innerHTML = md.DOMPurify.sanitize(md.marked.parse(d.readme, { gfm: true, breaks: false, async: false }), {
+      USE_PROFILES: { html: true },
+      FORBID_TAGS: ['style', 'form', 'input', 'button', 'picture', 'source', 'video', 'audio', 'track', 'link', 'meta'],
+      FORBID_ATTR: ['style', 'srcset', 'poster', 'background', 'ping', 'formaction', 'action', 'xlink:href'],
+    });
+    for (const img of box.querySelectorAll('img')) {
+      let url = null;
+      try { url = resolveIn(d.rawBase, img.getAttribute('src') || ''); } catch {}
+      const ok = url && (url.href.startsWith(d.rawBase) || (url.protocol === 'https:' && isGithubHost(url.hostname)));
+      if (ok) { img.setAttribute('src', url.href); img.setAttribute('loading', 'lazy'); } else {
+        img.replaceWith(h('span.pkg-readme-img', { title: img.getAttribute('src') || '' }, img.alt ? `[${img.alt}]` : '[image]'));
+      }
+    }
+    for (const a of box.querySelectorAll('a[href]')) {
+      const href = a.getAttribute('href');
+      if (href.startsWith('#')) continue;
+      let url = null;
+      try { url = resolveIn(d.blobBase, href); } catch {}
+      if (url && /^(https?:|mailto:)$/.test(url.protocol)) { a.setAttribute('href', url.href); a.title = url.href; } else a.removeAttribute('href');
+    }
+    const used = new Map();
+    for (const el of box.querySelectorAll('h1, h2, h3, h4, h5, h6')) {
+      const base = el.textContent.trim().toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, '').replace(/\s+/g, '-');
+      const n = used.get(base) || 0;
+      used.set(base, n + 1);
+      el.id = n ? `${base}-${n}` : base;
+    }
+    // Nothing in the README navigates this window: anchors scroll, everything else opens outside.
+    box.addEventListener('click', (e) => {
+      const a = e.target.closest?.('a');
+      if (!a) return;
+      e.preventDefault();
+      const href = a.getAttribute('href') || '';
+      if (href.startsWith('#')) {
+        const id = decodeURIComponent(href.slice(1)).replace(/^user-content-/, '');
+        const target = [...box.querySelectorAll('[id]')].find((el) => el.id === id);
+        target?.scrollIntoView({ block: 'start' });
+      } else if (/^(https?:|mailto:)/.test(href)) mide.shell.openExternal(href);
+    });
+    return box;
+  }
+
+  const RISKY = new Set(['files', 'shell', 'project-write']);
+
+  function permissionsBlock(d, labels) {
+    const { manifest, installed } = d;
+    const block = h('div.pkg-perms');
+    if (d.problem) { block.append(h('p.pkg-problem', d.problem)); if (!manifest) return block; }
+    if (manifest.access === 'full') {
+      block.append(h('div.pkg-fullaccess',
+        h('strong', 'Needs full access'),
+        h('p', 'It would run with the same rights as Minimide: it could read and change any file, run any program and use the internet. Only install it if you trust the author.')));
+    } else {
+      block.append(h('p', manifest.hasCode ? 'Runs in a sandbox. Besides editing the open file and adding commands, it asks to:' : 'Contains no code (styles and settings only), so it needs no permissions.'));
+      if (manifest.hasCode) {
+        if (!manifest.permissions.length) block.append(h('p.pkg-noperms', 'Nothing more. It can add commands and status bar items and work with the open file, but it can\'t see your other files, run programs or use the internet.'));
+        else {
+          const allowed = installed?.permissions || [];
+          block.append(h('ul.pkg-perm-list', manifest.permissions.map((p) =>
+            h('li.pkg-perm', { class: RISKY.has(p) ? 'risky' : '', dataset: { permission: p } }, h('code', p), h('span', labels[p] || p),
+              installed && !allowed.includes(p) ? h('span.badge.update', 'new') : null))));
+        }
+      }
+    }
+    if (manifest.unknownPermissions.length) block.append(h('p.settings-note', `Ignored unknown permissions: ${manifest.unknownPermissions.join(', ')}`));
+    if (installed) block.append(h('p.pkg-allowed', installed.access === 'full' ? 'You installed it with full access.' : installed.permissions.length ? `You allowed: ${installed.permissions.join(', ')}.` : 'You allowed no extra permissions.'));
+    return block;
+  }
+
+  function detailsView(view) {
+    const full = view.pkgDetail;
+    const root = h('div.pkg-detail');
+    const back = h('button.btn.small.pkg-back', { onclick: () => closeDetails(view) }, `← Back to ${view.pkgTab === 'discover' ? 'Discover' : 'Installed'}`);
+    const entry = view.details.get(full);
+    if (!entry) {
+      root.append(back, h('p.settings-note', 'Loading…'));
+      if (!view.detailsLoading.has(full)) {
+        view.detailsLoading.add(full);
+        mide.packages.details(full).then((data) => ({ data }), (err) => ({ error: cleanErr(err) })).then((result) => {
+          view.detailsLoading.delete(full);
+          view.details.set(full, result);
+          if (view.pkgDetail === full && view.section === 'packages') view.renderContent();
+        });
+      }
+      return root;
+    }
+    if (entry.error) {
+      root.append(back, h('p.settings-note.discover-status.error', entry.error, ' ', h('button.btn.small', { onclick: () => { view.details.delete(full); view.renderContent(); } }, 'Try Again')));
+      return root;
+    }
+    const d = entry.data;
+    const body = h('div.pkg-detail-body', h('p.settings-note', 'Loading…'));
+    root.append(back, body);
+    Promise.all([mide.packages.permissionLabels().catch(() => ({})), renderReadme(d)]).then(([labels, readme]) => {
+      body.replaceChildren(detailsHead(view, d), h('h2.settings-subhead', 'Permissions'), permissionsBlock(d, labels), h('h2.settings-subhead', 'README'), readme);
+      body.dataset.ready = 'true';
+    });
+    return root;
+  }
+
+  function detailsHead(view, d) {
+    const { repo, manifest, installed } = d;
+    const full = repo.fullName;
+    const refresh = () => { view.details.delete(full); view.renderContent(); };
+    const busy = (e, fn) => async () => { e.disabled = true; try { await fn(); } finally { e.disabled = false; } };
+    const buttons = [];
+    if (!installed) {
+      buttons.push(h('button.btn.primary', { disabled: !!d.problem, title: d.problem || '', onclick: (e) => busy(e.currentTarget, async () => { await mide.packages.install(full); refresh(); })() }, 'Install'));
+    } else {
+      if (d.updateAvailable) buttons.push(h('button.btn.primary', { onclick: (e) => busy(e.currentTarget, async () => { await applyUpdates(view, installed.name); refresh(); })() }, 'Update'));
+      buttons.push(h('button.btn', { onclick: (e) => busy(e.currentTarget, async () => {
+        const choice = await mide.ui.confirm({ message: `Uninstall "${manifest?.displayName || installed.name}"?`, detail: 'Its folder is moved to the Trash.', buttons: ['Uninstall', 'Cancel'] });
+        if (choice !== 0) return;
+        await mide.packages.uninstall(installed.name);
+        mide.notify.success(`Uninstalled ${installed.name}`);
+        refresh();
+      })() }, 'Uninstall'));
+    }
+    buttons.push(h('button.btn', { onclick: () => mide.shell.openExternal(repo.url) }, 'View on GitHub'));
+    return h('div.pkg-detail-head',
+      h('h1.pkg-detail-title', manifest?.displayName || repo.name,
+        installed ? h('span.badge.installed', installed.version ? `installed v${installed.version}` : 'installed') : null,
+        d.updateAvailable ? h('span.badge.update', 'update available') : null,
+        manifest?.access === 'full' ? h('span.badge.full', 'full access') : manifest ? h('span.badge.sandbox', 'sandboxed') : null),
+      h('div.pkg-detail-meta', [
+        h('span.pkg-owner', repo.owner), h('span', `★ ${repo.stars}`),
+        repo.updatedAt ? h('span.pkg-updated', { title: repo.updatedAt }, `Updated ${day(repo.updatedAt)}`) : null,
+        manifest?.version ? h('span.pkg-version-label', `Version ${manifest.version}`) : null,
+        repo.license ? h('span', repo.license) : null,
+      ].filter(Boolean).flatMap((el, i) => (i ? [' ', el] : [el]))),
+      h('p.pkg-detail-desc', repo.description || manifest?.description || 'No description.'),
+      h('div.pkg-detail-actions', buttons));
   }
 
   function accessBadge(p) {
@@ -289,18 +543,24 @@ export function activate(mide) {
   function packageCard(p, view) {
     const settings = mide.config.getSchema().filter((d) => !d.hidden && d.key.startsWith(p.name + '.'));
     const open = view.expanded === p.name;
-    return h('div.package-card', { class: [p.active ? 'active' : '', p.error ? 'error' : ''].join(' ') },
+    const repo = githubSource(p); // owner/name, when it came from GitHub
+    const update = repo && pendingUpdate(view, p.name);
+    const name = p.manifest.displayName || p.name;
+    return h('div.package-card', { class: [p.active ? 'active' : '', p.error ? 'error' : ''].join(' '), dataset: { package: p.name } },
       h('div.package-main',
         h('div.package-info',
-          h('div.package-name', p.manifest.displayName || p.name,
+          h('div.package-name', repo ? h('button.package-name-link', { title: `Details for ${repo}`, onclick: () => openDetails(view, repo) }, name) : name,
             accessBadge(p),
+            update ? h('span.badge.update', 'update available') : null,
             p.manifest.version ? h('span.package-version', `v${p.manifest.version}`) : null),
           h('div.package-desc', p.error ? `Error: ${p.error}` : p.manifest.description || '')),
         h('div.package-actions',
+          update ? h('button.btn.small.primary', { disabled: !!view.updating, onclick: () => applyUpdates(view, p.name) }, 'Update') : null,
+          repo ? h('button.btn.small', { onclick: () => openDetails(view, repo) }, 'Details') : null,
           settings.length ? h('button.btn.small', { onclick: () => { view.expanded = open ? null : p.name; view.renderContent(); } }, open ? 'Hide settings' : 'Settings') : null,
           p.active ? h('button.icon-btn', { title: 'Reload package', onclick: () => mide.packages.reload(p.name) }, icon('refresh', 14)) : null,
           p.install ? h('button.icon-btn', { title: 'Uninstall', onclick: async () => {
-            const choice = await mide.ui.confirm({ message: `Uninstall "${p.manifest.displayName || p.name}"?`, detail: 'Its folder is moved to the Trash.', buttons: ['Uninstall', 'Cancel'] });
+            const choice = await mide.ui.confirm({ message: `Uninstall "${name}"?`, detail: 'Its folder is moved to the Trash.', buttons: ['Uninstall', 'Cancel'] });
             if (choice === 0) { await mide.packages.uninstall(p.name); mide.notify.success(`Uninstalled ${p.name}`); }
           } }, icon('trash', 14)) : null,
           h('label.switch', { title: p.disabled ? 'Enable' : 'Disable' },
