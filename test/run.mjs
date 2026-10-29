@@ -186,7 +186,7 @@ const SUITES = [
       'crossFile.file': 'long.js', 'crossFile.line': 90, 'crossFileForward.file': 'notes.txt',
       backKey: 90,
       // Right-click: no language server for .txt, so only the clipboard, comment, image and palette entries.
-      txtMenu: 'cut,copy,paste,|,Toggle Comment,Copy as Image,|,Command Palette…',
+      txtMenu: 'cut,copy,paste,|,Toggle Comment,Copy as Image,|,Show Local History,|,Command Palette…',
       menuMovedCursor: 3, menuRanComment: '// const line3 = 3;',
       modSlash: 'const line3 = 3;',
       'accelerators.back': /^(Ctrl\+-|Alt\+Left)$/, 'accelerators.definition': 'F12', 'accelerators.palette': /P$/,
