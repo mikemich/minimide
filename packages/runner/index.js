@@ -49,7 +49,7 @@ export function activate(mide) {
     const ext = path.includes('.') ? path.split('.').pop().toLowerCase() : '';
     const base = mide.path.basename(path);
     const dir = mide.path.dirname(path);
-    const root = mide.workspace.project || dir;
+    const root = mide.workspace.folderFor(path) || mide.workspace.project || dir;
     const cwd = mide.config.get('runner.cwd') === 'project' && path.startsWith(root + '/') ? root : dir;
     const user = mide.config.get('runner.commands') || {};
     let template = user[ext] || user[base];
@@ -126,7 +126,7 @@ export function activate(mide) {
   async function readJson(p) { try { return JSON.parse(await mide.fs.read(p)); } catch { return null; } }
 
   async function discoverTasks() {
-    const root = mide.workspace.project;
+    const root = mide.workspace.getActiveFolder(); // with several folders, the active file's
     const tasks = [];
     for (const [name, command] of Object.entries(mide.config.get('runner.tasks') || {})) tasks.push({ label: name, detail: command, command, source: 'custom' });
     if (!root) return tasks;
@@ -170,8 +170,8 @@ export function activate(mide) {
       items: discoverTasks,
       filterKey: (t) => t.label,
       emptyMessage: 'No tasks found (package.json scripts, Makefile, Cargo, Go). Type a command to run it.',
-      onEnterWithoutMatch: (command) => run({ command, cwd: mide.workspace.project, title: command }),
-      onSelect: (task) => run({ command: task.command, cwd: mide.workspace.project, title: task.label }),
+      onEnterWithoutMatch: (command) => run({ command, cwd: mide.workspace.getActiveFolder(), title: command }),
+      onSelect: (task) => run({ command: task.command, cwd: mide.workspace.getActiveFolder(), title: task.label }),
       render: (t, indices) => {
         const { h, highlightMatches } = mide.ui;
         return h('div.select-row', h('div.select-text', h('div.select-label', highlightMatches(t.label, indices)), h('div.select-detail', t.detail)), h('kbd.select-hint', t.source));

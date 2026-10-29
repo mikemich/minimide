@@ -86,7 +86,7 @@ export function activate(mide) {
     if (!terminal) return mide.notify.warn('The terminal is turned off', 'Turn on the Terminal package to run Claude Code.');
     if (terminal.isRunning('claude-code')) return terminal.show('claude-code');
     terminal.run('claude', {
-      cwd: mide.workspace.project || mide.user.home,
+      cwd: mide.workspace.getActiveFolder() || mide.user.home,
       title: 'Claude Code',
       key: 'claude-code',
       onExit: (code) => {

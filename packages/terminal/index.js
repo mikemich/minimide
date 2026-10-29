@@ -102,7 +102,7 @@ export async function activate(mide) {
 
     const session = {
       id, term, fitAddon, container, command,
-      cwd: cwd || mide.workspace.project || mide.user.home,
+      cwd: cwd || mide.workspace.getActiveFolder() || mide.user.home,
       title: title || (command ? command.split(/\s+/)[0] : 'shell'),
       running: true,
       group: tab,
