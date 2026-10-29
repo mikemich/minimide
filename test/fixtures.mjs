@@ -249,6 +249,24 @@ function extras(root) {
   write(path.join(d, 'code.js'), code.join('\n') + '\n');
 }
 
+/** `lhproj`: small files, some that local history must skip, and a folder to rename (localHistory). */
+function lhproj(root) {
+  const d = path.join(root, 'lhproj');
+  write(path.join(d, 'notes.txt'), 'alpha\n');
+  write(path.join(d, 'small.txt'), 'small\n');
+  write(path.join(d, 'big.txt'), 'big\n');
+  write(path.join(d, 'node_modules/dep/index.js'), 'module.exports = 1;\n');
+  write(path.join(d, 'gen.min.js'), 'var a=1;\n');
+  write(path.join(d, 'vendorx/lib.txt'), 'vendored\n');
+  write(path.join(d, 'x.tmp'), 'temp\n');
+  write(path.join(d, 'drafts/a.md'), '# draft\n');
+  write(path.join(d, 'prune.txt'), 'p0\n');
+  write(path.join(d, 'gone.txt'), 'gone original\n');
+  write(path.join(d, 'ren.txt'), 'ren original\n');
+  write(path.join(d, 'olddir/inner.txt'), 'inner original\n');
+  write(path.join(d, 'ext.txt'), 'ext original\n');
+}
+
 /** `dbgproj`: the same small program in JavaScript and Python, to step through (debugger). */
 function dbgproj(root) {
   const d = path.join(root, 'dbgproj');
@@ -382,10 +400,11 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   extras(root);
   cimproj(root);
   dbgproj(root);
+  lhproj(root);
   vsc(root);
   aiproj(root);
   remote(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih', 'dbgh', 'vsih', 'sync1', 'sync2', 'aih', 'remoteh']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih', 'dbgh', 'vsih', 'sync1', 'sync2', 'aih', 'remoteh', 'lhh']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 

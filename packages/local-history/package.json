@@ -1,0 +1,20 @@
+{
+  "name": "local-history",
+  "displayName": "Local History",
+  "description": "Keeps a version of every file each time you save it, outside git, so you can compare, restore and recover deleted files.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"],
+  "keymap": { "Mod-k Mod-l": "local-history:show" },
+  "configSchema": {
+    "maxVersions": { "type": "number", "default": 50, "title": "Versions per File", "description": "Keep this many of the newest versions of each file. 0 keeps all of them (until they are too old)." },
+    "maxAgeDays": { "type": "number", "default": 30, "title": "Keep For (Days)", "description": "Drop versions older than this. 0 keeps them for ever." },
+    "maxFileSizeKB": { "type": "number", "default": 1024, "title": "Largest File (KB)", "description": "Files bigger than this are not kept." },
+    "ignore": {
+      "type": "array",
+      "default": ["node_modules", ".git", "dist", "build", "out", "target", "coverage", ".next", "*.min.js", "*.log"],
+      "title": "Ignore",
+      "description": "File and folder names or globs (*, ?, **) that are never kept. The names in Ignored Names (core.ignoredNames) are skipped as well."
+    }
+  }
+}
