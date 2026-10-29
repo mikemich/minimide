@@ -1,0 +1,12 @@
+{
+  "name": "outline",
+  "displayName": "Outline",
+  "description": "Breadcrumbs above the editor and an Outline view of the file's symbols, from its language server or, without one, from the syntax (JavaScript, TypeScript, Python, Markdown, CSS, JSON).",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"],
+  "configSchema": {
+    "breadcrumbs": { "type": "boolean", "default": true, "title": "Breadcrumbs", "description": "Show the file's folder, name and the symbols around the cursor above each editor." },
+    "followCursor": { "type": "boolean", "default": true, "title": "Outline Follows the Cursor", "description": "Highlight the symbol at the cursor in the Outline view and scroll to it." }
+  }
+}

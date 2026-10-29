@@ -94,6 +94,11 @@ const CHECKS = `(async () => {
   const ed = await app.workspace.open(app.workspace.project + '/src/app.js');
   await wait(300);
   out.highlighted = !!ed.view.contentDOM.querySelector('.tok-keyword');
+  // Breadcrumbs work without a language server: symbols from the syntax tree.
+  ed.view.dispatch({ selection: { anchor: ed.getText().indexOf('todos.push') } });
+  const crumbs = () => [...ed.view.dom.querySelectorAll('.cm-breadcrumbs .cm-crumb')].map((c) => c.textContent).join(' › ');
+  for (let i = 0; i < 50 && !crumbs().endsWith('addTodo'); i++) await wait(100);
+  out.breadcrumbs = crumbs();
   return out;
 })()`;
 
@@ -107,6 +112,7 @@ const EXPECT = {
   dialog: (v) => v === 1,
   search: (v) => v >= 1,
   highlighted: (v) => v === true,
+  breadcrumbs: (v) => v === 'src › app.js › addTodo',
 };
 
 // On a ?repo=acme/widgets page (opened at src/index.js): the file list, lazy loading, search, placeholders, edits.

@@ -300,6 +300,23 @@ mide.services.provide('git-status', { statuses, onDidChange, refresh });
 mide.services.consume('git-status', (git) => { … });
 ```
 
+Built-in services you can use:
+
+```js
+// packages/outline: the symbols behind the breadcrumbs and the Outline view. They come from the
+// language server when one is attached, otherwise from the syntax tree (JS/TS, Python, Markdown
+// headings, CSS, JSON). A symbol is { name, detail, kind, from, to, selFrom, selTo, children }, in
+// editor offsets; kind is a word like 'class', 'method', 'function', 'heading'.
+const symbols = mide.services.get('symbols');
+const { symbols: list, source } = await symbols.getSymbols(editor);   // source: 'lsp' | 'syntax'
+symbols.symbolPathAt(editor);              // around the cursor (or pass a position), outermost first
+symbols.onDidChange((editor) => …);        // recomputed after an edit
+
+// packages/lsp: the language server's own symbols for an editor, or null without one.
+const res = await mide.services.get('lsp')?.documentSymbols(editor);   // { doc, symbols } (offsets in `doc`)
+mide.services.get('lsp')?.onDidAttach((document) => …);              // a server opened this document
+```
+
 ### AI requests
 
 Full-access packages can ask a model through `mide.ai`. The main process makes the request, so
