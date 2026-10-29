@@ -24,6 +24,7 @@
 .tree-list:focus .tree-row.selected { background: var(--bg-selected-focus); box-shadow: inset 2px 0 0 var(--accent); }
 .tree-row.drop-target { background: color-mix(in srgb, var(--accent) 18%, transparent); outline: 1px dashed var(--accent); outline-offset: -1px; }
 .tree-row.dotfile .tree-name { opacity: 0.65; }
+.tree-row.project-folder .tree-name { font-weight: 600; color: var(--fg-strong); }
 .tree-name { overflow: hidden; text-overflow: ellipsis; }
 .tree-spacer { width: 12px; flex: none; }
 .tree-chevron { color: var(--fg-subtle); transition: transform 0.12s var(--ease); }

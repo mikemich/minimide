@@ -1,4 +1,5 @@
-// Tree View: the project file browser.
+// Tree View: the project file browser. With one folder its contents are the top level; with several
+// each folder is a top-level row under a hidden root node (`multi`).
 
 export function activate(mide) {
   const { h, icon, fileIcon } = mide.ui;
@@ -11,6 +12,7 @@ export function activate(mide) {
   function Tree(mide) {
     this.mide = mide;
     this.root = null;
+    this.multi = false;
     this.nodes = new Map();
     this.selected = null;
     this.git = null;
@@ -28,32 +30,64 @@ export function activate(mide) {
   Object.assign(Tree.prototype, {
     focus() { this.list.focus(); if (!this.selected && this.root) this.select(this.root.children?.[0]); },
 
-    storageKey() { return `tree-view:expanded:${this.root?.path}`; },
+    storageKey(folder) { return `tree-view:expanded:${folder.path}`; },
+
+    readStored(key) { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } },
 
     saveExpanded() {
       if (!this.root) return;
-      const expanded = [...this.nodes.values()].filter((n) => n.isDir && n.expanded && n !== this.root).map((n) => n.path);
-      try { localStorage.setItem(this.storageKey(), JSON.stringify(expanded)); } catch {}
+      const dirs = [...this.nodes.values()].filter((n) => n.isDir && n.expanded && !n.folder);
+      for (const f of this.folders()) {
+        const expanded = dirs.filter((n) => this.folderOf(n) === f).map((n) => n.path);
+        try { localStorage.setItem(this.storageKey(f), JSON.stringify(expanded)); } catch {}
+      }
+      if (!this.multi) return;
+      const collapsed = new Set(this.readStored('tree-view:collapsed-folders'));
+      for (const f of this.folders()) if (f.expanded) collapsed.delete(f.path); else collapsed.add(f.path);
+      try { localStorage.setItem('tree-view:collapsed-folders', JSON.stringify([...collapsed].slice(-50))); } catch {}
     },
 
-    async setRoot(path) {
+    async setRoots(paths) {
       this.nodes.clear();
       this.selected = null;
-      if (!path) { this.root = null; return this.render(); }
-      this.root = new Node(path, mide.path.basename(path), true, -1, null);
+      this.multi = paths.length > 1;
+      if (!paths.length) { this.root = null; return this.render(); }
+      const folderNode = (path, parent) => {
+        const n = new Node(path, mide.path.basename(path), true, parent ? 0 : -1, parent);
+        n.folder = true;
+        this.nodes.set(path, n);
+        return n;
+      };
+      const collapsed = new Set(this.multi ? this.readStored('tree-view:collapsed-folders') : []);
+      if (this.multi) {
+        this.root = new Node(null, '', true, -1, null);
+        this.root.children = paths.map((p) => folderNode(p, this.root));
+      } else this.root = folderNode(paths[0], null);
       this.root.expanded = true;
-      this.nodes.set(path, this.root);
-      await this.load(this.root);
-      let saved = [];
-      try { saved = JSON.parse(localStorage.getItem(this.storageKey()) || '[]'); } catch {}
-      saved.sort((a, b) => a.length - b.length);
-      for (const p of saved) {
-        const node = this.nodes.get(p);
-        if (node?.isDir) { node.expanded = true; await this.load(node); }
+      for (const f of this.folders()) {
+        f.expanded = !collapsed.has(f.path);
+        await this.load(f);
+        const saved = this.readStored(this.storageKey(f)).sort((a, b) => a.length - b.length);
+        for (const p of saved) {
+          const node = this.nodes.get(p);
+          if (node?.isDir) { node.expanded = true; await this.load(node); }
+        }
       }
       this.render();
       this.revealActive(false);
     },
+
+    /** The project folders' nodes. */
+    folders() { return !this.root ? [] : this.multi ? this.root.children : [this.root]; },
+
+    folderOf(node) { while (node && !node.folder) node = node.parent; return node; },
+
+    folderNodeFor(path) {
+      return this.folders().filter((f) => path === f.path || path.startsWith(f.path + '/')).sort((a, b) => b.path.length - a.path.length)[0] || null;
+    },
+
+    /** `path` relative to its project folder (no folder name in front). */
+    localPath(path, folder = this.folderNodeFor(path)) { return path === folder.path ? '' : path.slice(folder.path.length + 1); },
 
     isHidden(name) {
       if (!mide.config.get('tree-view.hideIgnored')) return false;
@@ -61,6 +95,7 @@ export function activate(mide) {
     },
 
     async load(node) {
+      if (node.path == null) return; // the hidden root of several folders: its children are fixed
       let entries = [];
       try { entries = await mide.fs.readdir(node.path); } catch { entries = []; }
       const prev = new Map((node.children || []).map((c) => [c.path, c]));
@@ -144,15 +179,17 @@ export function activate(mide) {
         h('button.icon-btn', { title: 'Refresh', onclick: () => this.refresh() }, icon('refresh', 14)),
         h('button.icon-btn', { title: 'Collapse All', onclick: () => this.collapseAll() }, icon('collapse', 14)),
       ] : [];
+      const folders = this.folders();
       this.header.replaceChildren(
-        h('span.tree-title', { title: this.root?.path || '' }, this.root ? this.root.name : 'Explorer'),
+        h('span.tree-title', { title: folders.map((f) => f.path).join('\n') }, folders.length ? folders[0].name + (this.multi ? ` +${folders.length - 1}` : '') : 'Explorer'),
         h('div.tree-actions', actions));
     },
 
     renderRow(node) {
       const row = h('div.tree-row', {
         role: 'treeitem',
-        draggable: true,
+        draggable: !node.folder,
+        ...(node.folder ? { title: node.path } : {}),
         style: { paddingLeft: `${10 + node.depth * 14}px` },
         dataset: { path: node.path },
         onmousedown: (e) => { if (e.button === 0) this.select(node); },
@@ -187,6 +224,7 @@ export function activate(mide) {
       row.classList.toggle('dir', node.isDir);
       row.classList.toggle('selected', node === this.selected);
       row.classList.toggle('dotfile', node.name.startsWith('.'));
+      row.classList.toggle('project-folder', !!node.folder);
       node.row = row;
       return row;
     },
@@ -220,10 +258,12 @@ export function activate(mide) {
 
     async revealActive(focus) {
       const path = mide.workspace.getActiveItem()?.getPath?.();
-      if (!path || !this.root || !path.startsWith(this.root.path + '/')) return;
-      const parts = path.slice(this.root.path.length + 1).split('/');
-      let cur = this.root;
-      let changed = false;
+      const folder = path && this.folderNodeFor(path);
+      if (!folder || path === folder.path) return;
+      const parts = this.localPath(path, folder).split('/');
+      let cur = folder;
+      let changed = !folder.expanded;
+      folder.expanded = true;
       for (let i = 0; i < parts.length - 1; i++) {
         const next = cur.children?.find((c) => c.name === parts[i]);
         if (!next) return;
@@ -291,22 +331,22 @@ export function activate(mide) {
 
     // --- file operations ---------------------------------------------------
     targetDir(node) {
-      if (!node) return this.root;
+      if (!node || node.path == null) return this.folders()[0];
       return node.isDir ? node : node.parent;
     },
 
     async newEntry(isDir, near = this.selected) {
       if (!this.root) return mide.commands.run('project:open-folder');
       const dir = this.targetDir(near);
-      const rel = mide.workspace.relativePath(dir.path);
-      const base = dir === this.root ? '' : rel + '/';
+      const folder = this.folderOf(dir);
+      const base = dir === folder ? '' : this.localPath(dir.path, folder) + '/';
       const value = await mide.ui.prompt({
-        title: isDir ? 'Enter the path for the new folder.' : 'Enter the path for the new file. Use / to create folders.',
+        title: (isDir ? 'Enter the path for the new folder.' : 'Enter the path for the new file. Use / to create folders.') + (this.multi ? ` (in ${folder.name})` : ''),
         value: base,
         selection: [base.length, base.length],
       });
       if (!value || value === base) return;
-      const full = `${this.root.path}/${value.replace(/^\/+/, '')}`.replace(/\/+$/, '');
+      const full = `${folder.path}/${value.replace(/^\/+/, '')}`.replace(/\/+$/, '');
       if (await mide.fs.stat(full)) return mide.notify.error(`"${value}" already exists.`);
       try {
         if (isDir) await mide.fs.mkdir(full);
@@ -318,8 +358,10 @@ export function activate(mide) {
 
     async refreshPath(full) {
       const parent = full.slice(0, full.lastIndexOf('/'));
-      const segments = mide.workspace.relativePath(parent).split('/').filter(Boolean);
-      let cur = this.root;
+      let cur = this.folderNodeFor(full);
+      if (!cur) return;
+      const segments = this.localPath(parent, cur).split('/').filter(Boolean);
+      cur.expanded = true;
       await this.load(cur);
       for (const seg of segments) {
         const next = cur.children?.find((c) => c.name === seg);
@@ -335,8 +377,9 @@ export function activate(mide) {
     },
 
     async rename(node) {
-      if (node === this.root) return;
-      const rel = mide.workspace.relativePath(node.path);
+      if (node.folder) return;
+      const folder = this.folderOf(node);
+      const rel = this.localPath(node.path, folder);
       const nameStart = rel.lastIndexOf('/') + 1;
       const dot = node.isDir ? -1 : rel.lastIndexOf('.');
       const value = await mide.ui.prompt({
@@ -345,7 +388,7 @@ export function activate(mide) {
         selection: [nameStart, dot > nameStart ? dot : rel.length],
       });
       if (!value || value === rel) return;
-      const target = `${this.root.path}/${value}`;
+      const target = `${folder.path}/${value}`;
       // A case-only rename is the same file on case-insensitive disks (macOS): allow it.
       if (target.toLowerCase() !== node.path.toLowerCase() && await mide.fs.stat(target)) return mide.notify.error(`"${value}" already exists.`);
       await this.move(node, target);
@@ -364,7 +407,7 @@ export function activate(mide) {
     },
 
     canMove(node, target) {
-      if (!target || node === target || node.parent === target) return false;
+      if (!target || target.path == null || node.folder || node === target || node.parent === target) return false;
       return !target.path.startsWith(node.path + '/');
     },
 
@@ -378,10 +421,11 @@ export function activate(mide) {
     async duplicate(node) {
       const dot = node.name.lastIndexOf('.');
       const copyName = dot > 0 ? `${node.name.slice(0, dot)} copy${node.name.slice(dot)}` : `${node.name} copy`;
-      const rel = mide.workspace.relativePath(`${node.parent.path}/${copyName}`);
+      const folder = this.folderOf(node);
+      const rel = this.localPath(`${node.parent.path}/${copyName}`, folder);
       const value = await mide.ui.prompt({ title: 'Duplicate to:', value: rel });
       if (!value) return;
-      const target = `${this.root.path}/${value}`;
+      const target = `${folder.path}/${value}`;
       if (await mide.fs.stat(target)) return mide.notify.error(`"${value}" already exists.`);
       try {
         await mide.fs.copy(node.path, target); // byte-for-byte, so images and other binaries survive
@@ -390,7 +434,7 @@ export function activate(mide) {
     },
 
     async remove(node) {
-      if (node === this.root) return;
+      if (node.folder) return;
       const choice = await mide.ui.confirm({
         type: 'warning',
         message: `Move "${node.name}" to the Trash?`,
@@ -409,8 +453,17 @@ export function activate(mide) {
     },
 
     async contextMenu(node) {
-      const isRoot = node === this.root;
+      if (node.path == null) { // the empty space below several folders
+        if (await mide.ui.contextMenu([{ id: 'add-folder', label: 'Add Folder to Project…' }]) === 'add-folder') mide.commands.run('project:add-folder');
+        return;
+      }
+      const isRoot = !!node.folder;
       const choice = await mide.ui.contextMenu([
+        ...(isRoot ? [
+          { id: 'add-folder', label: 'Add Folder to Project…' },
+          ...(this.multi ? [{ id: 'remove-folder', label: 'Remove Folder from Project' }] : []),
+          { type: 'separator' },
+        ] : []),
         { id: 'new-file', label: 'New File' },
         { id: 'new-folder', label: 'New Folder' },
         { type: 'separator' },
@@ -426,6 +479,8 @@ export function activate(mide) {
         { id: 'run', label: 'Open Terminal Here', enabled: node.isDir },
       ]);
       switch (choice) {
+        case 'add-folder': return mide.commands.run('project:add-folder');
+        case 'remove-folder': return mide.workspace.removeFolder(node.path);
         case 'new-file': return this.newEntry(false, node);
         case 'new-folder': return this.newEntry(true, node);
         case 'open-split': { const pane = mide.workspace.splitRight({ empty: true }); return mide.workspace.open(node.path, { pane }); }
@@ -458,13 +513,13 @@ export function activate(mide) {
     'tree-view:new-folder': { title: 'New Folder in Project…', run: () => tree.newEntry(true) },
   });
 
-  mide.workspace.onDidChangeProject((root) => tree.setRoot(root));
+  mide.workspace.onDidChangeFolders((folders) => tree.setRoots(folders));
   mide.workspace.onDidChangeFiles((paths) => tree.onFilesChanged(paths));
   mide.workspace.onDidChangeActiveItem(() => { tree.markActive(); if (mide.config.get('tree-view.autoReveal')) tree.revealActive(false); });
   mide.config.onDidChange('core.ignoredNames', () => tree.refresh());
   mide.config.onDidChange('tree-view.hideIgnored', () => tree.refresh());
   mide.services.consume('git-status', (git) => { tree.git = git; mide.subscriptions.add(git.onDidChange(() => tree.decorate())); tree.decorate(); });
 
-  if (mide.workspace.project) tree.setRoot(mide.workspace.project);
+  if (mide.workspace.project) tree.setRoots(mide.workspace.folders);
   else tree.render();
 }
