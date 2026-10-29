@@ -21,7 +21,7 @@ function sh(mide, argv) {
 export async function configFor(mide, path) {
   const kind = kindFor(path);
   const dir = mide.path.dirname(path);
-  const root = mide.workspace.project;
+  const root = mide.workspace.folderFor(path) || mide.workspace.project;
   const cwd = mide.config.get('runner.cwd') === 'project' && root && path.startsWith(root + '/') ? root : dir;
   const install = (title, detail, command) => mide.notify.info(title, detail, {
     timeout: 15000,

@@ -57,8 +57,8 @@ export class Trust extends Emitter {
     this.emit('changed');
   }
 
-  /** Asks about `folder`. Returns true if it's trusted afterwards. */
-  async prompt(folder = this.app.workspace.project) {
+  /** Asks about `folder` (default: the first project folder that isn't trusted). Returns true if it's trusted afterwards. */
+  async prompt(folder = this.app.workspace.folders.find((f) => !this.isTrusted(f)) || this.app.workspace.project) {
     if (!folder || this.isTrusted(folder)) return true;
     const name = folder.split('/').filter(Boolean).pop() || folder;
     const remote = this.remoteOf(folder);

@@ -103,7 +103,12 @@ Schema types: `boolean`, `number`, `string` (with optional `enum`), `array`.
 ### workspace
 
 ```js
-mide.workspace.project;                       // absolute path or null
+mide.workspace.project;                       // absolute path or null: the first project folder
+mide.workspace.folders;                       // every project folder, the project first
+mide.workspace.folderFor(path);               // the folder that contains path, or null
+mide.workspace.getActiveFolder();             // the active file's folder, else the project
+await mide.workspace.addFolder(path);         // asks to trust it first if needed
+mide.workspace.removeFolder(path);
 await mide.workspace.open(path, { line: 10, col: 0, pending: false, pane });
 mide.workspace.newFile();
 mide.workspace.getActiveItem();               // any pane item
@@ -112,7 +117,8 @@ mide.workspace.getItems();
 mide.workspace.save(item);
 mide.workspace.splitRight({ empty: true });   // returns the new pane
 mide.workspace.splitDown({ empty: true });    // same, below instead of to the right
-mide.workspace.relativePath(absPath);
+mide.workspace.relativePath(absPath);         // with several folders: "folder-name/src/app.js"
+mide.workspace.resolvePath(relPath);          // and back
 
 mide.workspace.observeActiveItem((item) => …);
 mide.workspace.onDidChangeActiveItem((item) => …);
@@ -120,6 +126,7 @@ mide.workspace.onDidUpdateEditor((editor, update) => { if (update?.docChanged) �
 mide.workspace.onWillSave(async (editor) => { /* format, lint-fix… */ });
 mide.workspace.onDidSave((editor) => …);
 mide.workspace.onDidChangeProject((root) => …);
+mide.workspace.onDidChangeFolders((folders) => …); // a folder was added or removed (or the project changed)
 mide.workspace.onDidChangeFiles((paths) => …); // debounced fs events in the project
 mide.workspace.onDidRenamePath((from, to) => …); // a file or folder was moved in the tree or with File: Rename
 mide.workspace.onWillReload((doc, reason) => …);  // the buffer is about to be replaced by the file on disk ('disk' or 'revert'); read doc.getTextForSave() now
@@ -130,6 +137,11 @@ mide.workspace.onDidCloseDocument((doc) => …);  // its last tab closed
 mide.workspace.getDocuments();                   // open Documents: { path, getText(), primaryView(), views, on('path') }
 mide.workspace.addOpener((path) => customItemOrNull);  // e.g. an image viewer
 ```
+
+A window can hold several project folders (**File → Add Folder to Project…**). `project` stays
+the first one, so code that only knows about `project` keeps working with one folder; to cover
+all of them, use `folders`, and for anything that runs in a folder (a terminal, a build) prefer
+`folderFor(path)` or `getActiveFolder()`. Each folder is trusted on its own (see Workspace trust).
 
 **EditorItem**: `getPath()`, `getTitle()`, `getText()`, `getSelectedText()`,
 `insertText(s)`, `goToLine(line, col)`, `getCursor()`, `getLanguageName()`,
@@ -262,8 +274,8 @@ await mide.fs.stat(path);     // { isDir, isFile, size, mtime } | null
 await mide.fs.mkdir(dir); await mide.fs.rename(a, b); await mide.fs.trash(path);
 await mide.fs.removeHistory(path);   // deletes (without the Trash) inside ~/.minimide/history only; what local-history prunes with
 
-await mide.project.files();                      // relative paths, respects core.ignoredNames
-await mide.project.search('TODO', { regex: false, caseSensitive: false });
+await mide.project.files(folder);                // paths relative to folder (default: the project), respects core.ignoredNames
+await mide.project.search('TODO', { regex: false, caseSensitive: false }); // every folder, or { root }
 
 const { code, stdout, stderr } = await mide.process.exec('git', ['status'], { cwd });
 const proc = mide.process.spawn('npm test', { onData: (chunk, stream) => …, onExit: (code) => … });
@@ -439,6 +451,7 @@ export async function activate(mide) {
   mide.sandboxed;                      // true
   mide.package;                        // { name, manifest, permissions }
   mide.project;                        // the open folder's path, or null
+  mide.folders;                        // every project folder, the project first (read-only)
 
   mide.commands.add('word-goal:show', 'Show Word Goal', async () => { … });
   await mide.commands.run('word-goal:show');
@@ -456,6 +469,7 @@ export async function activate(mide) {
   await mide.workspace.getActiveEditor();   // { path, language, dirty } or null
   mide.workspace.onDidChangeActiveEditor((info) => {});
   mide.workspace.onDidSave(({ path }) => {});
+  mide.workspace.onDidChangeProject((root) => {}); mide.workspace.onDidChangeFolders((folders) => {});
   await mide.editor.getText(); await mide.editor.getSelectedText(); await mide.editor.getCursor();
   await mide.editor.insertText('hi'); await mide.editor.replaceSelection('x'); await mide.editor.setText('…');
   mide.editor.onDidChange(({ path }) => {});   // debounced
@@ -481,7 +495,12 @@ such tools should stay off. Check it with:
 mide.workspace.isTrusted();          // the open project; or pass a file path
 mide.workspace.onDidChangeTrust(() => { /* start or stop your tool */ });
 await mide.workspace.requestTrust(); // shows the prompt; resolves to true if trusted
+await mide.workspace.requestTrust(path); // for the folder of path
 ```
+
+Every project folder is trusted separately: adding an untrusted folder puts the window in
+Restricted Mode for that folder's files, so check `isTrusted(path)` for the file you work on
+rather than the project. `requestTrust()` asks about the first folder that isn't trusted.
 
 The built-in git, source control, blame and language-server packages do this. Trusted folders
 are listed in `~/.minimide/trusted-folders.json` and managed with **Workspace: Manage Trusted

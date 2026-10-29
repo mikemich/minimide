@@ -22,10 +22,15 @@ export function activate(mide) {
     return parts.join('/') || '/';
   }
 
+  // With several project folders the panel shows one folder's repository: the active file's,
+  // or the one picked in the header.
+  let chosen = null;
+  const currentFolder = () => (mide.workspace.folders.includes(chosen) ? chosen : mide.workspace.project);
+
   let refreshSeq = 0;
   async function refresh() {
     const seq = ++refreshSeq; // a newer refresh supersedes this one
-    const project = mide.workspace.project;
+    const project = currentFolder();
     if (!project || !mide.workspace.isTrusted(project)) { state.root = null; return render(); }
     const root = await findRoot(project);
     if (seq !== refreshSeq) return;
@@ -87,8 +92,8 @@ export function activate(mide) {
     queue = job.catch(() => {});
     return job;
   }
-  async function runNow(args, { quiet = false, label } = {}) {
-    const r = await git(args);
+  async function runNow(args, { quiet = false, label, cwd } = {}) {
+    const r = await git(args, cwd ? { cwd } : {});
     pending--;
     state.busy = pending > 0;
     if (r.code !== 0 && !quiet) {
@@ -101,13 +106,13 @@ export function activate(mide) {
   }
 
   // --- actions -------------------------------------------------------------
-  const abs = (p) => `${state.root}/${p}`;
-  const stage = (paths) => run(['add', '-A', '--', ...paths], { label: 'add' });
+  const abs = (p, root = state.root) => `${root}/${p}`;
+  const stage = (paths, cwd) => run(['add', '-A', '--', ...paths], { label: 'add', cwd });
   const stageAll = () => run(['add', '-A'], { label: 'add' }); // no path list: fine for thousands of files
   // Unstaging a rename must also unstage the deletion of its old path.
-  const unstage = (entries) => {
+  const unstage = (entries, cwd) => {
     const paths = [...new Set(entries.flatMap((e) => (e.orig ? [e.path, e.orig] : [e.path])))];
-    return state.hasHead ? run(['restore', '--staged', '--', ...paths], { label: 'unstage' }) : run(['rm', '--cached', '-r', '-q', '--', ...paths], { label: 'unstage' });
+    return state.hasHead ? run(['restore', '--staged', '--', ...paths], { label: 'unstage', cwd }) : run(['rm', '--cached', '-r', '-q', '--', ...paths], { label: 'unstage', cwd });
   };
   const unstageAll = () => (state.hasHead ? run(['restore', '--staged', '--', '.'], { label: 'unstage' }) : run(['rm', '--cached', '-r', '-q', '--', '.'], { label: 'unstage' }));
 
@@ -168,32 +173,49 @@ export function activate(mide) {
     onkeydown: (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commit(); } },
   });
   const amendBox = h('input', { type: 'checkbox' });
+  const folderSelect = h('select.input.sc-folder', { title: 'Project folder', hidden: true, onchange: () => showFolder(folderSelect.value) });
+  function showFolder(folder) {
+    if (folder === currentFolder()) return;
+    chosen = folder;
+    msgInput.value = ''; // render() brings back the other repository's draft
+    refresh();
+  }
   const branchEl = h('div.sc-branch');
   const commitBtn = h('button.btn.primary.sc-commit', { onclick: commit }, 'Commit');
   const lists = h('div.sc-lists');
   const el = h('div.sc-view',
     h('div.sc-header', h('span.sc-title', 'Source Control'),
+      folderSelect,
       h('div.sc-header-actions', h('button.icon-btn', { title: 'Refresh', onclick: () => refresh() }, icon('refresh', 14)))),
     h('div.sc-body', branchEl,
       h('div.sc-compose', msgInput, h('div.sc-compose-row', commitBtn, h('label.sc-amend', amendBox, 'Amend'))),
       lists));
 
+  function renderFolders() {
+    const folders = mide.workspace.folders;
+    folderSelect.hidden = folders.length < 2;
+    folderSelect.replaceChildren(...folders.map((f) => h('option', { value: f, title: f }, mide.path.basename(f))));
+    folderSelect.value = currentFolder() || '';
+  }
+
   function render() {
+    renderFolders();
     if (!mide.workspace.project) {
       lists.replaceChildren(h('div.sc-empty', 'Open a folder to use source control.'));
       branchEl.replaceChildren();
       return;
     }
-    if (!mide.workspace.isTrusted()) {
+    const folder = currentFolder();
+    if (!mide.workspace.isTrusted(folder)) {
       branchEl.replaceChildren();
       lists.replaceChildren(h('div.sc-empty', h('p', 'Restricted Mode: git is off until you trust this folder, because a repository\'s settings can run commands.'),
-        h('button.btn.primary', { onclick: () => mide.workspace.requestTrust() }, 'Trust Folder…')));
+        h('button.btn.primary', { onclick: () => mide.workspace.requestTrust(folder) }, 'Trust Folder…')));
       return;
     }
     if (!state.root) {
       branchEl.replaceChildren();
       lists.replaceChildren(h('div.sc-empty', h('p', 'This folder is not a git repository.'),
-        h('button.btn.primary', { onclick: async () => { await mide.process.exec('git', ['init'], { cwd: mide.workspace.project }); afterChange(); } }, 'Initialize Repository')));
+        h('button.btn.primary', { onclick: async () => { await mide.process.exec('git', ['init'], { cwd: folder }); afterChange(); } }, 'Initialize Repository')));
       return;
     }
     if (document.activeElement !== msgInput && !msgInput.value) { try { msgInput.value = localStorage.getItem(draftKey()) || ''; } catch {} }
@@ -260,12 +282,12 @@ export function activate(mide) {
     fileIcon(name), h('span.sc-name', name), dir ? h('span.sc-dir', dir) : null, h('div.sc-row-actions', actions));
   }
 
-  function openFile(entry) { if (entry.code !== 'D') mide.workspace.open(abs(entry.path)); }
+  function openFile(entry, root) { if (entry.code !== 'D') mide.workspace.open(abs(entry.path, root)); }
 
   // --- diff view -----------------------------------------------------------
-  async function textAt(ref, path) {
-    if (ref === 'worktree') { try { return await mide.fs.read(abs(path)); } catch { return ''; } }
-    const r = await git(['show', `${ref}:${path}`]);
+  async function textAt(ref, path, root = state.root) {
+    if (ref === 'worktree') { try { return await mide.fs.read(abs(path, root)); } catch { return ''; } }
+    const r = await git(['show', `${ref}:${path}`], { cwd: root });
     return r.code === 0 ? r.stdout : '';
   }
 
@@ -275,7 +297,8 @@ export function activate(mide) {
       this.entry = entry;
       this.kind = kind;
       this.iconName = 'split';
-      this.id = `diff-${kind}-${entry.path}`;
+      this.root = state.root; // the panel may show another repository later
+      this.id = `diff-${kind}-${this.root}/${entry.path}`;
       this.listeners = new Map();
       this.headerLeft = h('span.sc-diff-side');
       this.headerRight = h('span.sc-diff-side');
@@ -284,9 +307,9 @@ export function activate(mide) {
         h('div.sc-diff-toolbar', h('span.sc-diff-path', entry.path), this.headerLeft, h('span.sc-diff-arrow', '→'), this.headerRight,
           h('div.sc-diff-actions',
             h('button.btn.small', { onclick: () => this.toggleLayout() }, 'Toggle Layout'),
-            entry.code !== 'D' ? h('button.btn.small', { onclick: () => openFile(entry) }, 'Open File') : null,
-            kind === 'staged' ? h('button.btn.small', { onclick: () => unstage([entry]) }, 'Unstage')
-              : h('button.btn.small.primary', { onclick: () => stage([entry.path]) }, 'Stage'))),
+            entry.code !== 'D' ? h('button.btn.small', { onclick: () => openFile(entry, this.root) }, 'Open File') : null,
+            kind === 'staged' ? h('button.btn.small', { onclick: () => unstage([entry], this.root) }, 'Unstage')
+              : h('button.btn.small.primary', { onclick: () => stage([entry.path], this.root) }, 'Stage'))),
         this.host);
       this.layout = mide.config.get('source-control.diffLayout');
       this.reload();
@@ -304,7 +327,7 @@ export function activate(mide) {
       const [leftRef, rightRef, leftLabel, rightLabel] = kind === 'staged'
         ? [state.hasHead ? 'HEAD' : null, '', 'Last commit', 'Staged']
         : [entry.code === '?' ? null : '', 'worktree', entry.code === '?' ? 'New file' : 'Staged / last commit', 'Working tree'];
-      const [a, b] = await Promise.all([leftRef == null ? '' : textAt(leftRef, entry.orig || entry.path), textAt(rightRef, entry.path)]);
+      const [a, b] = await Promise.all([leftRef == null ? '' : textAt(leftRef, entry.orig || entry.path, this.root), textAt(rightRef, entry.path, this.root)]);
       if (a === this.a && b === this.b && this.view && this.shownLayout === this.layout) return;
       Object.assign(this, { a, b });
       this.headerLeft.textContent = leftLabel;
@@ -339,7 +362,7 @@ export function activate(mide) {
   }
 
   function openDiff(entry, kind) {
-    const existing = mide.workspace.getItems().find((i) => i.type === 'diff' && i.id === `diff-${kind}-${entry.path}`);
+    const existing = mide.workspace.getItems().find((i) => i.type === 'diff' && i.id === `diff-${kind}-${state.root}/${entry.path}`);
     if (existing) return mide.workspace.openItem(existing);
     const item = new DiffItem(entry, kind);
     diffs.add(item);
@@ -368,7 +391,11 @@ export function activate(mide) {
       },
     },
   });
-  mide.workspace.onDidChangeProject(() => { refresh(); });
+  mide.workspace.onDidChangeFolders(() => { refresh(); });
+  mide.workspace.onDidChangeActiveItem((item) => {
+    const folder = mide.workspace.folders.length > 1 && mide.workspace.folderFor(item?.getPath?.());
+    if (folder) showFolder(folder);
+  });
   mide.workspace.onDidChangeTrust(() => { refresh(); });
   mide.workspace.onDidSave(scheduleRefresh);
   mide.workspace.onDidChangeFiles(scheduleRefresh);

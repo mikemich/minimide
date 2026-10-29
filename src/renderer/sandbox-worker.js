@@ -12,6 +12,7 @@ const listeners = new Map();
 let seq = 0;
 let config = {};
 let project = null;
+let folders = [];
 let pkg = null;
 let mod = null;
 
@@ -56,6 +57,8 @@ const mide = {
   sandboxed: true,
   get package() { return pkg; },
   get project() { return project; },
+  /** Every project folder, the project first. */
+  get folders() { return [...folders]; },
   Disposable: { from: (...ds) => disposable(() => ds.forEach((d) => d?.dispose?.())) },
 
   commands: {
@@ -100,6 +103,7 @@ const mide = {
     onDidChangeActiveEditor: (fn) => on('activeEditor', fn),
     onDidSave: (fn) => on('save', fn),
     onDidChangeProject: (fn) => on('project', fn),
+    onDidChangeFolders: (fn) => on('folders', fn),
     open: (path, opts) => call('workspace.open', path, opts),
   },
 
@@ -148,11 +152,14 @@ self.onmessage = async ({ data: m }) => {
   } else if (m.type === 'event') {
     if (m.name === 'config') Object.assign(config, m.data);
     if (m.name === 'project') project = m.data;
+    if (m.name === 'folders') { folders = m.data; project = folders[0] ?? null; }
     for (const fn of listeners.get(m.name) || []) { try { fn(m.data); } catch (err) { console.error(`[${pkg?.name}]`, err); } }
   } else if (m.type === 'init') {
     pkg = Object.freeze({ name: m.name, manifest: m.manifest, permissions: Object.freeze([...m.permissions]) });
     config = m.config;
     project = m.project;
+    folders = m.folders || [];
+    on('folders', () => {}); // keeps `folders` and `project` current
     try {
       mod = await import(m.url);
       await mod.activate?.(mide);

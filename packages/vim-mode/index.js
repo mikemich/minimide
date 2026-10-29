@@ -24,7 +24,7 @@ export async function activate(mide) {
   ex('edit', 'e', (_cm, params) => {
     const file = params.args?.[0];
     if (!file) return mide.commands.run('file:revert');
-    const base = mide.workspace.project || mide.path.dirname(mide.workspace.getActiveEditor()?.getPath() || mide.user.home);
+    const base = mide.workspace.getActiveFolder() || mide.path.dirname(mide.workspace.getActiveEditor()?.getPath() || mide.user.home);
     mide.workspace.open(file.startsWith('/') ? file : `${base}/${file}`);
   });
   ex('vsplit', 'vs', () => mide.commands.run('pane:split-right'));

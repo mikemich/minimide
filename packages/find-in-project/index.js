@@ -40,7 +40,8 @@ export function activate(mide) {
     if (!mide.workspace.project) { summary.textContent = 'Open a folder to search.'; results.replaceChildren(); return; }
     if (!q) { summary.textContent = ''; results.replaceChildren(); state.results = []; return; }
     summary.textContent = 'Searching…';
-    const root = folder.value.trim() ? `${mide.workspace.project}/${folder.value.trim().replace(/^\/+|\/+$/g, '')}` : undefined;
+    // With several folders, the filter may start with a folder's name (as relative paths do).
+    const root = folder.value.trim() ? mide.workspace.resolvePath(folder.value.trim().replace(/^\/+|\/+$/g, '')) : undefined;
     const res = await mide.project.search(q, { regex: state.regex, caseSensitive: state.caseSensitive, root });
     if (seq !== state.seq) return;
     if (res.error) { summary.textContent = res.error; summary.classList.add('error'); results.replaceChildren(); return; }
@@ -157,5 +158,5 @@ export function activate(mide) {
   };
   mide.commands.add('find-in-project:show', 'Find in Project', (opts) => show(opts));
   mide.commands.add('find-in-project:show-replace', 'Replace in Project', () => { replaceRow.hidden = false; expandBtnState(); show(); });
-  mide.workspace.onDidChangeProject(() => { state.results = []; results.replaceChildren(); summary.textContent = ''; });
+  mide.workspace.onDidChangeFolders(() => { state.results = []; results.replaceChildren(); summary.textContent = ''; });
 }

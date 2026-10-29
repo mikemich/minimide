@@ -43,19 +43,27 @@ export function activate(mide) {
   });
 
   const projectFiles = async () => {
-    const root = mide.workspace.project;
-    if (!root) return recent.map((p) => ({ path: p, rel: p }));
-    const files = await mide.project.files();
+    const folders = mide.workspace.folders;
+    if (!folders.length) return recent.map((p) => ({ path: p, rel: p }));
+    // With several folders, `rel` starts with the folder's name (as relativePath() shows it).
+    const lists = await Promise.all(folders.map(async (root) => (await mide.project.files(root))
+      .map((rel) => ({ rel: folders.length > 1 ? `${mide.path.basename(root)}/${rel}` : rel, path: `${root}/${rel}` }))));
     const recentRank = new Map(recent.map((p, i) => [p, i]));
-    return files
-      .map((rel) => ({ rel, path: `${root}/${rel}` }))
+    const seen = new Set(); // a folder inside another one lists its files twice
+    return lists.flat()
+      .filter((f) => !seen.has(f.path) && seen.add(f.path))
       .sort((a, b) => (recentRank.get(a.path) ?? 1e9) - (recentRank.get(b.path) ?? 1e9));
+  };
+  const placeholder = () => {
+    const folders = mide.workspace.folders;
+    if (!folders.length) return 'Search recent files';
+    return folders.length > 1 ? `Search files in ${folders.length} folders` : `Search files in ${mide.path.basename(folders[0])}`;
   };
   mide.ui.addQuickOpenMode({
     ...fileSearch(projectFiles),
     prefix: '', title: 'Files', order: 0,
     description: 'Type a file name. name:42 opens it at line 42',
-    placeholder: () => (mide.workspace.project ? `Search files in ${mide.path.basename(mide.workspace.project)}` : 'Search recent files'),
+    placeholder,
   });
 
   mide.commands.add('fuzzy-finder:toggle', 'Find File', () => mide.ui.quickOpen(''));

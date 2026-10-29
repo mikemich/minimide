@@ -214,7 +214,7 @@
   });
 
   await step('smokeEveryCommand', async () => {
-    const skip = /^(window:(close|reload|new|toggle-dev-tools|toggle-full-screen)|file:open|project:open-folder|packages:(create|open-folder|reload|install-from-folder)|app:check-for-updates|help:plugin-docs|settings:open-(config-file|keymap|init-script|stylesheet)|file:reveal-in-finder|tab:close-all|source-control:(push|pull|commit)|runner:(run-file|rerun|run-task)|lsp:restart-servers|terminal:|shell:)/;
+    const skip = /^(window:(close|reload|new|toggle-dev-tools|toggle-full-screen)|file:open|project:(open|add)-folder|packages:(create|open-folder|reload|install-from-folder)|app:check-for-updates|help:plugin-docs|settings:open-(config-file|keymap|init-script|stylesheet)|file:reveal-in-finder|tab:close-all|source-control:(push|pull|commit)|runner:(run-file|rerun|run-task)|lsp:restart-servers|terminal:|shell:)/;
     const failed = [];
     const ids = app.commands.list().map((c) => c.id).filter((id) => !skip.test(id));
     for (const id of ids) {

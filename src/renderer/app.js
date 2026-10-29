@@ -47,7 +47,7 @@ class App {
     this.ui = { selectList, prompt, notify, closeModal };
     this.welcomeTips = [];
     this.state = {};
-    this.fileCache = null;
+    this.fileCaches = new Map(); // folder -> { promise, set }
     this.procSeq = 0;
     // Unique per page load: after Reload Window, old and new process ids can't collide.
     this.procPrefix = Math.random().toString(36).slice(2, 8);
@@ -103,6 +103,8 @@ class App {
     window.native.window.onRequestClose(() => this.requestClose());
     window.native.window.onOpenPath((p) => this.workspace.open(p));
     this.workspace.on('files-changed', (paths) => this.invalidateFileCache(paths));
+    this.workspace.on('folders-changed', (folders) => { for (const f of this.fileCaches.keys()) if (!folders.includes(f)) this.fileCaches.delete(f); });
+    this.bindFileDrop();
     this.trackClosedItems();
     this.bindAutoSave();
     this.bindSessionSaving();
@@ -138,21 +140,22 @@ class App {
     this.config.observe('ui.compactTabs', (v) => document.body.classList.toggle('compact-tabs', !!v));
   }
 
-  // A status bar item while the project is in Restricted Mode; clicking it asks to trust it.
+  // A status bar item while any project folder is in Restricted Mode; clicking it asks to trust it.
   bindRestrictedModeItem() {
     let item = null;
     const update = () => {
-      const restricted = !!this.workspace.project && !this.trust.isTrusted();
-      if (restricted && !item) {
-        item = this.statusBar.addItem({
-          id: 'restricted-mode', element: h('span.restricted-mode', '⛉ Restricted Mode'), align: 'left', priority: 1,
-          tooltip: 'git and language servers are off for this folder. Click to trust it.',
-          onClick: () => this.trust.prompt(),
-        });
-      } else if (!restricted && item) { item.dispose(); item = null; }
+      const untrusted = this.workspace.folders.filter((f) => !this.trust.isTrusted(f));
+      item?.dispose();
+      item = untrusted.length ? this.statusBar.addItem({
+        id: 'restricted-mode', element: h('span.restricted-mode', '⛉ Restricted Mode'), align: 'left', priority: 1,
+        tooltip: this.workspace.folders.length > 1
+          ? `git and language servers are off for ${untrusted.map((f) => basename(f)).join(', ')}. Click to trust it.`
+          : 'git and language servers are off for this folder. Click to trust it.',
+        onClick: () => this.trust.prompt(),
+      }) : null;
     };
     this.trust.on('changed', update);
-    this.workspace.on('project-changed', update);
+    this.workspace.on('folders-changed', update);
     this.config.onDidChange('security.workspaceTrust', () => this.trust.emit('changed'));
     update();
   }
@@ -206,7 +209,7 @@ class App {
     if (newWindow || (this.workspace.project && this.workspace.project !== root)) return window.native.window.newWindow(root);
     if (this.workspace.project === root) return;
     this.saveSession();
-    this.fileCache = null;
+    this.fileCaches.clear();
     await this.workspace.setProject(root);
     // Ask before git or a language server runs anything from this folder.
     if (!this.trust.isTrusted(root)) await this.trust.prompt(root);
@@ -214,6 +217,8 @@ class App {
     this.state.lastProject = root;
     this.persistState();
     const session = this.state.sessions?.[root];
+    // Folders added earlier come back without asking again: an untrusted one shows Restricted Mode.
+    for (const f of restore ? session?.folders || [] : []) if ((await window.native.fs.stat(f))?.isDir) await this.workspace.addFolder(f);
     if (restore && session?.workspace) await this.workspace.restore(session.workspace);
     this.sidebar.show(undefined);
     this.welcomeEl = null;
@@ -222,36 +227,55 @@ class App {
     this.workspace.updateEmptyState();
   }
 
-  async projectFiles() {
-    const root = this.workspace.project;
-    if (!root) return [];
-    if (!this.fileCache || this.fileCache.root !== root) {
-      const promise = window.native.project.files(root, this.config.get('core.ignoredNames'));
-      this.fileCache = { root, promise, set: null };
-      promise.then((files) => { if (this.fileCache?.promise === promise) this.fileCache.set = new Set(files); });
-    }
-    return this.fileCache.promise;
+  /** Adds a folder to the window's project (asking about trust), or opens it as the project. */
+  async addFolder(path) {
+    if (!path) return false;
+    if (!this.workspace.project) { await this.openProject(path); return true; }
+    if (!await this.workspace.addFolder(path)) return false;
+    if (!this.trust.isTrusted(path)) await this.trust.prompt(path);
+    return true;
   }
 
-  // Patch the cached file list instead of re-listing the whole project (slow on big repos).
-  // A large burst (a branch switch, npm install…) just drops the cache and re-lists lazily.
+  removeFolder(path) {
+    if (path === this.workspace.project) this.saveSession(); // the next folder takes over the session
+    return this.workspace.removeFolder(path);
+  }
+
+  /** Files in `root` (default: the project), relative to it. */
+  async projectFiles(root = this.workspace.project) {
+    if (!root) return [];
+    if (!this.fileCaches.has(root)) {
+      const promise = window.native.project.files(root, this.config.get('core.ignoredNames'));
+      const cache = { promise, set: null };
+      this.fileCaches.set(root, cache);
+      promise.then((files) => { if (cache.promise === promise) cache.set = new Set(files); });
+    }
+    return this.fileCaches.get(root).promise;
+  }
+
+  // Patch the cached file lists instead of re-listing whole folders (slow on big repos).
+  // A large burst (a branch switch, npm install…) just drops a cache and re-lists lazily.
   async invalidateFileCache(paths) {
-    const cache = this.fileCache;
-    if (!cache) return;
-    if (!cache.set || !paths || paths.length > 300) { this.fileCache = null; return; }
+    await Promise.all([...this.fileCaches].map(([root, cache]) => this.patchFileCache(root, cache, paths)));
+  }
+
+  async patchFileCache(root, cache, paths) {
+    const drop = () => { if (this.fileCaches.get(root) === cache) this.fileCaches.delete(root); };
+    if (!cache.set || !paths || paths.length > 300) return drop();
     const ignored = new Set(this.config.get('core.ignoredNames') || []);
     for (const p of paths) {
-      if (!p.startsWith(cache.root + '/')) continue;
-      if (p.slice(cache.root.length + 1).split('/').some((s) => ignored.has(s))) continue;
+      if (!p.startsWith(root + '/')) continue;
+      const rel = p.slice(root.length + 1);
+      if (rel.split('/').some((s) => ignored.has(s))) continue;
       const stat = await window.native.fs.stat(p).catch(() => null);
-      if (this.fileCache !== cache) return;
-      if (stat?.isFile) cache.set.add(p);
+      if (this.fileCaches.get(root) !== cache) return;
+      if (stat?.isFile) cache.set.add(rel);
       else if (!stat) {
-        cache.set.delete(p);
+        cache.set.delete(rel);
         // A deleted or renamed folder takes its files with it.
-        const prefix = p + '/';
+        const prefix = rel + '/';
         for (const f of cache.set) if (f.startsWith(prefix)) cache.set.delete(f);
-      } else if (stat.isDir) { this.fileCache = null; return; } // a new folder: re-list to pick up its contents
+      } else if (stat.isDir) return drop(); // a new folder: re-list to pick up its contents
     }
     cache.promise = Promise.resolve([...cache.set]);
   }
@@ -450,6 +474,24 @@ class App {
     });
   }
 
+  // Files dropped on the window open in tabs; a dropped folder joins the project (or opens as it).
+  bindFileDrop() {
+    const hasFiles = (e) => e.dataTransfer?.types?.includes('Files');
+    document.addEventListener('dragover', (e) => { if (hasFiles(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } }, true);
+    document.addEventListener('drop', async (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      // Read the paths now: the FileList is gone once the event returns.
+      const paths = [...e.dataTransfer.files].map((f) => window.native.fs.pathForFile?.(f)).filter(Boolean);
+      for (const p of paths) {
+        const stat = await window.native.fs.stat(p);
+        if (stat?.isDir) await this.addFolder(p);
+        else if (stat?.isFile) await this.workspace.open(p);
+      }
+    }, true);
+  }
+
   trackClosedItems() {
     this.closedPaths = [];
     this.workspace.on('item-removed', (item) => {
@@ -464,7 +506,7 @@ class App {
   bindSessionSaving() {
     let timer = null;
     const schedule = () => { clearTimeout(timer); timer = setTimeout(() => this.saveSession(), 800); };
-    for (const ev of ['item-added', 'item-removed', 'active-item-changed', 'layout-changed']) this.workspace.on(ev, schedule);
+    for (const ev of ['item-added', 'item-removed', 'active-item-changed', 'layout-changed', 'folders-changed']) this.workspace.on(ev, schedule);
     this.sidebar.on('changed', schedule);
     this.panel.on('changed', schedule);
     window.addEventListener('beforeunload', () => this.saveSession());
@@ -476,7 +518,7 @@ class App {
     const root = this.workspace.project;
     if (root) {
       this.state.sessions ||= {};
-      this.state.sessions[root] = { ...this.state.sessions[root], workspace: this.workspace.serialize(), at: Date.now() };
+      this.state.sessions[root] = { ...this.state.sessions[root], workspace: this.workspace.serialize(), folders: this.workspace.folders.slice(1), at: Date.now() };
       const entries = Object.entries(this.state.sessions).sort((a, b) => (b[1].at || 0) - (a[1].at || 0)).slice(0, 30);
       this.state.sessions = Object.fromEntries(entries);
     }

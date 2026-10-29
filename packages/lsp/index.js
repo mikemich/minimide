@@ -85,7 +85,10 @@ export function activate(mide) {
       const argv = await findCommand(server);
       if (!argv) { promptMissing(server); return null; }
       missing.delete(server.name);
-      const client = new LspClient(mide, server, argv, mide.workspace.project, {
+      // Every trusted project folder is a workspace folder; the first one is the root.
+      const folders = mide.workspace.folders.filter((f) => mide.workspace.isTrusted(f));
+      const client = new LspClient(mide, server, argv, folders[0] || mide.workspace.project, {
+        folders: folders.length ? folders : undefined,
         log: (text, kind) => log(server.name, text, kind),
         onNotification, onRequest, onExit,
       });
@@ -321,10 +324,8 @@ export function activate(mide) {
       case 'client/registerCapability':
       case 'client/unregisterCapability':
         return null;
-      case 'workspace/workspaceFolders': {
-        const root = mide.workspace.project;
-        return root ? [{ uri: toUri(root), name: mide.path.basename(root) }] : null;
-      }
+      case 'workspace/workspaceFolders':
+        return client.folders.length ? client.folders.map((f) => ({ uri: toUri(f), name: mide.path.basename(f) })) : null;
       case 'workspace/applyEdit':
         try { await applyWorkspaceEdit(params.edit); return { applied: true }; } catch (err) { return { applied: false, failureReason: err.message }; }
       case 'window/showMessageRequest':
@@ -1096,7 +1097,7 @@ export function activate(mide) {
   // Wiring
 
   mide.config.onDidChange('lsp.servers', (value) => { servers = resolveServers(value); restartAll(); });
-  mide.workspace.onDidChangeProject(() => restartAll());
+  mide.workspace.onDidChangeFolders(() => restartAll());
   mide.workspace.onDidChangeTrust(() => restartAll());
   mide.subscriptions.add({
     dispose: () => {

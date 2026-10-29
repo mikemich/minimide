@@ -1,8 +1,8 @@
 // A minimal JSON-RPC / LSP client on top of mide.process.spawnRpc.
 
 export class LspClient {
-  constructor(mide, server, argv, root, { log, onNotification, onRequest, onExit }) {
-    Object.assign(this, { mide, server, argv, root, log, onNotification, onRequest, onExitCb: onExit });
+  constructor(mide, server, argv, root, { log, onNotification, onRequest, onExit, folders }) {
+    Object.assign(this, { mide, server, argv, root, folders: folders || (root ? [root] : []), log, onNotification, onRequest, onExitCb: onExit });
     this.name = server.name;
     this.seq = 0;
     this.pending = new Map();
@@ -25,7 +25,7 @@ export class LspClient {
       clientInfo: { name: 'Minimide', version: this.mide.version },
       rootPath: this.root,
       rootUri,
-      workspaceFolders: rootUri ? [{ uri: rootUri, name: this.root.split('/').pop() }] : null,
+      workspaceFolders: this.folders.length ? this.folders.map((f) => ({ uri: 'file://' + f.split('/').map(encodeURIComponent).join('/'), name: f.split('/').pop() })) : null,
       initializationOptions: this.server.initializationOptions,
       capabilities: CLIENT_CAPABILITIES,
     }, { timeout: 60000 });

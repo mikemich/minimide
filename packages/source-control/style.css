@@ -1,6 +1,8 @@
 .sc-view { display: flex; flex-direction: column; height: 100%; }
 .sc-header { flex: none; display: flex; align-items: center; justify-content: space-between; height: 34px; padding: 0 6px 0 14px; }
 .sc-title { font-size: 0.82em; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-muted); }
+.sc-folder { flex: 0 1 auto; min-width: 0; max-width: 45%; height: 24px; margin: 0 4px 0 auto; padding: 0 4px; font-size: 0.9em; }
+.sc-folder[hidden] { display: none; }
 .sc-body { flex: 1; overflow: auto; padding-bottom: 20px; }
 .sc-branch { display: flex; align-items: center; gap: 6px; padding: 2px 10px 8px 14px; color: var(--fg); }
 .sc-branch { white-space: nowrap; }
