@@ -100,7 +100,7 @@ export function activate(mide) {
 
   mide.sidebar.addView({ id: 'todos', title: 'Todos', icon: 'checklist', order: 20, command: 'todos:show', element: el, onShow: refresh });
   mide.workspace.onDidSave(() => { if (mide.sidebar.isActive('todos')) refresh(); });
-  mide.workspace.onDidChangeProject(() => { results = []; if (mide.sidebar.isActive('todos')) refresh(); });
+  mide.workspace.onDidChangeFolders(() => { results = []; if (mide.sidebar.isActive('todos')) refresh(); });
   mide.commands.add('todos:show', 'Show Todos', () => { mide.sidebar.show('todos', { focus: true }); refresh(); });
 
   mide.styles.add(`
