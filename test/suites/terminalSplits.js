@@ -74,8 +74,8 @@
   await wait(500);
   out.closeKeepsOther = !!(await until(() => splits().length === 1 && splits()[0] === survivor, 3000));
   type(splits()[0], 'echo CCC$((3+4))');
-  out.otherStillLive = !!(await until(() => /^CCC7$/m.test(text(splits()[0]))));
-  if (!out.otherStillLive) out.survivorText = text(splits()[0]).slice(-400); // to see why, on CI
+  // Not anchored at the end: in a narrow split a long prompt (CI hostnames) can wrap onto the same row.
+  out.otherStillLive = !!(await until(() => /^CCC7(?!\d)/m.test(text(splits()[0]))));
 
   // exiting a split's shell removes the split
   await app.commands.run('terminal:split');
