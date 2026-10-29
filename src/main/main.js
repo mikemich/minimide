@@ -545,6 +545,12 @@ function registerIpc() {
   // Deletes and renames inside a remote folder's mirror are recorded for its next sync.
   handle('fs:rename', async (_e, a, b) => { await fs.rename(a, b); await remoteSsh.recordRename(a, b); });
   handle('fs:trash', async (_e, p) => { await shell.trashItem(p); await remoteSsh.recordTrash(p); });
+  // Local history (packages/local-history) prunes old snapshots: the only delete that skips the Trash, and it stays inside history/.
+  handle('fs:removeHistory', async (_e, p) => {
+    const target = path.resolve(String(p));
+    if (!target.startsWith(path.join(USER_DIR, 'history') + path.sep)) throw new Error('Only local history can be removed this way');
+    await fs.rm(target, { recursive: true, force: true });
+  });
   handle('fs:realpath', (_e, p) => fs.realpath(p).catch(() => null));
   handle('fs:watch', (event, root, key = 'project') => {
     const id = `${event.sender.id}:${key}`;

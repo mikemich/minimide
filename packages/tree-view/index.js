@@ -422,6 +422,7 @@ export function activate(mide) {
         { id: 'copy-path', label: 'Copy Path' },
         { id: 'copy-rel', label: 'Copy Relative Path', enabled: !isRoot },
         { id: 'reveal', label: 'Reveal in Finder' },
+        ...(!node.isDir && mide.commands.has('local-history:show') ? [{ id: 'history', label: 'Show Local History' }] : []),
         { id: 'search', label: 'Find in Folder…', enabled: node.isDir },
         { id: 'run', label: 'Open Terminal Here', enabled: node.isDir },
       ]);
@@ -435,6 +436,7 @@ export function activate(mide) {
         case 'copy-path': return mide.clipboard.write(node.path);
         case 'copy-rel': return mide.clipboard.write(mide.workspace.relativePath(node.path));
         case 'reveal': return mide.shell.reveal(node.path);
+        case 'history': return mide.commands.run('local-history:show-for', node.path);
         case 'search': return mide.commands.run('find-in-project:show', { folder: mide.workspace.relativePath(node.path) });
         case 'run': return mide.commands.run('terminal:new', { cwd: node.path });
       }

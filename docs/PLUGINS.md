@@ -121,6 +121,8 @@ mide.workspace.onWillSave(async (editor) => { /* format, lint-fix… */ });
 mide.workspace.onDidSave((editor) => …);
 mide.workspace.onDidChangeProject((root) => …);
 mide.workspace.onDidChangeFiles((paths) => …); // debounced fs events in the project
+mide.workspace.onDidRenamePath((from, to) => …); // a file or folder was moved in the tree or with File: Rename
+mide.workspace.onWillReload((doc, reason) => …);  // the buffer is about to be replaced by the file on disk ('disk' or 'revert'); read doc.getTextForSave() now
 mide.workspace.onDidOpenItem((item, pane) => …);
 mide.workspace.onDidCloseItem((item, pane) => …);
 mide.workspace.onDidOpenDocument((doc) => …);   // a file is loaded (once, however many tabs show it)
@@ -258,6 +260,7 @@ await mide.fs.readDataUrl(path);  // binary files (images…) as a data: URL
 await mide.fs.readdir(dir);   // [{ name, path, isDir }]
 await mide.fs.stat(path);     // { isDir, isFile, size, mtime } | null
 await mide.fs.mkdir(dir); await mide.fs.rename(a, b); await mide.fs.trash(path);
+await mide.fs.removeHistory(path);   // deletes (without the Trash) inside ~/.minimide/history only; what local-history prunes with
 
 await mide.project.files();                      // relative paths, respects core.ignoredNames
 await mide.project.search('TODO', { regex: false, caseSensitive: false });
