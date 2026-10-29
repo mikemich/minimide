@@ -308,13 +308,13 @@ export function registerCoreCommands(app) {
     'packages:check-for-updates': {
       title: 'Check for Package Updates',
       run: async () => {
-        let updates;
-        try { updates = await window.native.pkgmgr.checkUpdates(); } catch (err) { return ui.notify.error("Couldn't check for updates", err.message); }
-        const ready = updates.filter((u) => !u.error);
-        if (!ready.length) return ui.notify.info(updates.length ? "Couldn't check some packages" : 'All installed packages are up to date', updates.map((u) => `${u.name}: ${u.error}`).join('\n') || undefined);
-        ui.notify.info(`${ready.length} package update${ready.length === 1 ? '' : 's'} available`, ready.map((u) => u.name).join(', '), {
+        let found;
+        try { found = await window.native.pkgmgr.checkUpdates({ force: true }); } catch (err) { return ui.notify.error("Couldn't check for updates", err.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); }
+        const { updates, errors } = found;
+        if (!updates.length) return ui.notify.info(errors.length ? "Couldn't check some packages" : 'All installed packages are up to date', errors.map((u) => `${u.name}: ${u.error}`).join('\n') || undefined);
+        ui.notify.info(`${updates.length} package update${updates.length === 1 ? '' : 's'} available`, updates.map((u) => u.name).join(', '), {
           timeout: 0,
-          actions: [{ label: 'Update All', run: async () => { for (const u of ready) await app.packages.install(u.source); } }],
+          actions: [{ label: 'Update All', run: () => app.packages.updateAll() }],
         });
       },
     },

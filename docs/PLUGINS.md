@@ -389,8 +389,17 @@ A package is a GitHub repository with `package.json` at its root. Add the topic
 People can also install it by name with **Packages: Install Package…** (`owner/repo`,
 a github.com link, or `owner/repo#branch-or-tag`).
 
-**Packages: Check for Package Updates** compares each installed package with the latest
-commit on its branch.
+Clicking a package in Discover opens its page: the README (rendered from your repository's
+README file, with images from GitHub only), its stars, last push and version, and the
+**permissions your `package.json` asks for**, read before anything is downloaded. Packages
+that ask for `"access": "full"` are flagged there. Keep the README and `permissions` list
+honest: they are what people decide on. Results can be sorted by stars or by last update.
+
+Installed packages are compared with the latest commit on their branch at most once a day
+(and whenever someone presses **Check for Updates**); Settings → Packages shows **update
+available** on them, with **Update** and **Update All**. **Packages: Check for Package
+Updates** does the same check from the command palette. An update that asks for nothing new
+installs straight away; one that adds a permission, or asks for full access, asks first.
 
 ### Two kinds of package
 

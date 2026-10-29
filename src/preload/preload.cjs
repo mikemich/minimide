@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld('native', {
     grant: call('pkgmgr:grant'),
     checkUpdates: call('pkgmgr:checkUpdates'),
     search: call('pkgmgr:search'),
+    details: call('pkgmgr:details'),
     permissions: call('pkgmgr:permissions'),
   },
   net: { fetch: call('net:fetch') },

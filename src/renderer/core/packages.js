@@ -197,30 +197,45 @@ export class PackageManager extends Emitter {
   }
 
   // --- installing ----------------------------------------------------------
-  /** Download, show what it asks for, and install. Returns the package name, or null if cancelled. */
-  async install(source) {
+  /**
+   * Download, show what it asks for, and install. Returns the package name, or null if cancelled.
+   * With `update` (an installed package's newer version) the dialog is skipped when the new version
+   * asks for nothing it wasn't already allowed: no new permission and no jump to full access.
+   */
+  async install(source, { update = false } = {}) {
     const { notify } = this.app.ui;
-    const progress = notify.info('Downloading package…', String(source), { timeout: 0 });
+    const failed = update ? 'Couldn\'t update the package' : 'Couldn\'t install the package';
+    const progress = notify.info(update ? 'Downloading update…' : 'Downloading package…', String(source), { timeout: 0 });
     let staged;
-    try { staged = await window.native.pkgmgr.stage(source); } catch (err) { progress.close(); notify.error('Couldn\'t install the package', cleanIpcError(err)); return null; }
+    try { staged = await window.native.pkgmgr.stage(source); } catch (err) { progress.close(); notify.error(failed, cleanIpcError(err)); return null; }
     progress.close();
-    const labels = await window.native.pkgmgr.permissions();
-    const from = staged.source.replace(/^github:/, 'github.com/').replace(/^folder:/, '');
-    const update = staged.existing ? ' (update)' : '';
-    let detail;
-    let buttons;
-    if (staged.access === 'full') {
-      detail = `From ${from}\n\nThis package asks for FULL ACCESS. It would run with the same rights as Minimide: it could read and change any file, run any program and use the internet.\n\nOnly install it if you trust the author.`;
-      buttons = ['Install with Full Access', 'Cancel'];
-    } else {
-      const perms = staged.permissions.map((p) => `• ${labels[p]}`);
-      detail = `From ${from}\n\nIt runs in a sandbox. ${!staged.hasCode ? 'It contains no code (styles and settings only).'
-        : perms.length ? `Besides editing the open file and adding commands, it asks to:\n\n${perms.join('\n')}` : 'It can add commands and status bar items and work with the open file, but it can\'t see your other files, run programs or use the internet.'}`;
-      if (staged.unknownPermissions.length) detail += `\n\nIgnored unknown permissions: ${staged.unknownPermissions.join(', ')}`;
-      buttons = ['Install', 'Cancel'];
+    const existing = staged.existing;
+    const sameSource = existing?.source === staged.source;
+    const newPermissions = existing ? staged.permissions.filter((p) => !(existing.permissions || []).includes(p)) : [];
+    const moreAccess = !!existing && staged.access === 'full' && existing.access !== 'full';
+    if (!(update && sameSource && !moreAccess && !newPermissions.length)) {
+      const labels = await window.native.pkgmgr.permissions();
+      const from = staged.source.replace(/^github:/, 'github.com/').replace(/^folder:/, '');
+      let detail;
+      let buttons;
+      if (staged.access === 'full') {
+        detail = `From ${from}\n\nThis package asks for FULL ACCESS. It would run with the same rights as Minimide: it could read and change any file, run any program and use the internet.\n\nOnly install it if you trust the author.`;
+        buttons = [sameSource ? 'Update with Full Access' : 'Install with Full Access', 'Cancel'];
+      } else {
+        const perms = staged.permissions.map((p) => `• ${labels[p]}`);
+        detail = `From ${from}\n\nIt runs in a sandbox. ${!staged.hasCode ? 'It contains no code (styles and settings only).'
+          : perms.length ? `Besides editing the open file and adding commands, it asks to:\n\n${perms.join('\n')}` : 'It can add commands and status bar items and work with the open file, but it can\'t see your other files, run programs or use the internet.'}`;
+        if (staged.unknownPermissions.length) detail += `\n\nIgnored unknown permissions: ${staged.unknownPermissions.join(', ')}`;
+        buttons = [sameSource ? 'Update' : 'Install', 'Cancel'];
+      }
+      if (sameSource) {
+        if (moreAccess) detail += '\n\nThe version you have runs in a sandbox. This one would not.';
+        else if (newPermissions.length) detail += `\n\nNew since the version you have:\n${newPermissions.map((p) => `• ${labels[p]}`).join('\n')}`;
+      }
+      const change = sameSource && existing.version && staged.version && existing.version !== staged.version ? ` from ${existing.version} to ${staged.version}` : staged.version ? ` ${staged.version}` : '';
+      const choice = await window.native.dialog.confirm({ type: staged.access === 'full' ? 'warning' : 'question', message: `${sameSource ? 'Update' : 'Install'} "${staged.displayName}"${change}?`, detail, buttons });
+      if (choice !== 0) { window.native.pkgmgr.discard(staged.id); return null; }
     }
-    const choice = await window.native.dialog.confirm({ type: staged.access === 'full' ? 'warning' : 'question', message: `Install "${staged.displayName}"${staged.version ? ` ${staged.version}` : ''}${update}?`, detail, buttons });
-    if (choice !== 0) { window.native.pkgmgr.discard(staged.id); return null; }
     try {
       if (this.packages.get(staged.name)?.active) await this.deactivate(staged.name);
       this.justInstalled.set(staged.name, Date.now() + 3000);
@@ -229,13 +244,28 @@ export class PackageManager extends Emitter {
       this.packages.get(staged.name).meta.install ??= { access: staged.access, permissions: staged.permissions };
       await this.activate(staged.name);
       const pkg = this.packages.get(staged.name);
-      if (pkg?.active) notify.success(`Installed ${staged.displayName}`, pkg.sandboxed ? 'Running in a sandbox.' : 'Running with full access.');
+      if (pkg?.active) notify.success(`${sameSource ? 'Updated' : 'Installed'} ${staged.displayName}${sameSource && staged.version ? ` to ${staged.version}` : ''}`, pkg.sandboxed ? 'Running in a sandbox.' : 'Running with full access.');
       this.emit('changed');
       return staged.name;
     } catch (err) {
-      notify.error('Couldn\'t install the package', cleanIpcError(err));
+      notify.error(failed, cleanIpcError(err));
       return null;
     }
+  }
+
+  /** Install the newest version of a package that came from GitHub. Returns its name, or null if it didn't happen. */
+  async update(name) {
+    const record = this.packages.get(name)?.meta.install;
+    if (!record?.source?.startsWith('github:')) throw new Error(`${name} wasn't installed from GitHub.`);
+    return this.install(record.source.slice('github:'.length) + (record.branch ? `#${record.branch}` : ''), { update: true });
+  }
+
+  /** Update every GitHub package that has a newer version (by the last check, or a new one if that is a day old). */
+  async updateAll() {
+    const { updates } = await window.native.pkgmgr.checkUpdates();
+    let done = 0;
+    for (const u of updates) if (await this.update(u.name).catch(() => null)) done++;
+    return done;
   }
 
   async uninstall(name) {
@@ -450,8 +480,12 @@ export class PackageManager extends Emitter {
         onDidChange: (fn) => track(this.on('changed', fn)),
         install: (source) => this.install(source),
         uninstall: (n) => this.uninstall(n),
-        search: (q) => window.native.pkgmgr.search(q),
-        checkUpdates: () => window.native.pkgmgr.checkUpdates(),
+        update: (n) => this.update(n),
+        updateAll: () => this.updateAll(),
+        search: (q, opts) => window.native.pkgmgr.search(q, opts),
+        details: (fullName) => window.native.pkgmgr.details(fullName),
+        /** { checkedAt, updates: [{ name, fullName, source }], errors }. A check made today is reused unless { force: true }. */
+        checkUpdates: (opts) => window.native.pkgmgr.checkUpdates(opts),
         permissionLabels: () => window.native.pkgmgr.permissions(),
       },
       fs: {

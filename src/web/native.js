@@ -391,7 +391,7 @@ window.native = {
   menu: { popup: popupMenu, setAccelerators: async () => {} },
   pkgmgr: {
     stage: desktopOnly, install: desktopOnly, discard: async () => {}, uninstall: desktopOnly, grant: desktopOnly,
-    checkUpdates: async () => [], search: async () => [], permissions: async () => ({}),
+    checkUpdates: async () => ({ checkedAt: 0, updates: [], errors: [] }), search: async () => [], details: desktopOnly, permissions: async () => ({}),
   },
   net: { fetch: desktopOnly },
   vscode: { scan: desktopOnly, read: desktopOnly, theme: desktopOnly },

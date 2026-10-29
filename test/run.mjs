@@ -16,7 +16,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { createFixtures } from './fixtures.mjs';
-import { gistServer, vscodeEnv } from './servers.mjs';
+import { gistServer, githubServer, vscodeEnv } from './servers.mjs';
 import { startFakeAnthropic } from './fake-anthropic.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -158,6 +158,48 @@ const SUITES = [
       cssNoFakeUi: true, cssKeepsSafeVars: true, evilChannels: 'undefined,undefined,undefined,undefined,undefined', floodThrottled: true, notifySpamCapped: true,
       installReaper: 'file-reaper', reaperBlocked: [], reaperProjectWrite: 'ALLOWED', clobberOpenInit: 'blocked', initUntouched: true,
       uninstallClean: true, records: ['evil', 'file-reaper', 'net-probe', 'proj-reader', 'proj-viewer'], netProbeRan: true, netLocalRefused: [], reservedNameRefused: true,
+    }),
+  },
+  {
+    name: 'packageBrowser', home: 'pkgbh', project: null, timeout: 120,
+    server: githubServer(),
+    expect: () => ({
+      openedOnInstalled: 'Installed',
+      // The list comes from the (fake) search, most stars first; sorting and searching ask GitHub, going back reuses the answer.
+      byStars: ['goal-tracker', 'quick-notes', 'power-tools', 'not-a-package'],
+      cardText: /^goal-tracker★ 42ada · updated .+ agoSet a daily word goal and watch it fill up\.DetailsInstall$/, noBadgesYet: 0,
+      byUpdated: ['quick-notes', 'goal-tracker', 'power-tools', 'not-a-package'], sortOptions: ['Most stars', 'Recently updated'],
+      searchNotes: ['quick-notes'], emptySearchShowsAll: 4, starsSearchRequests: 1, updatedSearchRequests: 1,
+      // The details page: facts, permissions from package.json, the README rendered safely.
+      scrolledToTopOnOpen: true, title: 'Goal Tracker', titleBadges: ['sandboxed'],
+      meta: /^ada ★ 42 Updated .*2026 Version 1\.0\.0 MIT$/, description: 'Set a daily word goal and watch it fill up.',
+      permissions: ['project-files', 'network'], permissionLabels: ['Read files in the open project', 'Connect to the internet'], detailButtons: ['Install', 'View on GitHub'],
+      readmeHeading: 'Goal Tracker', readmeBold: 'daily word goal', readmeCode: 'mide.commands.run("goal:set");',
+      readmeImages: ['/_raw/ada/goal-tracker/main/docs/shot.png', '/_raw/ada/goal-tracker/main/x.png'], readmeImagePlaceholders: ['[Badge]'],
+      readmeLinks: { CONTRIBUTING: 'https://github.com/ada/goal-tracker/blob/main/CONTRIBUTING.md', 'home page': 'https://example.com/goal', Install: '#install' },
+      readmeHasScript: false, readmeInlineHandlers: false, readmeXss: 'none', anchorStaysInApp: true, readmeRequests: 1,
+      backKeepsSearch: 'tracker', backKeepsList: ['goal-tracker'], backKeepsScroll: true, detailFetches: 1,
+      fullAccessTitleBadges: ['full access'], fullAccessWarning: 'Needs full access', fullAccessPermissionRows: 0,
+      problem: "This repository has no package.json at its root, so it can't be installed.", installDisabled: true,
+      // Installing from the details page, then from a card.
+      installed: { active: true, sandboxed: true, permissions: ['project-files', 'network'], version: '1.0.0', source: 'github:ada/goal-tracker' },
+      installedBadge: ['installed v1.0.0', 'sandboxed'], installedButtons: ['Uninstall', 'View on GitHub'], allowedLine: 'You allowed: project-files, network.',
+      statusItem: 'goal-tracker v1.0.0', cardBadge: 'installed v1.0.0', cardActions: { tracker: ['Details'], notes: ['Details', 'Install'] },
+      notesInstalled: { badge: 'installed v1.0.0', active: true, permissions: [] },
+      // Updates: checked once a day unless asked, flagged on the Installed tab and in Discover.
+      upToDate: /^Everything from GitHub is up to date\. Checked just now\.$/, noUpdateBadges: 0, githubCards: ['Goal Tracker', 'Quick Notes'],
+      dailyCheckReused: true, updatesText: '2 updates available', updateBadges: ['goal-tracker', 'quick-notes'], tabCount: '2', updateAllButton: true, forcedCheckRequests: 2,
+      discoverUpdateBadges: ['ada/goal-tracker', 'bob/quick-notes'], discoverUpdateButton: true,
+      // An update that asks for nothing new installs without a question; one that asks for more waits for a yes.
+      detailsUpdateBadge: ['installed v1.0.0', 'update available', 'sandboxed'],
+      goalUpdated: { version: '1.1.0', permissions: ['project-files', 'network'], active: true, badges: ['installed v1.1.0', 'sandboxed'] }, statusAfterUpdate: 'goal-tracker v1.1.0',
+      cancelledUpdate: { version: '1.0.0', permissions: [], stillOffered: true },
+      notesUpdated: { version: '2.0.0', permissions: ['clipboard'], active: true },
+      'afterUpdates.text': /^Everything from GitHub is up to date\./, 'afterUpdates.badges': 0, 'afterUpdates.tabCount': false,
+      // Messages.
+      rateLimit: /^GitHub's search limit was reached; try again in 3 minutes\. Try Again$/, rateLimitCards: 0, tryAgain: true,
+      offline: /^Can't reach GitHub\. Check your internet connection and try again\./, noMatches: /^No packages match "zzz-nothing"\./, recovered: 4,
+      uninstalled: { gone: true, installButton: true, records: ['goal-tracker'] },
     }),
   },
   {

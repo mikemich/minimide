@@ -283,7 +283,10 @@ so packages and the page never see it, and it is never written to `config.json` 
 ### Sharing packages
 
 Install other people's packages from **Settings → Packages → Discover**, or with
-**Packages: Install Package…** and a GitHub `owner/repo`. To publish yours, push it to GitHub
+**Packages: Install Package…** and a GitHub `owner/repo`. Discover sorts by stars or by last
+update, and opening a package shows its README and the permissions it asks for before you
+install it. Packages from GitHub are checked for updates once a day; **Update All** installs them,
+and asks again if a new version wants more permissions. To publish yours, push it to GitHub
 and add the `minimide-package` topic.
 
 Installed packages run **sandboxed**: in a separate worker with no access to your files,
