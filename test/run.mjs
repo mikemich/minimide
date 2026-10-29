@@ -168,6 +168,29 @@ const SUITES = [
     }),
   },
   {
+    // The home trusts alpha and beta (fixtures), so adding gamma asks about it.
+    name: 'multiRoot', home: 'mrh', project: 'mr/alpha', trust: false, timeout: 120,
+    expect: () => ({
+      'single.folders': ['alpha'], 'single.rel': 'src/app.js', 'single.title': 'alpha — Minimide', 'single.treeRoots': 0,
+      added: ['alpha', 'beta'], title: 'alpha +1 — Minimide', treeRoots: ['alpha', 'beta'], treeShowsBetaFiles: true,
+      'rel.alpha': 'alpha/src/app.js', 'rel.beta': 'beta/lib/util.py', 'rel.root': 'beta', folderFor: true, resolved: true,
+      'finder.name': 'util.py', 'finder.dir': 'beta/lib', 'finder.placeholder': /^Search files in 2 folders\b/, finderOpened: true,
+      search: ['alpha/main.txt', 'beta/readme.md'], searchInBeta: ['beta/readme.md'], apiSearch: ['alpha/main.txt', 'beta/readme.md'], apiFolders: ['alpha', 'beta'],
+      gitStatus: 'untracked', treeGit: 'modified', branchForBeta: 'master', noBranchForAlpha: true,
+      sourceControl: { folder: 'beta', rows: ['new.txt', 'readme.md'], pickerShown: true },
+      'removed.folders': ['alpha'], 'removed.rel': 'src/app.js', 'removed.title': /— alpha — Minimide$/, treeAfterRemove: true, folderForRemoved: null, gitAfterRemove: true,
+      restrictedBefore: false, gammaTrusted: false, alphaStillTrusted: true, restrictedAfter: true, restrictedTooltip: /off for gamma\./, noGitInGamma: true,
+      saved: ['alpha', 'gamma', 'beta'], sessionFolders: ['gamma', 'beta'], finalTitle: 'util.py — alpha +2 — Minimide',
+    }),
+  },
+  {
+    name: 'multiRootRestore', home: 'mrh', project: 'mr/alpha', trust: false, timeout: 60, dependsOn: 'multiRoot',
+    expect: () => ({
+      folders: ['alpha', 'gamma', 'beta'], treeRoots: ['alpha', 'gamma', 'beta'], tab: 'beta/lib/util.py', title: 'util.py — alpha +2 — Minimide',
+      restricted: true, gammaTrusted: false,
+    }),
+  },
+  {
     name: 'languages', home: 'fth', project: 'ftproj', timeout: 90,
     expect: () => ({
       // Each file opens in the right language and gets highlighted.

@@ -360,6 +360,31 @@ export function remote(root) {
 }
 
 /**
+ * `mr`: folders for one window (multiRoot, multiRootRestore): `alpha` (the project, no git),
+ * `beta` (a repo with a modified and an untracked file) and `gamma` (a repo nobody trusted yet).
+ * The home `mrh` trusts alpha and beta.
+ */
+function multiRoot(root) {
+  const d = path.join(root, 'mr');
+  write(path.join(d, 'alpha/main.txt'), 'shared-needle in alpha\n');
+  write(path.join(d, 'alpha/src/app.js'), 'console.log("alpha");\n');
+  const beta = path.join(d, 'beta');
+  gitInit(beta, 'Beta', 'beta@example.com');
+  write(path.join(beta, 'readme.md'), '# Beta\n');
+  write(path.join(beta, 'lib/util.py'), 'def util():\n    return 1\n');
+  commitAll(beta, 'init');
+  write(path.join(beta, 'readme.md'), '# Beta\nshared-needle in beta\n');
+  write(path.join(beta, 'new.txt'), 'untracked\n');
+  const gamma = path.join(d, 'gamma');
+  gitInit(gamma, 'Gamma', 'gamma@example.com');
+  write(path.join(gamma, 'g.txt'), 'gamma\n');
+  commitAll(gamma, 'init');
+  write(path.join(gamma, 'g.txt'), 'gamma changed\n');
+  const trusted = [path.join(d, 'alpha'), beta].map((p) => ({ path: p, real: p }));
+  write(path.join(root, 'mrh/trusted-folders.json'), JSON.stringify({ folders: trusted }, null, 2) + '\n');
+}
+
+/**
  * Create all fixtures under `root` (default: a new dir in os.tmpdir()). Homes that need no
  * pre-seeded files are created empty: the app fills in its defaults on first launch.
  * Returns the root dir.
@@ -385,6 +410,7 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   vsc(root);
   aiproj(root);
   remote(root);
+  multiRoot(root);
   for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih', 'dbgh', 'vsih', 'sync1', 'sync2', 'aih', 'remoteh']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
