@@ -22,13 +22,16 @@
     const el = item.view.dom.querySelector('.cm-debug-current');
     return el ? item.view.state.doc.lineAt(item.view.posAtDOM(el)).number : null;
   };
-  const gutterLine = (item, line) => {
-    const els = [...item.view.dom.querySelectorAll('.cm-debug-gutter .cm-gutterElement')].filter((e) => e.style.visibility !== 'hidden');
-    return els[line - 1];
-  };
+  // Click the debug gutter at the line's height (by position, not by counting gutter elements,
+  // which can include spacers and lines rendered outside the viewport).
   const clickGutter = (item, line) => {
-    const r = gutterLine(item, line).getBoundingClientRect();
-    gutterLine(item, line).dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }));
+    const view = item.view;
+    const gutter = view.dom.querySelector('.cm-debug-gutter');
+    const g = gutter.getBoundingClientRect();
+    const block = view.lineBlockAt(view.state.doc.line(line).from);
+    const y = view.documentTop + block.top + block.height / 2;
+    const target = document.elementFromPoint(g.left + g.width / 2, y) || gutter;
+    target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, clientX: g.left + g.width / 2, clientY: y }));
   };
   const consoleText = () => document.querySelector('.dbg-console-output')?.textContent || '';
   const out = { errors: [] };

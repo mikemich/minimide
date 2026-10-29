@@ -269,8 +269,9 @@ export function activate(mide) {
     return {
       el,
       text(t) { body.textContent = t; scroll(); },
-      markdown(t) {
+      markdown(t, { now = false } = {}) {
         latest = t;
+        if (now) { cancelAnimationFrame(frame); frame = 0; body.replaceChildren(renderMarkdown(t, codeBlock)); scroll(); return; }
         // While streaming, redraw at most once a frame.
         if (frame) return;
         frame = requestAnimationFrame(() => { frame = 0; body.replaceChildren(renderMarkdown(latest, codeBlock)); scroll(); });
@@ -330,7 +331,7 @@ export function activate(mide) {
         if (ctx?.text) chat.lastText = ctx.text.body;
       }
       const text = textOf(res.content) || streamed;
-      if (text) answer.markdown(text);
+      if (text) answer.markdown(text, { now: true });
       else answer.text('');
       if (res.refusal) answer.note(res.refusal, 'error');
       if (res.stopReason === 'max_tokens') answer.note('The answer was cut off because it got too long.', 'note');
@@ -338,7 +339,7 @@ export function activate(mide) {
     } catch (err) {
       if (current()) conv.pop(); // unanswered: leave the history as it was before the question
       answer.clearNotes();
-      if (streamed) answer.markdown(streamed);
+      if (streamed) answer.markdown(streamed, { now: true });
       else answer.text('');
       answer.note(err.kind === 'cancelled' ? 'Stopped.' : err.message, err.kind === 'cancelled' ? 'note' : 'error',
         err.kind === 'auth' ? h('button.ai-code-btn', { onclick: setKey }, 'Set API Key…') : null);

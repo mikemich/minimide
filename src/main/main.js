@@ -354,6 +354,8 @@ function createWindow(projectPath, { restore = false } = {}) {
       sandbox: true,
       // Test mode only: lets automated tests script dialog answers (see test:answers below).
       additionalArguments: SCREENSHOT ? ['--mide-test'] : [],
+      // Test windows are never shown; without this, Chromium slows their frames and timers to a crawl.
+      backgroundThrottling: !SCREENSHOT,
     },
   });
   windows.add(win);
