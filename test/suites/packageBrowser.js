@@ -201,7 +201,8 @@
   out.cancelledUpdate = { version: record('quick-notes').install.version, permissions: record('quick-notes').install.permissions, stillOffered: !!one('.package-card[data-package="quick-notes"] .badge.update') };
   await T.answers('confirm', 0);
   press('Update All');
-  await until(() => record('quick-notes')?.install?.version === '2.0.0');
+  // The new version is recorded before it has finished activating, so wait for both.
+  await until(() => record('quick-notes')?.install?.version === '2.0.0' && record('quick-notes').active);
   out.notesUpdated = { version: record('quick-notes').install.version, permissions: record('quick-notes').install.permissions, active: record('quick-notes').active };
   await until(() => /up to date/.test(text(one('.pkg-updates-text'))));
   out.afterUpdates = { text: text(one('.pkg-updates-text')), badges: all('.package-card .badge.update').length, tabCount: !!one('.pkg-tab-count') };
