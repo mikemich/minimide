@@ -50,6 +50,8 @@ export class Config extends Emitter {
     this.user = {};
     this.file = null;
     this.lastWritten = null;
+    this.writes = 0; // times set() has written the file
+    this.writing = 0; // of those, how many haven't finished
   }
 
   async load(file) {
@@ -58,8 +60,13 @@ export class Config extends Emitter {
   }
 
   async reload() {
+    // A read that overlaps one of our writes can return the settings from before it, and applying
+    // them would undo the change. Skip it: once the write lands, the file holds what we already have.
+    const writes = this.writes;
+    if (this.writing) return;
     let text = '{}';
     try { text = await window.native.fs.read(this.file); } catch {}
+    if (this.writing || this.writes !== writes) return;
     if (text === this.lastWritten) { this.lastWritten = null; return; } // our own write echoing back
     try {
       const next = parseJSONC(text);
@@ -116,7 +123,9 @@ export class Config extends Emitter {
         return;
       }
       this.lastWritten = JSON.stringify(this.user, null, 2) + '\n';
-      await window.native.fs.write(this.file, this.lastWritten);
+      this.writes++;
+      this.writing++;
+      try { await window.native.fs.write(this.file, this.lastWritten); } finally { this.writing--; }
     }
   }
 

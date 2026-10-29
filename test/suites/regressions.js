@@ -91,6 +91,20 @@
     return { fileUntouched: after === broken };
   });
 
+  // A change event for an earlier write that's still reading config.json when the next change is
+  // made used to put the old value back, and the new write's own event was then skipped as ours.
+  await step('configReloadDuringSetKeepsChange', async () => {
+    await app.config.set('editor.fontSize', 17);
+    await wait(700);
+    const reading = app.config.reload();
+    const writing = app.config.set('editor.fontSize', 19);
+    await Promise.all([reading, writing]);
+    await wait(700);
+    const kept = app.config.get('editor.fontSize');
+    await app.config.set('editor.fontSize', undefined);
+    return { kept };
+  });
+
   await step('saveAsOntoOpenFile', async () => {
     await closeAll();
     const target = await ws.open(root + '/target.txt');

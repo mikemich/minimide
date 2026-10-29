@@ -136,6 +136,7 @@ const SUITES = [
       'closePaneWithThreePanes.panesLeft': 2, 'closePaneWithThreePanes.titles': ['lines.txt', 'target.txt'],
       'reloadAsksAboutUnsaved.cancelKeptEdits': true,
       'brokenConfigNotOverwritten.fileUntouched': true,
+      'configReloadDuringSetKeepsChange.kept': 19,
       'saveAsOntoOpenFile.oldTabClosed': true, 'saveAsOntoOpenFile.oneDocument': true, 'saveAsOntoOpenFile.disk': JSON.stringify('NEW CONTENT\n'),
       'deletedFileMarkedUnsaved.markedUnsaved': true,
       'snippetSelectionWithDollarBraces.literalPreserved': true,
