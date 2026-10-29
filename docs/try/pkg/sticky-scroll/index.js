@@ -101,6 +101,7 @@ export function activate(mide) {
       this.dom.style.setProperty('--gutter', `${gutterWidth}px`);
       this.dom.style.setProperty('--num-end', `${numEnd}px`);
       this.dom.style.setProperty('--scroll-left', `${-view.scrollDOM.scrollLeft}px`);
+      this.dom.style.top = `${view.scrollDOM.offsetTop}px`; // below panels at the top (breadcrumbs, find)
       this.dom.hidden = false;
     }
 
