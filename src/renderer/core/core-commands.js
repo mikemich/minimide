@@ -124,6 +124,21 @@ export function registerCoreCommands(app) {
       title: 'Open Folder…',
       run: async () => { const p = await window.native.dialog.openFolder(); if (p) await app.openProject(p); },
     },
+    'project:add-folder': {
+      title: 'Add Folder to Project…',
+      run: async () => { const p = await window.native.dialog.openFolder(); if (p) await app.addFolder(p); },
+    },
+    'project:remove-folder': {
+      title: 'Remove Folder from Project',
+      when: () => ws.folders.length > 1,
+      run: (opts = {}) => (opts.path ? app.removeFolder(opts.path) : ui.selectList({
+        id: 'remove-folder',
+        placeholder: 'Remove a folder from the project (its files stay on disk)',
+        items: ws.folders.map((p) => ({ label: basename(p), detail: p.replace(app.userInfo.home, '~'), path: p })),
+        filterKey: (i) => i.detail,
+        onSelect: (i) => app.removeFolder(i.path),
+      })),
+    },
     'project:open-recent': {
       title: 'Open Recent Project…',
       run: () => ui.selectList({
@@ -264,7 +279,7 @@ export function registerCoreCommands(app) {
     },
     'workspace:trust-folder': {
       title: 'Trust This Folder…',
-      run: () => (ws.project ? app.trust.prompt(ws.project) : ui.notify.info('Open a folder first.')),
+      run: () => (ws.project ? app.trust.prompt() : ui.notify.info('Open a folder first.')),
     },
     'workspace:manage-trusted-folders': {
       title: 'Manage Trusted Folders…',

@@ -334,6 +334,13 @@ export class PackageManager extends Emitter {
       },
       workspace: {
         get project() { return ws.project; },
+        /** Every project folder, the project first. */
+        get folders() { return [...ws.folders]; },
+        folderFor: (path) => ws.folderFor(path),
+        getActiveFolder: () => ws.getActiveFolder(),
+        addFolder: (path) => app.addFolder(path),
+        removeFolder: (path) => app.removeFolder(path),
+        resolvePath: (rel) => ws.resolvePath(rel),
         open: (path, opts) => ws.open(path, opts),
         openItem: (item, opts) => ws.openItem(item, opts),
         closeItem: (item) => ws.closeItem(item),
@@ -356,10 +363,12 @@ export class PackageManager extends Emitter {
         onDidChangeActiveItem: (fn) => track(ws.on('active-item-changed', fn)),
         observeActiveItem: (fn) => { fn(ws.getActiveItem()); return track(ws.on('active-item-changed', fn)); },
         onDidChangeProject: (fn) => track(ws.on('project-changed', fn)),
+        onDidChangeFolders: (fn) => track(ws.on('folders-changed', fn)),
         /** Whether tools may run for this path (default: the project). See core/trust.js. */
         isTrusted: (path) => app.trust.isTrusted(path),
         onDidChangeTrust: (fn) => track(app.trust.on('changed', fn)),
-        requestTrust: () => app.trust.prompt(),
+        /** Asks to trust the folder of `path` (default: the first folder that isn't trusted). */
+        requestTrust: (path) => app.trust.prompt(path ? ws.folderFor(path) || path : undefined),
         onDidChangeFiles: (fn) => track(ws.on('files-changed', fn)),
         onDidUpdateEditor: (fn) => track(ws.on('editor-updated', fn)),
         onDidOpenItem: (fn) => track(ws.on('item-added', fn)),
@@ -453,8 +462,20 @@ export class PackageManager extends Emitter {
         },
       },
       project: {
-        files: () => app.projectFiles(),
-        search: (query, opts = {}) => window.native.project.search(opts.root || ws.project, query, { ignored: app.config.get('core.ignoredNames'), ...opts, root: undefined }),
+        /** Files in `folder` (default: the project), relative to it. */
+        files: (folder) => app.projectFiles(folder),
+        /** Searches `opts.root`, or every project folder. */
+        search: async (query, opts = {}) => {
+          const run = (root) => window.native.project.search(root, query, { ignored: app.config.get('core.ignoredNames'), ...opts, root: undefined });
+          if (opts.root || ws.folders.length < 2) return run(opts.root || ws.project);
+          // A folder inside another one is searched with it.
+          const roots = ws.folders.filter((f) => !ws.folders.some((o) => o !== f && f.startsWith(o + '/')));
+          const all = await Promise.all(roots.map(run));
+          return all.find((r) => r.error) || {
+            results: all.flatMap((r) => r.results), truncated: all.some((r) => r.truncated),
+            timedOut: all.some((r) => r.timedOut) || undefined, notice: all.find((r) => r.notice)?.notice,
+          };
+        },
       },
       process: {
         exec: (cmd, args, opts) => window.native.proc.exec(cmd, args, { cwd: ws.project || undefined, ...opts }),

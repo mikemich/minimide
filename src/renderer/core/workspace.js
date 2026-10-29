@@ -259,7 +259,9 @@ export class Workspace extends Emitter {
     this.commands = commands;
     this.keymap = keymap;
     this.ui = ui;
-    this.project = null;
+    this.project = null; // the first (primary) folder
+    this.folders = []; // every project folder, primary first
+    this.watched = new Map(); // folder -> its fs watch key
     this.documents = new Map(); // path -> Document
     this.root = null; // a Pane, or a Split of them; `panes` lists the leaves in reading order
     this.activePane = null;
@@ -304,7 +306,7 @@ export class Workspace extends Emitter {
     this.addPane();
     bindEditorConfig(this);
 
-    window.native.fs.onChange((paths, key) => { if (key === 'project') this.onFilesChanged(paths); });
+    window.native.fs.onChange((paths, key) => { if (key === 'project' || key?.startsWith('folder:')) this.onFilesChanged(paths); });
     window.addEventListener('focus', () => this.checkOpenFilesOnDisk());
   }
 
@@ -495,7 +497,7 @@ export class Workspace extends Emitter {
 
   updateTitle() {
     const item = this.getActiveItem();
-    const proj = this.project ? basename(this.project) : null;
+    const proj = this.project ? basename(this.project) + (this.folders.length > 1 ? ` +${this.folders.length - 1}` : '') : null;
     const parts = [item ? `${item.isDirty?.() ? '● ' : ''}${item.getTitle()}` : null, proj, 'Minimide'].filter(Boolean);
     const title = parts.join(' — ');
     document.title = title;
@@ -507,16 +509,80 @@ export class Workspace extends Emitter {
   // --- project -------------------------------------------------------------
   async setProject(root) {
     this.project = root;
-    window.native.fs.watch(root);
+    this.folders = root ? [root] : [];
+    this.watchFolders();
     window.native.window.setProject(root);
     this.emit('project-changed', root);
+    this.emit('folders-changed', this.folders);
     this.updateTitle();
   }
 
+  /** Adds another folder (the first one becomes the project). Resolves false if it's already there. */
+  async addFolder(path) {
+    path = path.replace(/(.)\/+$/, '$1');
+    if (!this.project) { await this.setProject(path); return true; }
+    if (this.folders.includes(path)) return false;
+    this.folders = [...this.folders, path];
+    this.watchFolders();
+    this.emit('folders-changed', this.folders);
+    this.updateTitle();
+    return true;
+  }
+
+  /** Removes a folder, except the last one. Removing the first makes the next one the project. */
+  removeFolder(path) {
+    if (!this.folders.includes(path) || this.folders.length < 2) return false;
+    this.folders = this.folders.filter((f) => f !== path);
+    this.watchFolders();
+    if (this.project !== this.folders[0]) {
+      this.project = this.folders[0];
+      window.native.window.setProject(this.project);
+      this.emit('project-changed', this.project);
+    }
+    this.emit('folders-changed', this.folders);
+    this.updateTitle();
+    return true;
+  }
+
+  // The first folder keeps the 'project' watch key; each other folder gets its own.
+  watchFolders() {
+    const want = new Map(this.folders.map((f, i) => [f, i ? `folder:${f}` : 'project']));
+    for (const [f, key] of this.watched) if (want.get(f) !== key) window.native.fs.watch(null, key);
+    for (const [f, key] of want) if (this.watched.get(f) !== key) window.native.fs.watch(f, key);
+    if (!want.size) window.native.fs.watch(null);
+    this.watched = want;
+  }
+
+  /** The project folder that contains `p` (the innermost one if folders nest), or null. */
+  folderFor(p) {
+    let best = null;
+    for (const f of p ? this.folders : []) {
+      if ((p === f || p.startsWith(f.endsWith('/') ? f : f + '/')) && (!best || f.length > best.length)) best = f;
+    }
+    return best;
+  }
+
+  /** The folder of the active file, else the project. */
+  getActiveFolder() { return this.folderFor(this.getActiveItem()?.getPath?.()) || this.project; }
+
+  /** `p` relative to its folder; with several folders, prefixed with that folder's name. */
   relativePath(p) {
-    if (!p || p === this.project) return '';
-    if (this.project && p.startsWith(this.project + '/')) return p.slice(this.project.length + 1);
-    return p;
+    const f = this.folderFor(p);
+    if (!p || !f) return p || '';
+    const rel = p === f ? '' : p.slice(f.length + (f.endsWith('/') ? 0 : 1));
+    if (this.folders.length < 2) return rel;
+    return rel ? `${basename(f)}/${rel}` : basename(f);
+  }
+
+  /** The absolute path of a relativePath() result (absolute paths are returned as they are). */
+  resolvePath(rel) {
+    if (!rel || rel.startsWith('/')) return rel || this.project;
+    if (this.folders.length > 1) {
+      const [head, ...rest] = rel.split('/');
+      const f = this.folders.find((x) => basename(x) === head);
+      if (f) return rest.length ? `${f}/${rest.join('/')}` : f;
+    }
+    return this.project ? `${this.project}/${rel}` : rel;
   }
 
   addCompletionSource(source) {

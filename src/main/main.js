@@ -970,6 +970,8 @@ function buildMenu() {
         { type: 'separator' },
         cmd('Open File…', 'file:open'),
         cmd('Open Folder…', 'project:open-folder'),
+        cmd('Add Folder to Project…', 'project:add-folder'),
+        cmd('Remove Folder from Project', 'project:remove-folder'),
         { type: 'separator' },
         cmd('Save', 'file:save'),
         cmd('Save As…', 'file:save-as'),

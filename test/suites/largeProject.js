@@ -22,8 +22,9 @@
   const t = performance.now();
   const after = await app.projectFiles();
   out.relistFast = performance.now() - t < 50;
-  out.newFileSeen = after.includes(ws.project + '/src/mod1/brand-new.js');
-  out.deletedGone = !after.some((f) => f.endsWith('/src/mod2/file5.js'));
+  // Relative to the project, like the rest of the list.
+  out.newFileSeen = after.includes('src/mod1/brand-new.js');
+  out.deletedGone = files.includes('src/mod2/file5.js') && !after.includes('src/mod2/file5.js');
   clearInterval(iv);
   out.responsive = maxGap < 1000;
   out.maxStallMs = Math.round(maxGap);

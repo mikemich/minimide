@@ -1,5 +1,5 @@
 // The only bridge between the renderer and Node. Everything here is async.
-const { contextBridge, ipcRenderer, webFrame } = require('electron');
+const { contextBridge, ipcRenderer, webFrame, webUtils } = require('electron');
 
 const call = (ch) => (...args) => ipcRenderer.invoke(ch, ...args);
 
@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld('native', {
     watch: call('fs:watch'),
     onChange: (fn) => on('fs:changed', fn),
     onWatchLimited: (fn) => on('fs:watchLimited', fn),
+    // The path of a File dropped on the window ('' for one that isn't on disk).
+    pathForFile: (file) => webUtils.getPathForFile(file),
   },
   project: {
     files: call('project:files'),

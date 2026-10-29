@@ -40,7 +40,7 @@ export class SandboxedPackage {
       };
       this.worker.postMessage({
         type: 'init', name: this.name, manifest: this.pkg.meta.manifest, url: moduleUrl,
-        permissions: [...this.permissions], config: this.configSnapshot(), project: this.app.workspace.project,
+        permissions: [...this.permissions], config: this.configSnapshot(), project: this.app.workspace.project, folders: [...this.app.workspace.folders],
       });
     });
   }
@@ -98,6 +98,7 @@ export class SandboxedPackage {
     if (name === 'activeEditor') track(ws.on('active-item-changed', () => this.emit('activeEditor', this.editorInfo())));
     else if (name === 'save') track(ws.on('did-save', (item) => this.emit('save', { path: item?.getPath?.() || null })));
     else if (name === 'project') track(ws.on('project-changed', (root) => this.emit('project', root)));
+    else if (name === 'folders') track(ws.on('folders-changed', (folders) => this.emit('folders', [...folders])));
     else if (name === 'editorChange') {
       let timer = null;
       track(ws.on('editor-updated', (ed, update) => {
@@ -141,8 +142,8 @@ export class SandboxedPackage {
     if (this.permissions.has('files')) return target;
     if (!project) throw new Error('No project is open.');
     // Compare real paths, so a symlink inside the project can't lead outside it.
-    const root = (await real(project)) || project;
-    if (!within(target, root)) throw new Error(`"${this.name}" can only access files inside the open project.`);
+    const roots = await Promise.all(this.app.workspace.folders.map(async (f) => (await real(f)) || f));
+    if (!roots.some((root) => within(target, root))) throw new Error(`"${this.name}" can only access files inside the open project.`);
     return target;
   }
 
