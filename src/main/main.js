@@ -380,6 +380,9 @@ function createWindow(projectPath, { restore = false } = {}) {
 
   win.once('ready-to-show', () => {
     if (!SCREENSHOT) win.show();
+    // On CI a never-shown window gets no frames, so the editor can't measure or redraw. Show it there
+    // without focus; locally tests stay hidden so they don't pop up over your work.
+    else if (process.env.CI) win.showInactive();
     if (DEV) win.webContents.openDevTools({ mode: 'detach' });
   });
 
