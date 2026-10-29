@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('native', {
     rename: call('fs:rename'),
     copy: call('fs:copy'),
     trash: call('fs:trash'),
+    removeHistory: call('fs:removeHistory'),
     realpath: call('fs:realpath'),
     watch: call('fs:watch'),
     onChange: (fn) => on('fs:changed', fn),

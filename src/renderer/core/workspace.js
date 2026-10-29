@@ -193,6 +193,7 @@ export class Pane extends Emitter {
       { id: 'copy-rel', label: 'Copy Relative Path', enabled: !!path && !!this.ws.project },
       { id: 'reveal', label: 'Reveal in Finder', enabled: !!path },
       { id: 'tree', label: 'Reveal in Tree View', enabled: !!path },
+      ...(path && this.ws.commands.has('local-history:show') ? [{ type: 'separator' }, { id: 'history', label: 'Show Local History' }] : []),
     ]);
     const idx = this.items.indexOf(item);
     switch (choice) {
@@ -207,6 +208,7 @@ export class Pane extends Emitter {
       case 'copy-rel': return window.native.clipboard.write(this.ws.relativePath(path));
       case 'reveal': return window.native.shell.reveal(path);
       case 'tree': this.activate(item); return this.ws.commands.run('tree-view:reveal-active-file');
+      case 'history': return this.ws.commands.run('local-history:show-for', path);
     }
   }
 
@@ -704,6 +706,7 @@ export class Workspace extends Emitter {
       doc.setPath(next);
       this.documents.set(next, doc);
     }
+    this.emit('path-renamed', from, to);
   }
 
   async saveAs(item = this.getActiveItem()) {
@@ -770,7 +773,7 @@ export class Workspace extends Emitter {
     if (doc.deleted) { doc.deleted = false; doc.updateDirty(); doc.emit('dirty', doc.dirty); }
     const saved = doc.savedDoc.toString();
     if (text.replace(/\r\n/g, '\n') === saved) return;
-    if (!doc.dirty) doc.reloadFrom(text);
+    if (!doc.dirty) { this.emit('will-reload', doc, 'disk'); doc.reloadFrom(text); }
     else if (!doc.conflict) {
       doc.conflict = true;
       this.ui.notify.warn(`${doc.title} changed on disk`, 'You have unsaved changes. Save to overwrite, or use "File: Revert" to reload.');
@@ -779,7 +782,11 @@ export class Workspace extends Emitter {
 
   async revert(item = this.getActiveEditor()) {
     if (!item?.document.path) return;
-    try { item.document.reloadFrom(await window.native.fs.read(item.document.path)); } catch (err) { this.ui.notify.error('Revert failed', err.message); }
+    try {
+      const text = await window.native.fs.read(item.document.path);
+      this.emit('will-reload', item.document, 'revert');
+      item.document.reloadFrom(text);
+    } catch (err) { this.ui.notify.error('Revert failed', err.message); }
   }
 
   // --- editor extensions ---------------------------------------------------

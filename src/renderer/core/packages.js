@@ -361,6 +361,10 @@ export class PackageManager extends Emitter {
         onDidChangeTrust: (fn) => track(app.trust.on('changed', fn)),
         requestTrust: () => app.trust.prompt(),
         onDidChangeFiles: (fn) => track(ws.on('files-changed', fn)),
+        /** A file or folder was moved: (from, to). */
+        onDidRenamePath: (fn) => track(ws.on('path-renamed', fn)),
+        /** A document is about to be replaced by what is on disk (reason 'disk' or 'revert'): the last chance to keep its text. */
+        onWillReload: (fn) => track(ws.on('will-reload', fn)),
         onDidUpdateEditor: (fn) => track(ws.on('editor-updated', fn)),
         onDidOpenItem: (fn) => track(ws.on('item-added', fn)),
         onDidCloseItem: (fn) => track(ws.on('item-removed', fn)),
