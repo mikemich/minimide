@@ -6,7 +6,13 @@
 // same shape the lsp service's documentSymbols() returns.
 
 const MAX_SYMBOLS = 5000;
-const SKIP = new Set(['String', 'TemplateString', 'LineComment', 'BlockComment', 'Comment', 'RegExp', 'FormatString', 'ContinuedString']);
+// Subtrees that never hold a symbol (or only anonymous ones): not worth walking on big files.
+const SKIP = new Set([
+  'String', 'TemplateString', 'LineComment', 'BlockComment', 'Comment', 'RegExp', 'FormatString', 'ContinuedString',
+  'ArgList', 'ParamList', 'TypeAnnotation', 'TypeArgList', 'TypeParamList', 'MemberExpression', 'BinaryExpression',
+  'ArrayExpression', 'ImportDeclaration', 'ImportStatement', 'Decorator',
+  'ExpressionStatement', 'ReturnStatement', 'ThrowStatement', 'ParenthesizedExpression',
+]);
 
 const sym = (name, kind, node, nameNode) => ({
   name, detail: '', kind, from: node.from, to: node.to,
@@ -231,7 +237,7 @@ export function syntaxSymbols(state, lang) {
   const add = (s) => { if (count++ < MAX_SYMBOLS) (stack.length ? stack.at(-1).sym.children : roots).push(s); };
   tree.iterate({
     enter(ref) {
-      if (SKIP.has(ref.name)) return false;
+      if (count >= MAX_SYMBOLS || SKIP.has(ref.name)) return false;
       const owner = adopted.get(`${ref.from}:${ref.type.id}`);
       if (owner) { stack.push({ sym: owner, from: ref.from, to: ref.to, type: ref.type }); ctx.parentKind = owner.kind; }
       const found = extract(ref.node, ctx);
