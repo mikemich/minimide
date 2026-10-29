@@ -2,12 +2,24 @@
 // `command` may be a list of alternatives; the first one found on PATH wins.
 
 const LANGSERVERS_EXTRACTED = 'npm i -g vscode-langservers-extracted';
+const TS_INLAY_HINTS = {
+  includeInlayParameterNameHints: 'all',
+  includeInlayParameterNameHintsWhenArgumentMatchesName: false,
+  includeInlayFunctionParameterTypeHints: true,
+  includeInlayVariableTypeHints: true,
+  includeInlayVariableTypeHintsWhenTypeMatchesName: false,
+  includeInlayPropertyDeclarationTypeHints: true,
+  includeInlayFunctionLikeReturnTypeHints: true,
+  includeInlayEnumMemberValueHints: true,
+};
 
 export const DEFAULT_SERVERS = {
   typescript: { displayName: 'TypeScript',
     command: [['typescript-language-server', '--stdio']],
     extensions: ['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'mts', 'cts'],
     install: 'npm i -g typescript@5 typescript-language-server',
+    // What inlay hints show once they're turned on (lsp.inlayHints); tsserver's own defaults are all off.
+    settings: { typescript: { inlayHints: TS_INLAY_HINTS }, javascript: { inlayHints: TS_INLAY_HINTS } },
   },
   python: { displayName: 'Python',
     command: [['pyright-langserver', '--stdio'], ['basedpyright-langserver', '--stdio'], ['pylsp']],

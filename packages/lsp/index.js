@@ -8,6 +8,7 @@ import {
   toUri, fromUri, toPosition, fromPosition, offsetInText, COMPLETION_KINDS, SYMBOL_KINDS,
   renderMarkdown, markupToMarkdown,
 } from './util.js';
+import { inlayHints } from './inlay-hints.js';
 
 const SEVERITY = { 1: 'error', 2: 'warning', 3: 'info', 4: 'hint' };
 const isMac = navigator.platform.toLowerCase().includes('mac');
@@ -211,6 +212,8 @@ export function activate(mide) {
     client.notify('textDocument/didOpen', { textDocument: { uri: entry.uri, languageId: entry.languageId, version: 1, text: doc.getText() } });
     entry.opened = true;
     renderStatus();
+    inlay.refresh(client);
+    for (const fn of [...attachListeners]) fn(doc);
   }
 
   function untrack(doc) {
@@ -334,6 +337,9 @@ export function activate(mide) {
           if (!actions.length) resolve(null);
           else setTimeout(() => resolve(null), 120000);
         });
+      case 'workspace/inlayHint/refresh':
+        inlay.refresh(client);
+        return null;
       case 'window/showDocument':
         if (params.external) mide.shell.openExternal(params.uri);
         else await openLocation({ uri: params.uri, range: params.selection || { start: { line: 0, character: 0 } } });
@@ -460,8 +466,15 @@ export function activate(mide) {
   };
 
   mide.editor.addExtension([lintGutter(), autocompletion({ override: [completionSource, mide.editor.extraCompletionSource] })]);
-  // Lets other parts of the editor (word completion) stand aside where a server already completes.
-  mide.services.provide('lsp', { handles: (view) => !!entryForView(view)?.client?.capabilities?.completionProvider });
+  // Lets other parts of the editor (word completion) stand aside where a server already completes,
+  // and gives the outline and breadcrumbs the server's symbols.
+  const attachListeners = new Set();
+  mide.services.provide('lsp', {
+    handles: (view) => !!entryForView(view)?.client?.capabilities?.completionProvider,
+    documentSymbols,
+    /** `fn(document)` once a server has opened a document, so its symbols, hints… can be asked for. */
+    onDidAttach: (fn) => { attachListeners.add(fn); return { dispose: () => attachListeners.delete(fn) }; },
+  });
 
   // ---------------------------------------------------------------------------
   // Hover
@@ -826,6 +839,12 @@ export function activate(mide) {
   });
 
   // ---------------------------------------------------------------------------
+  // Inlay hints
+
+  const inlay = inlayHints(mide, entryForView);
+  mide.editor.addExtension(inlay.extension);
+
+  // ---------------------------------------------------------------------------
   // Edits
 
   function applyTextEditsToView(view, edits) {
@@ -960,6 +979,45 @@ export function activate(mide) {
     });
   }
 
+  /**
+   * The file's symbols as a tree, in editor offsets: [{ name, detail, kind, from, to, selFrom, selTo, children }]
+   * for `doc`, the text they were computed for. Null when no server can answer for this editor.
+   */
+  async function documentSymbols(editor) {
+    const entry = editor?.view && tracked.get(editor.document);
+    if (!entry?.opened || !entry.client.capabilities.documentSymbolProvider) return null;
+    const doc = editor.view.state.doc;
+    let res;
+    try { res = await entry.client.request('textDocument/documentSymbol', { textDocument: { uri: entry.uri } }, { timeout: 8000 }); } catch { return null; }
+    const convert = (s, range, selection) => {
+      const from = fromPosition(doc, range.start);
+      const selFrom = selection ? fromPosition(doc, selection.start) : from;
+      return {
+        name: s.name, detail: s.detail || '', kind: SYMBOL_KINDS[s.kind] || 'symbol',
+        from, to: Math.max(from, fromPosition(doc, range.end)),
+        selFrom, selTo: selection ? Math.max(selFrom, fromPosition(doc, selection.end)) : selFrom,
+        children: [],
+      };
+    };
+    const list = res || [];
+    if (list.some((s) => s.location)) {
+      // Flat SymbolInformation: nest by range, the way servers without hierarchy support mean it.
+      const flat = list.filter((s) => s.location?.range).map((s) => convert(s, s.location.range, null))
+        .sort((a, b) => a.from - b.from || b.to - a.to);
+      const roots = [];
+      const stack = [];
+      for (const sym of flat) {
+        while (stack.length && stack.at(-1).to < sym.to) stack.pop();
+        (stack.length ? stack.at(-1).children : roots).push(sym);
+        stack.push(sym);
+      }
+      return { doc, symbols: roots };
+    }
+    const walk = (items) => items.filter((s) => s?.range).map((s) => ({ ...convert(s, s.range, s.selectionRange), children: walk(s.children || []) }))
+      .sort((a, b) => a.from - b.from);
+    return { doc, symbols: walk(list) };
+  }
+
   // "@" in the quick-open box: symbols in the current file, in file order.
   mide.ui.addQuickOpenMode({
     prefix: '@', title: 'Symbols in file', short: 'symbols', order: 20,
@@ -1087,6 +1145,7 @@ export function activate(mide) {
     'lsp:code-actions': { title: 'Code Actions / Quick Fix', when: has('codeActionProvider'), run: codeActions },
     'lsp:signature-help': { title: 'Show Signature Help', when: has('signatureHelpProvider'), run: () => { const { editor, entry } = activeEntry(); requestSignature(editor, entry); } },
     'lsp:toggle-problems': { title: 'Toggle Problems Panel', run: () => mide.panel.toggle('problems') },
+    'lsp:toggle-inlay-hints': { title: 'Toggle Inlay Hints', run: () => mide.config.set('lsp.inlayHints', !mide.config.get('lsp.inlayHints')) },
     'lsp:show-log': { title: 'Show Server Log', run: showLog },
     'lsp:restart-servers': { title: 'Restart Language Servers', run: restartAll },
     'lsp:server-menu': { title: 'Language Server Status…', run: serverMenu },

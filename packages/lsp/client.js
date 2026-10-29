@@ -136,6 +136,7 @@ const CLIENT_CAPABILITIES = {
     didChangeConfiguration: { dynamicRegistration: false },
     symbol: { dynamicRegistration: false },
     executeCommand: { dynamicRegistration: false },
+    inlayHint: { refreshSupport: true },
   },
   textDocument: {
     synchronization: { didSave: true, willSave: false, willSaveWaitUntil: false, dynamicRegistration: false },
@@ -169,6 +170,7 @@ const CLIENT_CAPABILITIES = {
       resolveSupport: { properties: ['edit'] },
       isPreferredSupport: true,
     },
+    inlayHint: { dynamicRegistration: false },
     publishDiagnostics: { relatedInformation: false, versionSupport: false, codeDescriptionSupport: true },
   },
 };
