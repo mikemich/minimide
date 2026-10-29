@@ -75,6 +75,7 @@
   out.closeKeepsOther = !!(await until(() => splits().length === 1 && splits()[0] === survivor, 3000));
   type(splits()[0], 'echo CCC$((3+4))');
   out.otherStillLive = !!(await until(() => /^CCC7$/m.test(text(splits()[0]))));
+  if (!out.otherStillLive) out.survivorText = text(splits()[0]).slice(-400); // to see why, on CI
 
   // exiting a split's shell removes the split
   await app.commands.run('terminal:split');

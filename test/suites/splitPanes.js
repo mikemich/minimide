@@ -55,6 +55,8 @@
   const before = { a: rect(a).height, b: rect(b).width };
   drag(document.querySelector('#panes .pane-resizer.resizer-h'), 0, 40);
   drag(ws.root.children[1].element.querySelector('.pane-resizer.resizer-v'), -30, 0);
+  // Sizes are applied on the next frame, which can take a while on a slow machine.
+  await until(() => near(rect(a).height - before.a, 40, 3) && near(before.b - rect(b).width, 30, 3), 3000);
   out.resize = { aGrew: near(rect(a).height - before.a, 40, 3), bShrank: near(before.b - rect(b).width, 30, 3), cursorReset: !document.body.classList.contains('resizing-v') && !document.body.classList.contains('resizing-h') };
 
   // Layout follows the sidebar: everything still tiles the pane area.

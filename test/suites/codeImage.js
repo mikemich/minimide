@@ -176,11 +176,11 @@
   out.spellcheck.offMd = spell(notes).spellcheck;
   out.spellcheck.offTxt = spell(txt).spellcheck;
   app.config.set('editor.spellcheck', true);
-  await sleep(100);
+  await until(() => spell(notes).spellcheck === 'true');
   out.spellcheck.backOn = spell(notes).spellcheck;
   // Saving a plain file under a Markdown name switches it on, a code name switches it off.
   untitled.document.setPath(`${ws.project}/scratch.md`);
-  await sleep(500);
+  await until(() => spell(untitled).spellcheck === 'true');
   out.spellcheck.renamedToMd = spell(untitled).spellcheck;
   untitled.document.setPath(`${ws.project}/scratch.js`);
   await sleep(500);
