@@ -195,15 +195,29 @@
   await sleep(200);
   const nl = notes.view.state.doc.toString().split('\n').findIndex((l) => l.includes('teh')) + 1;
   // The tab was hidden: wait until the editor has laid out again, so the click lands on the word.
-  await until(() => {
+  const laidOut = () => {
     const p = notes.view.state.doc.line(nl).from + 1;
     const c = notes.view.coordsAtPos(p);
-    return c && notes.view.contentDOM.getAttribute('spellcheck') === 'true' && notes.view.posAtCoords({ x: c.left + 1, y: (c.top + c.bottom) / 2 }) === p;
-  });
+    return !!c && notes.view.contentDOM.getAttribute('spellcheck') === 'true' && notes.view.posAtCoords({ x: c.left + 1, y: (c.top + c.bottom) / 2 }) === p;
+  };
+  if (!(await until(laidOut))) {
+    // The editor measures in animation frames, which an inactive window on CI may not get: note
+    // why, then measure now (layout itself works without frames).
+    const frame = await Promise.race([new Promise((r) => requestAnimationFrame(() => r('ran'))), sleep(500).then(() => 'none in 500ms')]);
+    const vp = notes.view.viewport;
+    out.spellLayoutWait = { frame, visibility: document.visibilityState, focused: document.hasFocus(), viewport: [vp.from, vp.to], line: notes.view.state.doc.line(nl).from, spellcheck: notes.view.contentDOM.getAttribute('spellcheck') };
+    notes.view.measure();
+    out.spellLayoutWait.afterMeasure = laidOut();
+  }
   await T.answers('menu', null);
+  let clickedAt;
+  const seeClick = (e) => { clickedAt = { pos: notes.view.posAtCoords({ x: e.clientX, y: e.clientY }), x: Math.round(e.clientX), y: Math.round(e.clientY) }; };
+  notes.view.contentDOM.addEventListener('contextmenu', seeClick, true);
   await rightClick(notes, nl, 1);
+  notes.view.contentDOM.removeEventListener('contextmenu', seeClick, true);
   const menu = shape((await T.menus()).shown[0] || []);
   out.spellMenu = { top: menu.slice(0, 7), hasDictionary: menu.includes('Add to Dictionary'), hasCopyImage: menu.includes('Copy as Image'), asked: looked[0] };
+  if (!looked.length) out.spellMenu.clickedAt = { ...clickedAt, word: notes.view.state.doc.line(nl).from }; // to see why, on CI
   await T.answers('menu', 'spell:1');
   await rightClick(notes, nl, 1);
   await until(() => notes.getText().includes('tech quick'));
