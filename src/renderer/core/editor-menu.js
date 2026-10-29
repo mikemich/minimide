@@ -62,6 +62,7 @@ export async function showEditorMenu(app, view = null, pos = null) {
   const id = await window.native.menu.popup(items);
   if (!id) return;
   if (!id.startsWith('spell:')) return app.commands.run(id);
+  if (!bad) return;
   if (id === 'spell:add') return window.native.spell.addWord(bad.word).catch((err) => app.ui.notify.error('Could not add the word', err.message));
   const replacement = bad.suggestions[Number(id.slice(6))];
   if (replacement != null && view.state.sliceDoc(bad.from, bad.to) === bad.word) {

@@ -194,6 +194,12 @@
   await ws.open(`${ws.project}/notes.md`);
   await sleep(200);
   const nl = notes.view.state.doc.toString().split('\n').findIndex((l) => l.includes('teh')) + 1;
+  // The tab was hidden: wait until the editor has laid out again, so the click lands on the word.
+  await until(() => {
+    const p = notes.view.state.doc.line(nl).from + 1;
+    const c = notes.view.coordsAtPos(p);
+    return c && notes.view.contentDOM.getAttribute('spellcheck') === 'true' && notes.view.posAtCoords({ x: c.left + 1, y: (c.top + c.bottom) / 2 }) === p;
+  });
   await T.answers('menu', null);
   await rightClick(notes, nl, 1);
   const menu = shape((await T.menus()).shown[0] || []);
