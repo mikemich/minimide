@@ -167,7 +167,7 @@ On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `key
 
 | Package | What it does |
 | --- | --- |
-| `tree-view` | File tree with preview tabs, keyboard navigation (`a`, `A`, `m`, `d`, `F2`, `Delete`), drag-to-move and git colors |
+| `tree-view` | File tree with preview tabs, keyboard navigation (`a`, `A`, `m`, `d`, `F2`, `Delete`), drag-to-move, git colors, and several project folders in one window (**File → Add Folder to Project…**) |
 | `command-palette` | Fuzzy-search every command, most recently used first |
 | `fuzzy-finder` | Open files and tabs by fuzzy name |
 | `find-in-project` | Regex / case-sensitive search and replace across the project |
@@ -353,7 +353,7 @@ package registers, so it can be disabled, enabled or reloaded at runtime without
 
 ## Roadmap ideas
 
-Debug adapter (DAP) package · signed and notarized builds · a sandboxed API for panels.
+Signed and notarized builds · a sandboxed API for panels.
 
 ## License
 
