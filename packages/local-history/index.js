@@ -42,6 +42,12 @@ export function activate(mide) {
     if (doc) return doc.getText();
     try { return lf(await mide.fs.read(path)); } catch { return null; }
   }
+  /** The same text as it would be saved (the file's own line ends): what a version's hash is of. */
+  async function currentRaw(path) {
+    const doc = documentFor(path);
+    if (doc) return doc.getTextForSave();
+    try { return await mide.fs.read(path); } catch { return null; }
+  }
   const activePath = () => ws.getActiveEditor()?.getPath() || null;
 
   // --- saving versions ----------------------------------------------------------
@@ -164,7 +170,7 @@ export function activate(mide) {
       const keep = this.selected && this.versions.find((v) => v.id === this.selected.id);
       if (keep && !pick) this.selected = keep;
       else {
-        const now = await currentText(this.path);
+        const now = await currentRaw(this.path);
         const nowHash = now == null ? null : await store.hash(now);
         this.selected = this.versions.find((v) => v.hash !== nowHash) || this.versions[0] || null;
       }

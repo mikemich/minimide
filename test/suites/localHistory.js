@@ -307,6 +307,21 @@
   });
   out.reload = results.reload;
 
+  // --- a file with Windows line ends: the versions keep them, and the previous version is still found.
+  await step('crlf', async () => {
+    await closeAll();
+    const p = `${root}/crlf.txt`;
+    const ed = await ws.open(p);
+    await saveWith(ed, 'one\ntwo\n');
+    await until(async () => (await countOf(p)) === 1);
+    await saveWith(ed, 'one\ntwo\nthree\n');
+    await until(async () => (await countOf(p)) === 2);
+    await app.commands.run('local-history:compare');
+    await until(() => side('cm-merge-a') || document.querySelector('.lh-empty'));
+    return { kept: await textsOf(p), left: side('cm-merge-a'), right: side('cm-merge-b') };
+  });
+  out.crlf = results.crlf;
+
   // --- only history can be removed this way --------------------------------------------------------
   await step('guard', async () => {
     let refused = false;

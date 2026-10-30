@@ -366,6 +366,7 @@ const SUITES = [
       'view.opened': true, 'view.rows': 2, 'view.selectedLeft': 'beta\n', 'view.right': 'gamma\n', 'view.mergeShown': true,
       'view.title': 'notes.txt (history)', 'view.sameInfo': true,
       'compare.opened': true, 'compare.selectedLeft': 'beta\n',
+      'crlf.kept': ['one\r\ntwo\r\n', 'one\r\ntwo\r\nthree\r\n'], 'crlf.left': 'one\ntwo\n', 'crlf.right': 'one\ntwo\nthree\n',
       'restore.buffer': 'beta\n', 'restore.dirty': true, 'restore.afterUndo': 'gamma\n', 'restore.diskUntouched': 'gamma\n',
       'restore.unsavedKept': 'delta\n', 'restore.unsavedLabel': 'Before restore',
       'quickPick.buffer': 'delta\n',
