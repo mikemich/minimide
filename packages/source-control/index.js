@@ -6,6 +6,7 @@ export function activate(mide) {
   const { h, icon, fileIcon } = mide.ui;
   const state = { root: null, branch: '', upstream: null, ahead: 0, behind: 0, staged: [], changes: [], conflicts: [], hasHead: true, busy: false };
   const diffs = new Set();
+  let conflictJump = !!mide.services.get('merge-conflicts'); // conflict rows open at the first conflict
 
   // Never let git wait for a password prompt that nobody can see.
   // Background calls never run a repo's fsmonitor command; nothing runs at all until the folder is trusted.
@@ -254,7 +255,7 @@ export function activate(mide) {
     const name = entry.path.slice(slash + 1);
     const dir = slash > 0 ? entry.path.slice(0, slash) : '';
     const btn = (title, label, fn) => h('button.icon-btn', { title, disabled: state.busy, onclick: (e) => { e.stopPropagation(); fn(); } }, label);
-    const open = btn(kind === 'conflict' ? 'Open at First Conflict' : 'Open File', icon('file', 13), () => (kind === 'conflict' ? openConflict(entry) : openFile(entry)));
+    const open = btn(kind === 'conflict' && conflictJump ? 'Open at First Conflict' : 'Open File', icon('file', 13), () => (kind === 'conflict' ? openConflict(entry) : openFile(entry)));
     const actions = kind === 'staged'
       ? [open, btn('Unstage', '−', () => unstage([entry]))]
       : kind === 'conflict'
@@ -285,6 +286,7 @@ export function activate(mide) {
 
   function openFile(entry, root) { if (entry.code !== 'D') mide.workspace.open(abs(entry.path, root)); }
   // A conflicted file opens at its first conflict (the merge-conflicts package does the jump).
+  mide.packages.onDidChange(() => { if (conflictJump !== !!mide.services.get('merge-conflicts')) { conflictJump = !conflictJump; render(); } });
   async function openConflict(entry) {
     const item = await mide.workspace.open(abs(entry.path));
     mide.services.get('merge-conflicts')?.revealFirst(item);

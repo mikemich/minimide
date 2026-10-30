@@ -632,6 +632,56 @@ const SUITES = [
     }),
   },
   {
+    // Each feature package off and on again; the fpoh home starts with the settings they replaced.
+    name: 'featurePackagesOff', home: 'fpoh', project: 'fpoproj', timeout: 240,
+    expect: () => {
+      // [before, off, on again]: some before, none while off, the same again after.
+      const offOn = (a) => Array.isArray(a) && a.length === 3 && a[0] > 0 && a[1] === 0 && a[2] === a[0];
+      const paletteOffOn = (a) => Array.isArray(a) && a[0] > 0 && a[1] === 0 && a[2] > 0; // `when` depends on the active item
+      const none = [0, 0, 0];
+      const generic = (name, { commands = true, keys = true, menus = [] } = {}) => ({
+        [`${name}.active`]: [false, true],
+        [`${name}.commands`]: commands ? offOn : none, [`${name}.palette`]: commands ? paletteOffOn : none, [`${name}.keys`]: keys ? offOn : none,
+        ...Object.fromEntries(menus.map((m) => [`${name}.menus.${m}`, [true, false, true]])),
+        ...(keys ? { [`${name}.pressed`]: ['changed', 'nothing', 'changed'] } : {}),
+      });
+      return {
+        'migrated.breadcrumbs': false, 'migrated.inlayHints': true, 'migrated.disabled': ['breadcrumbs'], 'migrated.enabled': ['inlay-hints'],
+        'migrated.oldSettingsLeft': 0, 'migrated.serversKept': true, 'migrated.toggles': ['Toggle Breadcrumbs', 'Toggle Inlay Hints'],
+        'migrated.breadcrumbsBack': true, 'migrated.disabledAfter': [],
+        ...generic('git-history', { menus: ['editor', 'tab', 'tree'] }),
+        'git-history.probe': [{ tabs: 2, blame: ['Show Commit', 'Copy commit hash'] }, { tabs: 0, blame: ['Copy commit hash'] }, { tabs: 0, blame: ['Show Commit', 'Copy commit hash'] }],
+        'git-history.others.treeMenu': true,
+        ...generic('bookmarks', { menus: ['editor'] }),
+        'bookmarks.probe': [
+          { gutter: 1, markers: 1, tinted: 1, view: true, goTo: true, stored: 1 },
+          { gutter: 0, markers: 0, tinted: 0, view: false, goTo: false, stored: 1 },
+          { gutter: 1, markers: 1, tinted: 1, view: true, goTo: true, stored: 1 },
+        ],
+        ...generic('merge-conflicts'),
+        'merge-conflicts.probe': [
+          { actions: 1, tinted: 1, status: true, compare: 1, service: true },
+          { actions: 0, tinted: 0, status: false, compare: 0, service: false },
+          { actions: 1, tinted: 1, status: true, compare: 0, service: true },
+        ],
+        'merge-conflicts.sourceControl': [{ title: 'Open at First Conflict', line: 2 }, { title: 'Open File', line: 1 }, { title: 'Open at First Conflict', line: 2 }],
+        ...generic('local-history', { menus: ['editor', 'tab', 'tree'] }),
+        'local-history.probe': [{ tabs: 1, keeps: true }, { tabs: 0, keeps: false }, { tabs: 0, keeps: true }],
+        ...generic('outline', { keys: false }),
+        'outline.probe': [{ view: true, rows: ['Cart', 'total'], current: 'total' }, { view: false, rows: [], current: null }, { view: true, rows: ['Cart', 'total'], current: 'total' }],
+        'outline.others': { bars: 4, crumbs: 'app.js › Cart › total' },
+        ...generic('breadcrumbs', { keys: false }),
+        'breadcrumbs.probe': [{ bars: 4, crumbs: 'app.js › Cart › total' }, { bars: 0, crumbs: '' }, { bars: 4, crumbs: 'app.js › Cart › total' }],
+        'breadcrumbs.others': { outline: { view: true, rows: ['Cart', 'total'], current: 'total' }, toggle: true },
+        'symbolsOnDemand.whileOff': 0, 'symbolsOnDemand.askedAgain': true, 'symbolsOnDemand.bars': 1,
+        ...generic('inlay-hints', { commands: false, keys: false }),
+        'inlay-hints.probe': (p) => Array.isArray(p) && p[0].hints >= 2 && p[1].hints === 0 && p[2].hints > p[0].hints, // the edit while off adds two
+        'inlay-hints.others': { asked: 0, toggle: true },
+        totalErrors: 0,
+      };
+    },
+  },
+  {
     name: 'vscodeImport', home: 'vsih', project: null, timeout: 90,
     server: (fixtures) => vscodeEnv(fixtures)(),
     expect: () => ({

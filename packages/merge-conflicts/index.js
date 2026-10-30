@@ -245,6 +245,8 @@ export function activate(mide) {
     if (existing) { item.destroy(); return mide.workspace.openItem(existing); }
     mide.workspace.openItem(item);
   }
+  // Turning the package off closes its compare tabs.
+  mide.subscriptions.add({ dispose: () => { for (const i of mide.workspace.getItems().filter((x) => x.type === 'merge-conflict-compare')) mide.workspace.closeItem(i); } });
 
   // --- commands --------------------------------------------------------------
   const activeView = () => mide.workspace.getActiveEditor()?.view || null;

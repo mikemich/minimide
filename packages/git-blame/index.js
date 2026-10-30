@@ -29,7 +29,8 @@ export function activate(mide) {
       if (canShowCommit(this.hash)) {
         el.classList.add('cm-blame-link');
         el.title += '\n\nClick to show the commit';
-        el.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); showCommit(this.hash, this.path); });
+        // Git History may have been turned off since this was drawn.
+        el.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); if (canShowCommit(this.hash)) showCommit(this.hash, this.path); });
       }
       return el;
     }
