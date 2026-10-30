@@ -1,6 +1,7 @@
 // Integrated terminal: xterm.js in the bottom panel, backed by a real PTY.
 // A tab holds a group of 1-4 terminals side by side (splits), each its own shell.
-// Provides the "terminal" service: { run(command, opts), create(opts), stop(key), isRunning(key), … }.
+// Provides the "terminal" service: { run(command, opts), create(opts), stop(key), isRunning(key), … },
+// and tells listeners what keyed terminals (tasks) run, print and how they end.
 import { Terminal } from './vendor/xterm.mjs';
 import { FitAddon } from './vendor/addon-fit.mjs';
 import { WebLinksAddon } from './vendor/addon-web-links.mjs';
@@ -15,6 +16,12 @@ export async function activate(mide) {
   const groups = [];   // the tabs: { el, splits: [session], focused }
   let active = null;   // the focused terminal
   let seq = 0;
+  const listeners = { start: new Set(), output: new Set(), exit: new Set() }; // for keyed terminals
+  const tell = (kind, session, info) => {
+    if (!session.key) return;
+    for (const fn of [...listeners[kind]]) { try { fn({ key: session.key, title: session.title, cwd: session.cwd, command: session.command, ...info }); } catch (err) { console.error('[terminal]', err); } }
+  };
+  const listen = (kind) => (fn) => { listeners[kind].add(fn); return { dispose: () => listeners[kind].delete(fn) }; };
 
   const tabsEl = h('div.term-tabs');
   const body = h('div.term-body');
@@ -70,7 +77,7 @@ export async function activate(mide) {
   }
 
   // --- sessions ------------------------------------------------------------
-  function create({ command, cwd, title, focus = true, onExit, group } = {}) {
+  function create({ command, cwd, title, focus = true, onExit, group, key } = {}) {
     if (!available) {
       mide.notify.error('Terminal unavailable', 'node-pty could not be loaded in this build.');
       return null;
@@ -108,6 +115,7 @@ export async function activate(mide) {
       group: tab,
       fixedTitle: !!title,
       proc: null,
+      key,
     };
     container.append(h('button.term-split-close', { title: 'Close this terminal', onclick: () => closeSession(session) }, icon('close', 11)));
     container.addEventListener('focusin', () => { if (active !== session) select(session); });
@@ -151,9 +159,10 @@ export async function activate(mide) {
     });
     session.proc = proc;
     session.started = performance.now();
+    if (command) tell('start', session);
     proc.ready.then((info) => { if (!command && info?.shell) { session.title = info.shell; renderTabs(); } })
       .catch((err) => { term.write(`\r\n\x1b[31m${err.message}\x1b[0m\r\n`); session.running = false; renderTabs(); });
-    proc.onData((data) => term.write(data));
+    proc.onData((data) => { term.write(data); if (command && session.proc === proc) tell('output', session, { data }); });
     proc.onExit((code, signal) => {
       if (session.proc !== proc || session.closed) return;
       session.running = false;
@@ -168,6 +177,7 @@ export async function activate(mide) {
       // Exiting a shell that has neighbours closes its split; a lone one stays to show the message.
       if (!command && session.group.splits.length > 1) closeSession(session); else renderTabs();
       session.onExit?.(code, signal, (performance.now() - session.started) / 1000);
+      if (command) tell('exit', session, { code, signal });
       mide.workspace.refreshPaneActions(); // e.g. the runner's ■ goes back to ▶
     });
     renderTabs();
@@ -414,8 +424,7 @@ export async function activate(mide) {
         mide.panel.show('terminal');
         renderTabs();
       } else {
-        session = create({ command, cwd, title, onExit, focus: false });
-        if (session) session.key = key;
+        session = create({ command, cwd, title, onExit, focus: false, key });
       }
       if (session) requestAnimationFrame(() => session.term.focus());
       return session && {
@@ -445,6 +454,12 @@ export async function activate(mide) {
       const s = sessions.find((x) => x.key === key);
       return !!s && mide.panel.isActive('terminal') && active?.group === s.group;
     },
+    // What commands in keyed terminals (run(), e.g. the runner's "task:<name>" tabs) do, including a
+    // run again with Enter. Each listener gets { key, title, cwd, command } plus, for output, `data`
+    // (raw text with escape codes, as the program printed it) and for exit `code` and `signal`.
+    onDidStart: listen('start'),
+    onDidOutput: listen('output'),
+    onDidExit: listen('exit'),
   });
 
   mide.subscriptions.add({ dispose: () => { for (const s of [...sessions]) { s.resizeObserver?.disconnect(); if (s.running) s.proc.kill(); s.term.dispose(); s.container.remove(); } for (const g of groups) g.el.remove(); } });
