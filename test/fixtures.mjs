@@ -520,6 +520,49 @@ function bmproj(root) {
   write(path.join(d, 'ext.txt'), lines('ext', 8));
 }
 
+/** One function of the large-files fixtures: brackets, a color, a TODO and indentation for every feature to find. */
+const lfBlock = (n) => `function item${n}(a, b) {\n  // TODO check ${n}\n  const color = '#ff8800';\n  return [a, b].map((x) => x + ${n});\n}\n`;
+
+/**
+ * `lfproj`: a repository with normal.js, a small file every feature works on (committed, then changed so
+ * git marks it), and the `lfh` home with those features on, the fake language server for .js files and
+ * no size limit for local history. The big files come from bigFiles(), only around the largeFiles suite.
+ */
+function lfproj(root) {
+  const d = path.join(root, 'lfproj');
+  gitInit(d, 'QA', 'qa@example.com');
+  write(path.join(d, '.gitignore'), 'huge.log\n');
+  write(path.join(d, 'normal.js'), Array.from({ length: 30 }, (_, n) => lfBlock(n)).join(''));
+  commitAll(d, 'init');
+  write(path.join(d, 'normal.js'), 'const banana = item1(1, 2);\n' + fs.readFileSync(path.join(d, 'normal.js'), 'utf8'));
+  const home = path.join(root, 'lfh');
+  write(path.join(home, 'config.json'), JSON.stringify({
+    core: { theme: 'nightfall', enabledPackages: ['minimap', 'inlay-hints'] },
+    editor: { bracketPairColors: true, softWrap: true },
+    'local-history': { maxFileSizeKB: 1000000 },
+    lsp: { servers: { typescript: { command: [process.execPath, path.join(REPO, 'test/fake-lsp.mjs'), path.join(home, 'fake-lsp.json')], extensions: ['js'] } } },
+  }, null, 2) + '\n');
+}
+
+/**
+ * The large-files suite's big files, made just before it runs and deleted after it (so a run doesn't
+ * keep 50 MB around): big.js (50 MB of lfBlock, untracked), min.js (600 KB on one line, with a BOM and
+ * CRLF line ends) and huge.log, a sparse 600 MB file (no disk space used) over the limit for opening.
+ */
+export function bigFiles(fixtures) {
+  const d = path.join(fixtures, 'lfproj');
+  const files = ['big.js', 'min.js', 'huge.log'].map((f) => path.join(d, f));
+  const fd = fs.openSync(files[0], 'w');
+  const chunk = Array.from({ length: 1000 }, (_, n) => lfBlock(n)).join('');
+  for (let size = 0; size < 50 * 1024 * 1024; size += chunk.length) fs.writeSync(fd, chunk);
+  fs.closeSync(fd);
+  const line = Array.from({ length: 21000 }, (_, i) => `var a${i}=[${i % 10},{k:"#00ff00"}];`).join('');
+  fs.writeFileSync(files[1], Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(`${line}\r\nsecond line\r\n`)]));
+  fs.writeFileSync(files[2], '');
+  fs.truncateSync(files[2], 600 * 1024 * 1024);
+  return { env: {}, close: () => { for (const f of files) fs.rmSync(f, { force: true }); } };
+}
+
 /** `vsc`: a fake VS Code folder (User/ and extensions/) for "Import from VS Code" (vscodeImport). */
 function vsc(root) {
   const d = path.join(root, 'vsc');
@@ -701,6 +744,7 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   outlineproj(root);
   bmproj(root);
   fpoproj(root);
+  lfproj(root);
   vsc(root);
   aiproj(root);
   remote(root);

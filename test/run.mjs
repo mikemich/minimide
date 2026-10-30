@@ -16,7 +16,7 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { createFixtures } from './fixtures.mjs';
+import { createFixtures, bigFiles } from './fixtures.mjs';
 import { gistServer, githubServer, vscodeEnv } from './servers.mjs';
 import { startFakeAnthropic } from './fake-anthropic.mjs';
 
@@ -422,6 +422,32 @@ const SUITES = [
       fileCount: 55000, nodeModulesIgnored: true, searchMatches: 1100, searchError: null,
       relistFast: true, newFileSeen: true, deletedGone: true, responsive: true,
     }),
+  },
+  {
+    // Large files: heavy features off in big.js (50 MB) and min.js (one long line), all on in normal.js.
+    // The big files are made just before the suite and deleted after it (see bigFiles in fixtures.mjs).
+    name: 'largeFiles', home: 'lfh', project: 'lfproj', timeout: 180,
+    server: (fixtures) => bigFiles(fixtures),
+    expect: () => {
+      const all = { highlighting: true, bracketMatch: true, bracketColors: true, minimap: true, guides: true, colors: true, todos: true, sticky: true, symbols: true, words: true };
+      const none = Object.fromEntries(Object.keys(all).map((k) => [k, false]));
+      const at = (prefix, o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [`${prefix}.${k}`, v]));
+      return {
+        ...at('normal', { ...all, large: false, status: false, gitMarkers: true, inlayHints: true, wrap: true, lsp: 1, history: 'kept', ready: true }),
+        ...at('big', { ...none, large: true, status: true, gitMarkers: false, inlayHints: false, wrap: true, lsp: 0 }),
+        'big.notice': ['big.js is a large file'], 'big.lines': (n) => n > 2000000, 'big.openMs': (ms) => ms < 5000,
+        ...at('bigEdit', { edited: true, restored: true, dirtyAfterSave: false, dirtyAfterDelete: true, dirtyAtEnd: false, history: 'none' }),
+        'bigEdit.typeFrameMs': (ms) => ms < 200, 'bigEdit.saveMs': (ms) => ms < 5000,
+        // One long line: large too, and soft wrap stays off for it.
+        ...at('min', { ...none, large: true, status: true, wrap: false, lsp: 0 }),
+        'min.roundTrip': { changed: true, same: true, bom: true, crlf: true, dirty: false },
+        ...at('turnOn', { highlighting: true, bracketMatch: true, bracketColors: true, minimap: true, colors: true, symbols: true, gitMarkers: true, words: true, large: false, status: false, wrap: true, lsp: 1, button: true }),
+        'tooLarge.type': 'binary', 'tooLarge.message': /600 MB, too large to open here \(the limit is 512 MB\)/,
+        'tooLarge.notice': ['huge.log is too large to open / It is 600 MB; the largest file Minimide opens is 512 MB.'], 'tooLarge.fast': true, 'tooLarge.documents': false,
+        'setting.off': { large: false, status: false }, 'setting.on': true,
+        totalErrors: 0,
+      };
+    },
   },
   {
     name: 'editorExtras', home: 'extrah', project: 'extras', timeout: 90,
