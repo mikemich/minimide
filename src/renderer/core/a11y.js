@@ -4,6 +4,18 @@
 let counter = 0;
 export const uniqueId = (prefix = 'a11y') => `${prefix}-${++counter}`;
 
+/** Whether the OS reports a screen reader (or other assistive technology) in use; set by the app from main. */
+export const screenReader = {
+  active: false,
+  listeners: new Set(),
+  set(on) {
+    if (this.active === !!on) return;
+    this.active = !!on;
+    for (const fn of this.listeners) fn(this.active);
+  },
+  onDidChange(fn) { this.listeners.add(fn); return { dispose: () => this.listeners.delete(fn) }; },
+};
+
 const FOCUSABLE = 'a[href], button, input:not([type="hidden"]), select, textarea, summary, [tabindex], [contenteditable="true"]';
 
 /** Elements inside `root` that Tab can reach right now, in DOM order. */

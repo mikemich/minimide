@@ -83,6 +83,9 @@ The core does most of it for you:
   that rings have 3:1 contrast on every panel.
 - **Motion.** Animations and transitions are shortened for people who ask the system for reduced motion; use
   `matchMedia('(prefers-reduced-motion: reduce)')` before starting motion from script, e.g. smooth scrolling.
+- **Screen readers.** `mide.ui.isScreenReaderActive()` says whether the OS reports one (or other assistive
+  technology), and `mide.ui.onDidChangeScreenReader((on) => …)` when that changes: the terminal uses it to
+  turn on xterm's screen reader mode.
 
 ## The `mide` API
 

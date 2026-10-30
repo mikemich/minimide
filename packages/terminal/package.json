@@ -16,6 +16,7 @@
     "fontSize": { "type": "number", "default": 0, "title": "Font Size", "description": "0 uses the editor font size." },
     "cursorStyle": { "type": "string", "default": "bar", "enum": ["bar", "block", "underline"], "title": "Cursor Style" },
     "shell": { "type": "string", "default": "", "title": "Shell", "description": "Path to the shell. Empty uses your login shell." },
-    "copyOnSelect": { "type": "boolean", "default": false, "title": "Copy on Select" }
+    "copyOnSelect": { "type": "boolean", "default": false, "title": "Copy on Select" },
+    "screenReaderMode": { "type": "string", "default": "auto", "enum": ["auto", "on", "off"], "title": "Screen Reader Mode", "description": "Lets a screen reader read the terminal's output (and announce new output). \"auto\" turns it on while the system reports a screen reader." }
   }
 }

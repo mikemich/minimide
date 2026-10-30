@@ -219,6 +219,11 @@ const SUITES = [
       'focusRings.rule': [true, true, true], 'focusRings.editorExempt': true, 'focusRings.resizerFocus': true, 'focusRings.hoverControlsShowOnFocus': true,
       'focusRings.nightfall': { lightBackground: false, ringReadable: true, low: [] }, 'focusRings.daylight': { lightBackground: true, ringReadable: true, low: [] },
       reducedMotion: { hasRule: true, shortensAnimations: true, shortensTransitions: true, noLooping: true, noSmoothScroll: true },
+      // The terminal: named, and readable by a screen reader when the system has one on (or the setting says so).
+      terminal: (t) => !t?.pty || JSON.stringify(t) === JSON.stringify({
+        pty: true, region: ['tabpanel', 'Terminal'], instance: ['group', 'named'], input: 'Terminal input', offWithoutScreenReader: true,
+        onWithScreenReader: true, outputReadable: true, liveRegion: 'assertive', offBySetting: true, onBySetting: true, autoAgain: true,
+      }),
       // After opening every sidebar and panel view and the common dialogs, no control is without a name.
       'everyControlHasAName.checked': (n) => n >= 12, 'everyControlHasAName.offenders': {}, 'everyControlHasAName.duplicateIds': [], 'everyControlHasAName.positiveTabindex': 0,
       totalErrors: 0,

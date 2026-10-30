@@ -19,7 +19,7 @@ import { bindKeyHints } from './core/key-hints.js';
 import { QuickOpen } from './core/quick-open.js';
 import { bindWelcomeTips } from './core/welcome-tips.js';
 import { userFileUrl } from './core/urls.js';
-import { installA11y } from './core/a11y.js';
+import { installA11y, screenReader } from './core/a11y.js';
 
 // ui.accentColor overrides the theme's accent and everything derived from it.
 // Inline styles on <html> beat the theme's :root rules, so this survives theme switches.
@@ -58,6 +58,9 @@ class App {
     this.userInfo = await window.native.user.info();
     document.body.classList.add(`platform-${this.userInfo.platform}`);
     installA11y(document.body);
+    this.screenReader = screenReader;
+    screenReader.set(await window.native.screenReader?.active().catch(() => false));
+    window.native.screenReader?.onChange((on) => screenReader.set(on));
 
     this.config.register(CORE_SCHEMA, 'core');
     // Listen before loading, so a broken config.json is reported at launch too.

@@ -442,6 +442,9 @@ export class PackageManager extends Emitter {
         setWelcomeTip: (tip) => track(app.addWelcomeTip(tip)),
         /** PNG data URL of the app icon drawn in the current theme's colors. */
         renderAppIcon: () => app.renderAppIcon?.() ?? null,
+        /** Whether the OS reports a screen reader (or other assistive technology) in use. */
+        isScreenReaderActive: () => app.screenReader.active,
+        onDidChangeScreenReader: (fn) => track(app.screenReader.onDidChange(fn)),
       },
       notify: app.ui.notify,
       sidebar: {
