@@ -7,7 +7,7 @@ const GROUPS = [
   ['lsp:rename', 'lsp:code-actions', 'lsp:format-document'],
   [{ role: 'cut' }, { role: 'copy' }, { role: 'paste' }],
   ['editor:toggle-comment', 'code-image:copy'],
-  [{ id: 'local-history:show', label: 'Show Local History' }],
+  [{ id: 'bookmarks:toggle', label: 'Toggle Bookmark' }, { id: 'local-history:show', label: 'Show Local History' }],
   [{ id: 'command-palette:toggle', label: 'Command Palette…' }],
 ];
 
