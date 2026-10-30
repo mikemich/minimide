@@ -158,6 +158,7 @@ Forgot one? Hold `⌘` for a moment and every shortcut on screen gets a label: t
 | `F8` / `⇧F8` | Next / previous problem |
 | `⌘K ⌘P` | Problems panel |
 | `⌃⇧G` | Source control panel (`⌘K ⌘D` diffs the current file) |
+| `⌥F3` / `⇧⌥F3` | Show the next / previous git change in the file, with Stage and Revert (`⌘⌥G` shows the one at the cursor) |
 | `log` + `Tab` | Expand a snippet (`Snippets: Insert Snippet…` lists them all) |
 | `ul>li*3` + `Tab` | Expand an Emmet abbreviation in HTML, JSX, Vue and CSS files |
 
@@ -179,6 +180,7 @@ Everything works without a mouse and is labelled for VoiceOver, NVDA and Orca: t
 | `lsp` | Language servers: completions (with auto-import), diagnostics, hover with go-to links, signature help, go to / peek definition, references, rename, quick fixes with a 💡, formatting, file and project symbols, inlay hints for parameter names and types (**LSP: Toggle Inlay Hints**, `lsp.inlayHints`), Problems panel |
 | `git` | Branch switcher, tree status, change markers in the editor gutter |
 | `source-control` | Git panel (`⌃⇧G`): stage, unstage, discard, commit, amend, push, pull, and side-by-side or inline diffs |
+| `git-hunks` | Click a change marker in the gutter (or `⌥F3` / `⇧⌥F3`, `⌘⌥G` at the cursor) to see that change under its lines, with what was there before, and **Stage** or **Revert** just that change (a revert is one undoable edit). **Git: Stage Selected Lines** stages part of a change. With unsaved edits, staging uses the text in the editor (the peek says so). In Source Control's diffs, each change gets **Stage Change** (or **Unstage Change** in a staged diff). Works with CRLF files, files without a final newline, partly staged and new files. Trusted folders only |
 | `git-history` | **Git: Show History** (`⌘K ⌘G`): the repository's commits with a branch graph, branch and tag labels, a filter (message, author or hash) and current / all / one branch, loaded 200 at a time. Pick a commit for its message, author, parents and changed files with line counts, open any file's diff, Copy Hash, Checkout (refused with uncommitted changes), Create Branch Here, Cherry-Pick and Revert. **Git: File History** (editor, tab and tree menus) follows renames and opens a version read-only. Stashes: stash (with untracked files), apply, pop, drop and see what's in one. Clicking the blame annotation shows its commit. Trusted folders only |
 | `terminal` | A real terminal (xterm.js + node-pty) in tabs, with side-by-side splits; click `file:line` in output to jump there |
 | `remote-ssh` | **Remote: Open Folder over SSH…** edits a folder on another machine through a local copy, kept in sync with your own `ssh` and `rsync` (uploads on save, asks when both copies changed). macOS and Linux |
