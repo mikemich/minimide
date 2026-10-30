@@ -1,0 +1,15 @@
+{
+  "name": "bookmarks",
+  "displayName": "Bookmarks",
+  "description": "Mark lines to come back to: a gutter, next and previous bookmark across files, a Bookmarks view and Go to Bookmark. They move with edits and are saved with the project.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"],
+  "priority": 120,
+  "keymap": {
+    "Mod-Alt-k": "bookmarks:toggle",
+    "Mod-k Mod-n": "bookmarks:next",
+    "Mod-k Mod-Shift-n": "bookmarks:previous",
+    "Mod-k Mod-g": "bookmarks:go-to"
+  }
+}

@@ -1,0 +1,41 @@
+/* Editor: bookmark gutter and tinted lines */
+.cm-bookmark-gutter { width: 12px; cursor: default; }
+.cm-bookmark-gutter .cm-gutterElement { position: relative; padding: 0 !important; }
+.bm-marker { position: relative; width: 12px; height: 100%; }
+.bm-marker.bm::before, .cm-bookmark-gutter .cm-gutterElement:empty:hover::before {
+  content: ''; position: absolute; left: 2px; top: 50%; width: 8px; height: 11px; margin-top: -5.5px;
+  background: var(--c-blue, var(--accent));
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+}
+.cm-bookmark-gutter .cm-gutterElement:empty:hover::before { opacity: 0.3; }
+.cm-bookmark-line { background: color-mix(in srgb, var(--c-blue, var(--accent)) 10%, transparent); }
+
+/* Sidebar view */
+.bm-view { display: flex; flex-direction: column; height: 100%; }
+.bm-header { flex: none; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 6px 0 14px; }
+.bm-title { font-size: 0.82em; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-muted); }
+.bm-spacer { flex: 1; }
+.bm-filter-row { flex: none; padding: 0 10px 6px; }
+.bm-filter { padding: 4px 8px; }
+.bm-list { flex: 1; min-height: 0; overflow: auto; padding-bottom: 16px; }
+.bm-empty { padding: 8px 14px; color: var(--fg-subtle); }
+.bm-file, .bm-row {
+  display: flex; align-items: center; gap: 5px; height: 22px; padding-right: 10px;
+  cursor: pointer; white-space: nowrap; overflow: hidden; outline: none;
+}
+.bm-file { padding-left: 8px; color: var(--fg); }
+.bm-row { padding-left: 28px; color: var(--fg); }
+.bm-file:hover, .bm-row:hover { background: var(--bg-hover); }
+.bm-file:focus-visible, .bm-row:focus-visible { background: var(--bg-selected-focus); }
+.bm-twisty { flex: none; display: inline-flex; width: 12px; color: var(--fg-subtle); }
+.bm-twisty.open .icon { transform: rotate(90deg); }
+.bm-file .icon, .bm-row .icon { flex: none; display: inline-flex; }
+.bm-row > .icon { color: var(--c-blue, var(--accent)); }
+.bm-file-name { overflow: hidden; text-overflow: ellipsis; }
+.bm-file-dir { color: var(--fg-subtle); font-size: 0.9em; overflow: hidden; text-overflow: ellipsis; }
+.bm-count { margin-left: auto; flex: none; color: var(--fg-subtle); font-size: 0.85em; }
+.bm-name { overflow: hidden; text-overflow: ellipsis; }
+.bm-text { color: var(--fg-subtle); font-size: 0.9em; overflow: hidden; text-overflow: ellipsis; }
+.bm-line { margin-left: auto; flex: none; color: var(--fg-muted); font-size: 0.9em; }
+.bm-remove { flex: none; width: 18px; height: 18px; opacity: 0; }
+.bm-row:hover .bm-remove, .bm-row:focus-within .bm-remove { opacity: 1; }
