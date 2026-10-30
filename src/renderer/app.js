@@ -12,6 +12,7 @@ import { CORE_SCHEMA } from './core/schema.js';
 import { bindThemedAppIcon, renderAppIcon } from './core/app-icon.js';
 import { Trust } from './core/trust.js';
 import { wordCompletion } from './core/word-completion.js';
+import { symbolTracker } from './core/symbols.js';
 import { Navigation } from './core/navigation.js';
 import { editorContextMenu } from './core/editor-menu.js';
 import { pasteImage } from './core/paste-image.js';
@@ -93,7 +94,12 @@ class App {
     await loadStylesheet(userFileUrl('styles.css'), 'user').then((el) => { el.id = 'user-styles'; this.userStylesEl = el; });
 
     this.packages = new PackageManager(this);
+    // Symbols for breadcrumbs, the outline and any package that wants them, from one place.
+    const symbols = symbolTracker(this);
+    this.workspace.addEditorExtension(symbols.extension);
+    this.packages.services.provide('symbols', symbols.service);
     await this.packages.discover();
+    await this.packages.migrateSettings();
     await this.packages.activateAll();
     this.config.onDidChange('core.theme', (name) => this.packages.setTheme(name));
 

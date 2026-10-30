@@ -1,0 +1,9 @@
+{
+  "name": "inlay-hints",
+  "displayName": "Inlay Hints",
+  "description": "Parameter names and inferred types drawn inline in the code, where the file's language server provides them (TypeScript, Rust, Go…). Uses the Language Servers package.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"],
+  "enabledByDefault": false
+}

@@ -472,6 +472,35 @@ function outlineproj(root) {
   }, null, 2) + '\n');
 }
 
+/**
+ * `fpoproj`: a repository in the middle of a merge (conflict.txt), with files for every feature package
+ * to act on: app.js (symbols from the syntax), shapes.ts (the fake language server: symbols and inlay
+ * hints) and notes.txt (bookmarks, local history). The `fpoh` home still has the settings that switched
+ * breadcrumbs off and inlay hints on before they were packages (featurePackagesOff).
+ */
+function fpoproj(root) {
+  const d = path.join(root, 'fpoproj');
+  gitInit(d, 'Off Switch', 'off@example.com');
+  write(path.join(d, 'app.js'), 'export class Cart {\n  total() {\n    return 1;\n  }\n}\n');
+  write(path.join(d, 'shapes.ts'), 'function scale(value: number, factor: number) {\n  return value * factor;\n}\n\nconst big = scale(10, 3);\n');
+  write(path.join(d, 'notes.txt'), Array.from({ length: 8 }, (_, i) => `note ${i + 1}`).join('\n') + '\n');
+  write(path.join(d, 'conflict.txt'), 'top\nshared\nbottom\n');
+  commitAll(d, 'base');
+  git(d, 'checkout', '-q', '-b', 'feature');
+  write(path.join(d, 'conflict.txt'), 'top\ntheirs\nbottom\n');
+  commitAll(d, 'theirs');
+  git(d, 'checkout', '-q', 'master');
+  write(path.join(d, 'conflict.txt'), 'top\nours\nbottom\n');
+  commitAll(d, 'ours');
+  try { git(d, '-c', 'merge.conflictStyle=merge', 'merge', '--no-edit', 'feature'); } catch { /* the conflict is the point */ }
+  const home = path.join(root, 'fpoh');
+  write(path.join(home, 'config.json'), JSON.stringify({
+    core: { theme: 'nightfall' },
+    outline: { breadcrumbs: false },
+    lsp: { inlayHints: true, servers: { typescript: { command: [process.execPath, path.join(REPO, 'test/fake-lsp.mjs'), path.join(home, 'fake-lsp.json')], extensions: ['ts'] } } },
+  }, null, 2) + '\n');
+}
+
 /** `dbgproj`: the same small program in JavaScript and Python, to step through (debugger). */
 function dbgproj(root) {
   const d = path.join(root, 'dbgproj');
@@ -671,6 +700,7 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   ghproj(root);
   outlineproj(root);
   bmproj(root);
+  fpoproj(root);
   vsc(root);
   aiproj(root);
   remote(root);

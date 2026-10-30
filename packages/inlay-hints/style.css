@@ -1,0 +1,9 @@
+.cm-inlay-hint {
+  display: inline-block; padding: 0 4px; margin: 0 1px; border-radius: 4px; vertical-align: baseline;
+  font-family: var(--editor-font); font-size: 0.86em; line-height: 1.35; font-style: normal; font-weight: normal;
+  color: var(--fg-muted); background: color-mix(in srgb, var(--fg-subtle) 16%, transparent);
+  user-select: none; cursor: default;
+}
+.cm-inlay-hint-parameter { color: var(--fg-subtle); }
+.cm-inlay-pad-left { margin-left: 0.45em; }
+.cm-inlay-pad-right { margin-right: 0.45em; }

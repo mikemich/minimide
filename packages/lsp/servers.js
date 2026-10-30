@@ -18,7 +18,7 @@ export const DEFAULT_SERVERS = {
     command: [['typescript-language-server', '--stdio']],
     extensions: ['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'mts', 'cts'],
     install: 'npm i -g typescript@5 typescript-language-server',
-    // What inlay hints show once they're turned on (lsp.inlayHints); tsserver's own defaults are all off.
+    // What inlay hints show once they're turned on (the inlay-hints package); tsserver's own defaults are all off.
     settings: { typescript: { inlayHints: TS_INLAY_HINTS }, javascript: { inlayHints: TS_INLAY_HINTS } },
   },
   python: { displayName: 'Python',

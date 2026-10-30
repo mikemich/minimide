@@ -1,0 +1,8 @@
+{
+  "name": "breadcrumbs",
+  "displayName": "Breadcrumbs",
+  "description": "A bar above each editor with the file's folder, its name and the symbols around the cursor (src › app.js › Cart › total). Click a symbol to jump to the ones next to it, a folder to show the file in the tree.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"]
+}

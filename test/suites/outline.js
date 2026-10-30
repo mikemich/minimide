@@ -124,8 +124,8 @@
   const log0 = await readLog();
   out.capability = { inlayHint: !!log0.initialize?.inlayHint, refreshSupport: log0.initialize?.refreshSupport };
 
-  await app.commands.run('lsp:toggle-inlay-hints');
-  out.hintsConfig = app.config.get('lsp.inlayHints');
+  await app.commands.run('editor:toggle-inlay-hints');
+  out.hintsOn = app.packages.packages.get('inlay-hints').active;
   out.hints = await until(() => { const l = hints(); return l.length >= 3 && l; }) || hints();
   out.hintClasses = [...ts.view.contentDOM.querySelectorAll('.cm-inlay-hint')].map((el) => el.className.replace('cm-inlay-hint ', ''));
   out.hintTooltip = ts.view.contentDOM.querySelector('.cm-inlay-hint-type')?.title || null;
@@ -149,17 +149,17 @@
   await app.commands.run('lsp:restart-servers');
   out.hintsAfterRestart = await until(() => { const l = hints(); return l.some((x) => x.endsWith(': number')) && l; }, 15000) || hints();
 
-  await app.commands.run('lsp:toggle-inlay-hints');
+  await app.commands.run('editor:toggle-inlay-hints');
   out.hintsOff = await until(() => hints().length === 0 && 'none') || hints();
 
   // --- breadcrumbs toggle ------------------------------------------------------------------------
-  await app.commands.run('outline:toggle-breadcrumbs');
-  out.breadcrumbsOff = { config: app.config.get('outline.breadcrumbs'), bars: document.querySelectorAll('.cm-breadcrumbs').length };
-  await app.commands.run('outline:toggle-breadcrumbs');
-  out.breadcrumbsOn = { config: app.config.get('outline.breadcrumbs'), crumbs: await until(() => { const t = crumbsOf(ts); return t.endsWith('area') && t; }) || crumbsOf(ts) };
+  await app.commands.run('editor:toggle-breadcrumbs');
+  out.breadcrumbsOff = { active: app.packages.packages.get('breadcrumbs').active, bars: document.querySelectorAll('.cm-breadcrumbs').length };
+  await app.commands.run('editor:toggle-breadcrumbs');
+  out.breadcrumbsOn = { active: app.packages.packages.get('breadcrumbs').active, crumbs: await until(() => { const t = crumbsOf(ts); return t.endsWith('area') && t; }) || crumbsOf(ts) };
 
   // Something to look at in the screenshot: hints in the TS file, the JS file next to it.
-  await app.commands.run('lsp:toggle-inlay-hints');
+  await app.commands.run('editor:toggle-inlay-hints');
   await until(() => hints().length >= 3);
   ws.splitRight();
   await ws.open(`${root}/src/app.js`);

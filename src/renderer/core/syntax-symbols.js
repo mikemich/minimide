@@ -213,7 +213,7 @@ export const supportsLanguage = (name) => !!name && (name === 'markdown' || name
 
 /**
  * Symbols for `state` from its syntax tree. `lang` is the CodeMirror language module
- * (mide.cm.language). Returns { symbols, partial }: partial when the parser hadn't reached the end.
+ * (@codemirror/language). Returns { symbols, partial }: partial when the parser hadn't reached the end.
  */
 export function syntaxSymbols(state, lang) {
   const language = state.facet(lang.language);
@@ -281,11 +281,3 @@ export function pathAt(symbols, pos) {
   return path;
 }
 
-/** Every symbol, depth first, with its parent chain. */
-export function flatten(symbols, out = [], parents = []) {
-  for (const s of symbols) {
-    out.push({ sym: s, parents });
-    flatten(s.children, out, [...parents, s]);
-  }
-  return out;
-}
