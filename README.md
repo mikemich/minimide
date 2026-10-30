@@ -23,8 +23,8 @@ The browser demo can open any public GitHub repo, with edits kept in the tab: `h
 
 </div>
 
-Minimide's core is about 5,000 lines of plain JavaScript, and the whole editor, all 42
-built-in packages included, is about 10,000. The file tree, git panel, terminal, language
+Minimide's core is about 10,000 lines of plain JavaScript, and the whole editor, all 59
+built-in packages included, is about 27,000. The file tree, git panel, terminal, language
 servers, Vim mode and every theme are packages built on the same API you get, and they
 reload the moment you save. Make it yours.
 
