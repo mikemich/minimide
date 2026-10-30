@@ -708,8 +708,10 @@ function registerIpc() {
 
   // processes
   handle('proc:exec', (_e, cmd, args = [], opts = {}) => new Promise((resolve) => {
-    execFile(resolveCommand(cmd), args, { cwd: opts.cwd, timeout: opts.timeout ?? 30000, maxBuffer: 16 * 1024 * 1024, env: { ...process.env, ...opts.env } },
+    const child = execFile(resolveCommand(cmd), args, { cwd: opts.cwd, timeout: opts.timeout ?? 30000, maxBuffer: 16 * 1024 * 1024, env: { ...process.env, ...opts.env } },
       (err, stdout, stderr) => resolve({ code: err ? (typeof err.code === 'number' ? err.code : 1) : 0, stdout, stderr: stderr || (err && !stdout ? String(err.message) : '') }));
+    // `input` goes to the program's stdin (a patch for `git apply`, say).
+    if (typeof opts.input === 'string') { child.stdin?.on('error', () => {}); child.stdin?.end(opts.input); }
   }));
   handle('proc:spawn', (event, id, command, opts = {}) => {
     const sender = event.sender;
