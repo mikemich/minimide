@@ -1,5 +1,5 @@
 // Off really means off, over the `fpoproj` fixture (a repository in the middle of a merge). Each of
-// git-history, bookmarks, merge-conflicts, local-history, outline, breadcrumbs and inlay-hints is
+// git-history, bookmarks, merge-conflicts, local-history, outline, breadcrumbs, inlay-hints and task-problems is
 // turned off and on again. Off: its commands are gone from the palette and from the editor, tab and
 // tree menus, its keys do nothing, its gutters, decorations, status items, views and tabs are gone
 // from what's open, and the packages around it still work. On again: all of it is back. It starts with
@@ -331,6 +331,26 @@
         return { asked: (await fakeLog()).inlayRequests.length - asked, toggle: app.commands.list().some((c) => c.id === 'editor:toggle-inlay-hints') };
       },
       turnOn: () => app.commands.run('editor:toggle-inlay-hints'),
+    });
+  });
+
+  // --- task-problems ------------------------------------------------------------------------------
+  // The task runs every time; only while the package is on do its problems reach the list and app.js.
+  const lintMarks = (ed) => [...ed.view.contentDOM.querySelectorAll('.cm-lintRange')].map((el) => `${el.className.match(/cm-lintRange-(\w+)/)[1]}:${el.textContent}`);
+  const runCheck = async () => {
+    const term = app.packages.services.get('terminal');
+    term.run('node check.js', { cwd: root, title: 'Task: check', key: 'task:check' });
+    await until(() => term.isRunning('task:check'), 3000);
+    await until(() => !term.isRunning('task:check'));
+    await wait(500);
+  };
+  const taskProblems = () => app.packages.services.get('diagnostics').all().flatMap((f) => f.list.filter((d) => d.source === 'check')).length;
+  await step('task-problems', async () => {
+    await runCheck();
+    return cycle('task-problems', {
+      probe: async () => { await runCheck(); const ed = await editor('app.js'); await wait(200); return { problems: taskProblems(), marks: lintMarks(ed) }; },
+      // The runner and the language servers' Problems view don't need it.
+      others: async () => ({ runner: app.commands.has('runner:run-task'), lspView: !!document.querySelector('.lsp-problems') }),
     });
   });
 

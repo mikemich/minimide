@@ -7,6 +7,7 @@
 //                                top-level consts, as hierarchical DocumentSymbols (detail "fake")
 //   textDocument/inlayHint       `name:` before each argument of a call to a function declared in
 //                                the file, and `: number` after `const x = <number>` (label parts)
+//   publishDiagnostics           an error on each `lsp-error` in the text, on open and on change
 //
 // Saving the file switches the type hints to `: int` and sends workspace/inlayHint/refresh, to
 // check the client asks again. Everything it is asked is logged to the JSON file named by argv[2].
@@ -16,6 +17,7 @@ const logFile = process.argv[2];
 const log = { initialize: null, inlayRequests: [], symbolRequests: 0, refreshes: 0 };
 const save = () => { if (logFile) fs.writeFileSync(logFile, JSON.stringify(log, null, 2)); };
 const docs = new Map(); // uri -> text
+const flagged = new Set(); // uris with diagnostics published
 let typeName = 'number';
 let seq = 0;
 
@@ -107,6 +109,16 @@ function inlayHints(text, r) {
   return hints;
 }
 
+function publishDiagnostics(uri) {
+  const diagnostics = [];
+  (docs.get(uri) || '').split('\n').forEach((line, i) => {
+    for (const m of line.matchAll(/lsp-error/g)) diagnostics.push({ range: range(i, m.index, i, m.index + m[0].length), severity: 1, source: 'fake', message: 'flagged by the fake server' });
+  });
+  if (!diagnostics.length && !flagged.has(uri)) return; // only files that use it
+  if (diagnostics.length) flagged.add(uri); else flagged.delete(uri);
+  send({ method: 'textDocument/publishDiagnostics', params: { uri, diagnostics } });
+}
+
 function handle(msg) {
   const { id, method, params } = msg;
   if (id != null && !method) return; // a response to our refresh request
@@ -117,8 +129,8 @@ function handle(msg) {
       return send({ id, result: { capabilities: { textDocumentSync: 1, documentSymbolProvider: true, inlayHintProvider: true }, serverInfo: { name: 'fake-lsp', version: '1.0' } } });
     case 'shutdown': return send({ id, result: null });
     case 'exit': process.exit(0); return;
-    case 'textDocument/didOpen': docs.set(params.textDocument.uri, params.textDocument.text); return;
-    case 'textDocument/didChange': docs.set(params.textDocument.uri, params.contentChanges.at(-1).text); return;
+    case 'textDocument/didOpen': docs.set(params.textDocument.uri, params.textDocument.text); return publishDiagnostics(params.textDocument.uri);
+    case 'textDocument/didChange': docs.set(params.textDocument.uri, params.contentChanges.at(-1).text); return publishDiagnostics(params.textDocument.uri);
     case 'textDocument/didClose': docs.delete(params.textDocument.uri); return;
     case 'textDocument/didSave':
       typeName = 'int';
