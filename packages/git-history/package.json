@@ -1,0 +1,12 @@
+{
+  "name": "git-history",
+  "displayName": "Git History",
+  "description": "Browse a repository's commits with a branch graph, a file's history, what a commit changed, and stashes.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"],
+  "keymap": { "Mod-k Mod-g": "git-history:show" },
+  "configSchema": {
+    "showGraph": { "type": "boolean", "default": true, "title": "Show Branch Graph", "description": "Draw the lines between commits next to the history (not while filtering)." }
+  }
+}
