@@ -79,6 +79,8 @@
     const before = gutter(math);
     clickGutter(math, 4);
     const done = await finished();
+    // The view redraws a moment after the run ends.
+    await until(() => !Object.values(statuses(['adds', 'math'])).includes('running'), 3000);
     const call = (await calls()).pop().slice(fixtures.length + 1);
     return { before, done, call, after: gutter(math), statuses: statuses(['adds', 'multiplies', 'later', 'math']), statusBar: statusItem()?.getAttribute('aria-label') };
   });

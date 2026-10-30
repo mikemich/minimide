@@ -31,7 +31,8 @@
     return text.split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((e) => e.event === 'open' && e.file === file).length;
   };
   const historyCount = async () => {
-    const walk = async (dir) => { let n = 0; for (const e of await window.native.fs.readdir(dir).catch(() => [])) n += e.isDir ? await walk(e.path) : 1; return n; };
+    // Versions only: local history's own marker files (.pruned) come and go on their own schedule.
+    const walk = async (dir) => { let n = 0; for (const e of await window.native.fs.readdir(dir).catch(() => [])) n += e.isDir ? await walk(e.path) : e.path.split('/').pop().startsWith('.') ? 0 : 1; return n; };
     return walk(`${home}/history`);
   };
   // The count once earlier saves have finished writing (on a slow machine they still are).
