@@ -265,6 +265,10 @@ function lhproj(root) {
   write(path.join(d, 'ren.txt'), 'ren original\n');
   write(path.join(d, 'olddir/inner.txt'), 'inner original\n');
   write(path.join(d, 'ext.txt'), 'ext original\n');
+  // A link inside the history folder that leads out of it: deletes must not follow it.
+  write(path.join(root, 'lh-outside/victim.txt'), 'keep me\n');
+  fs.mkdirSync(path.join(root, 'lhh/history'), { recursive: true });
+  fs.symlinkSync(path.join(root, 'lh-outside'), path.join(root, 'lhh/history/escape'), 'junction');
 }
 
 /**

@@ -548,8 +548,16 @@ function registerIpc() {
   handle('fs:trash', async (_e, p) => { await shell.trashItem(p); await remoteSsh.recordTrash(p); });
   // Local history (packages/local-history) prunes old snapshots: the only delete that skips the Trash, and it stays inside history/.
   handle('fs:removeHistory', async (_e, p) => {
+    const root = path.join(USER_DIR, 'history');
     const target = path.resolve(String(p));
-    if (!target.startsWith(path.join(USER_DIR, 'history') + path.sep)) throw new Error('Only local history can be removed this way');
+    const refuse = () => { throw new Error('Only local history can be removed this way'); };
+    if (!target.startsWith(root + path.sep)) refuse();
+    // Compare real paths too, so a link inside history/ can't lead the delete somewhere else (the
+    // target itself may be a link: rm removes the link, not what it points to).
+    const realRoot = await fs.realpath(root).catch(() => null);
+    const realParent = await fs.realpath(path.dirname(target)).catch(() => null);
+    if (!realRoot || !realParent) return; // nothing there to remove
+    if (realParent !== realRoot && !realParent.startsWith(realRoot + path.sep)) refuse();
     await fs.rm(target, { recursive: true, force: true });
   });
   handle('fs:realpath', (_e, p) => fs.realpath(p).catch(() => null));

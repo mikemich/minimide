@@ -311,7 +311,11 @@
   await step('guard', async () => {
     let refused = false;
     try { await native.fs.removeHistory(app.userInfo.dir + '/config.json'); } catch { refused = true; }
-    return { refused };
+    // Through a link in history/ that points outside it.
+    const outside = app.userInfo.dir.replace(/\/[^/]+$/, '') + '/lh-outside/victim.txt';
+    let linkRefused = false;
+    try { await native.fs.removeHistory(app.userInfo.dir + '/history/escape/victim.txt'); } catch { linkRefused = true; }
+    return { refused, linkRefused, outsideKept: await native.fs.read(outside).catch(() => null) };
   });
   out.guard = results.guard;
 

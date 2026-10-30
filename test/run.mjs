@@ -377,7 +377,7 @@ const SUITES = [
       'rename.folderMoved': ['i1\n'], 'rename.folderOldGone': true,
       'reload.disk': { text: 'changed outside\n', label: 'Before reload from disk', saved: 'ext original\n' },
       'reload.revert': { label: 'Before revert', saved: 'scratch\n' },
-      'guard.refused': true,
+      'guard.refused': true, 'guard.linkRefused': true, 'guard.outsideKept': 'keep me\n',
     }),
   },
   {
