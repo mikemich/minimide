@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="1" failures="1" skipped="1" tests="6" time="0.043" timestamp="2026-10-30T12:00:00.000000+01:00" hostname="host"><testcase classname="tests.test_calc" name="test_add" file="tests/test_calc.py" line="2" time="0.001" /><testcase classname="tests.test_calc.TestCalc" name="test_mul" file="tests/test_calc.py" line="6" time="0.002"><failure message="assert 6 == 7&#10; +  where 6 = mul(2, 3)">self = &lt;tests.test_calc.TestCalc object at 0x1049c4a50&gt;
+
+    def test_mul(self):
+&gt;       assert mul(2, 3) == 7
+E       assert 6 == 7
+E        +  where 6 = mul(2, 3)
+
+tests/test_calc.py:8: AssertionError</failure></testcase><testcase classname="tests.test_calc" name="test_param[1]" file="tests/test_calc.py" line="9" time="0.000" /><testcase classname="tests.test_calc" name="test_param[2]" file="tests/test_calc.py" line="9" time="0.001" /><testcase classname="tests.test_calc" name="test_skip" file="tests/test_calc.py" line="13" time="0.000"><skipped type="pytest.skip" message="later">tests/test_calc.py:14: later</skipped></testcase><testcase classname="tests.test_fixture" name="test_needs_db" file="tests/test_fixture.py" line="0" time="0.000"><error message="failed on setup with &quot;fixture 'db' not found&quot;">file /proj/tests/test_fixture.py, line 1
+  def test_needs_db(db):
+E       fixture 'db' not found</error></testcase></testsuite></testsuites>

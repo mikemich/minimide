@@ -641,6 +641,68 @@ const SUITES = [
     }),
   },
   {
+    // Jest (test/fake-jest.cjs), node:test, pytest (test/fake-pytest.mjs) and Go, when it is installed.
+    // The home trusts txproj only, so txuntrusted (added during the run) stays in Restricted Mode.
+    name: 'testExplorer', home: 'txh', project: 'txproj', trust: false, timeout: 240,
+    expect: (env) => {
+      const go = env.has('go');
+      const summary = go ? '9 passed, 4 failed, 2 skipped' : '7 passed, 3 failed, 2 skipped';
+      const tree = [
+        'txproj', '  calc_test.go', '    TestAdd', '    TestSub', '      ok', '      bad_case',
+        '  test_calc.py', '    test_add', '    TestCalc', '      test_mul_fails', '    test_param', '      test_param[1]', '      test_param[2]', '    test_skip_me',
+        '  math.test.js', '    math', '      adds', '      multiplies', '      later', '  strings.test.js', '    upper', '    lower',
+        '  check.test.mjs', '    parse', '      numbers', '      words',
+      ];
+      return {
+        // The scan finds every framework's tests; pytest's own list adds the parametrized cases.
+        'discover.shown': true, 'discover.tree': tree, 'discover.fileDirs': ['gomod', 'py/tests', 'src', 'src', 'tools'],
+        'discover.titles': ['(Jest)', '(node:test)', '(pytest)', '(Go)'], 'discover.listed': ['txproj --listTests --json'], 'discover.statusHidden': true,
+        // One test from its gutter button: Jest gets a name filter and the file; the others keep no result.
+        'runOne.before': ['3:none', '4:none', '7:none', '10:none'], 'runOne.done': true,
+        'runOne.call': /^txproj --json --outputFile=\S+\.json --testLocationInResults -t \^\(\?:math adds\$\) --runTestsByPath src\/math\.test\.js$/,
+        'runOne.after': ['3:passed', '4:passed', '7:none', '10:none'], 'runOne.statuses': { adds: 'passed', multiplies: 'none', later: 'none', math: 'passed' },
+        'runOne.statusBar': 'Tests: 1 passed',
+        'runAll.done': true,
+        'runAll.js': { adds: 'passed', multiplies: 'failed', later: 'skipped', upper: 'passed', lower: 'passed', numbers: 'passed', words: 'failed' },
+        'runAll.py': { test_add: 'passed', test_mul_fails: 'failed', 'test_param[1]': 'passed', 'test_param[2]': 'passed', test_skip_me: 'skipped' },
+        'runAll.go': go ? { TestAdd: 'passed', ok: 'passed', bad_case: 'failed' } : 'no go',
+        'runAll.folder': 'failed', 'runAll.files': { 'math.test.js': 'failed', 'strings.test.js': 'passed', 'check.test.mjs': 'failed', 'test_calc.py': 'failed' },
+        'runAll.tree': tree, 'runAll.durations': true, 'runAll.gutter': ['3:failed', '4:passed', '7:failed', '10:skipped'],
+        // The failure under its test's line, with Jest's expected and received values.
+        'runAll.inline': (v) => v.length === 1 && v[0].line === 7 && /^math › multipliesError: expect\(received\)\.toBe\(expected\) \/\/ Object\.is equalityExpected 2Received 3$/.test(v[0].text),
+        'runAll.summary': summary, 'runAll.statusBar': `Tests: ${summary}`, 'runAll.statusShown': true, 'runAll.output': [], 'runAll.notes': [],
+        // The view: details of a failure, the keyboard, roles, filtering.
+        details: {
+          shown: true, title: 'math › multiplies failed', values: ['Expected 2', 'Received 3'], buttons: ['Go to Test', 'Run Again', 'Show Output'],
+          activeDescendant: true, selected: 'true', down: 'later', parent: 'math', collapsed: 'false', expanded: 'true', opened: 'src/math.test.js:7',
+          roles: ['tree', 'Tests', 'treeitem', '4', 'true'], unnamedButtons: 0,
+          filtered: ['txproj', '  test_calc.py', '    TestCalc', '      test_mul_fails', '  math.test.js', '    math', '      multiplies'],
+        },
+        'runFailed.done': true, 'runFailed.jestCalls': (v) => v.length === 1 && / -t \^\(\?:math multiplies\$\) --runTestsByPath src\/math\.test\.js$/.test(v[0]),
+        'runFailed.js': { adds: 'passed', multiplies: 'failed', words: 'failed' }, 'runFailed.py': { test_add: 'passed', test_mul_fails: 'failed' },
+        ...(go ? { 'runFailed.go': { TestAdd: 'passed', bad_case: 'failed' } } : {}),
+        'runAtCursor.done': true, 'runAtCursor.call': (v) => v.length === 1 && / -t \^\(\?:lower\$\) --runTestsByPath src\/strings\.test\.js$/.test(v[0]),
+        'runAtCursor.statuses': { upper: 'passed', lower: 'passed' },
+        runFile: { done: true, again: true, command: true, gutter: ['4:failed', '5:passed', '6:failed'], inline: [[6, true]], statuses: { numbers: 'passed', words: 'failed' } },
+        // Run buttons and failures move with the text.
+        edits: { moved: ['4:failed', '5:passed', '8:failed', '11:skipped'], rescanned: ['4:failed', '5:passed', '8:failed', '11:skipped'], inlineLine: [7] },
+        cancel: {
+          started: true, spinning: ['running', 'Running 2 tests…', 'Running tests', true], stopped: true, quick: true,
+          after: { upper: 'none', lower: 'none' }, output: true, statusBar: 'Tests: No results (cancelled)',
+        },
+        untrusted: { trusted: false, found: true, folderNote: true, refused: true, status: 'none', callsInUntrusted: 0, otherCalls: true },
+        disableEnable: {
+          before: { view: true, output: true, status: true, gutter: true, markers: 4, inline: 1, commands: 9, styles: 1 },
+          off: { view: false, output: false, status: false, gutter: false, markers: 0, inline: 0, commands: 0, styles: 0 },
+          on: { view: true, output: true, status: true, gutter: true, markers: 4, inline: 0, commands: 7, styles: 1 },
+          tree: true,
+        },
+        screenshot: true,
+        totalErrors: 0,
+      };
+    },
+  },
+  {
     // Symbols from the syntax tree, and from a fake language server (test/fake-lsp.mjs) with inlay hints.
     name: 'outline', home: 'outlineh', project: 'outlineproj', timeout: 120,
     expect: () => ({

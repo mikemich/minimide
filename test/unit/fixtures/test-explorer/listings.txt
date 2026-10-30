@@ -1,0 +1,29 @@
+### vitest list --json
+[
+  {
+    "name": "strings > upper",
+    "file": "/proj/web/strings.test.ts"
+  },
+  {
+    "name": "strings > nested > lower",
+    "file": "/proj/web/strings.test.ts"
+  }
+]
+### jest --listTests --json
+["/proj/src/math.test.js","/proj/src/custom-check.js"]
+### pytest --collect-only -q
+tests/test_calc.py::test_add
+tests/test_calc.py::TestCalc::test_mul
+tests/test_calc.py::test_param[1]
+tests/test_calc.py::test_param[2]
+
+4 tests collected in 0.01s
+### go test -list . ./...
+TestAdd
+TestFail
+TestSkip
+TestTable
+ok  	example.com/gm	0.127s
+TestSub
+ok  	example.com/gm/sub	0.243s
+?   	example.com/gm/tools	[no test files]

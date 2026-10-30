@@ -1,0 +1,25 @@
+{
+  "name": "test-explorer",
+  "displayName": "Test Explorer",
+  "description": "Find, run and see the results of Jest, Vitest, node:test, pytest and Go tests: a Testing view, run buttons beside each test, failures under the failing line.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"],
+  "keymap": {
+    "Mod-; c": "test-explorer:run-at-cursor",
+    "Mod-; f": "test-explorer:run-file",
+    "Mod-; a": "test-explorer:run-all",
+    "Mod-; l": "test-explorer:rerun",
+    "Mod-; e": "test-explorer:run-failed",
+    "Mod-; t": "test-explorer:show"
+  },
+  "configSchema": {
+    "jestCommand": { "type": "string", "default": "", "title": "Jest Command", "description": "How to start Jest, e.g. \"npx jest\" or \"yarn jest\". Empty: the project's node_modules/.bin/jest, else npx." },
+    "vitestCommand": { "type": "string", "default": "", "title": "Vitest Command", "description": "How to start Vitest. Empty: the project's node_modules/.bin/vitest, else npx." },
+    "nodeCommand": { "type": "string", "default": "", "title": "Node.js Command", "description": "The node that runs node:test files. Empty: node." },
+    "pytestCommand": { "type": "string", "default": "", "title": "pytest Command", "description": "How to start pytest, e.g. \"poetry run pytest\". Empty: the project's .venv, else python3 -m pytest." },
+    "goCommand": { "type": "string", "default": "", "title": "Go Command", "description": "The go command that runs go test. Empty: go." },
+    "useFrameworkLists": { "type": "boolean", "default": true, "title": "Ask Frameworks for Their Tests", "description": "In trusted folders, also ask Jest, Vitest, pytest and Go which tests they have, to find each-cases and parametrized tests a scan of the files can't see." },
+    "runOnSave": { "type": "boolean", "default": false, "title": "Run Tests on Save", "description": "Run a test file's tests each time you save it." }
+  }
+}
