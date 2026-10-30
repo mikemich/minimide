@@ -1,0 +1,7 @@
+warn.c:5:17: error: too many arguments to function call, expected single argument 'a', have 2 arguments
+    5 |   long z = f(1, 2);
+      |            ~    ^
+warn.c:2:5: note: 'f' declared here
+    2 | int f(int a);
+      |     ^ ~~~~~
+1 error generated.

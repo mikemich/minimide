@@ -1,0 +1,4 @@
+/home/dev/demo/src/app.js:1:7: 'unused' is assigned a value but never used. [Error/no-unused-vars]
+/home/dev/demo/src/app.js:3:1: Unexpected console statement. [Warning/no-console]
+
+2 problems

@@ -1,0 +1,3 @@
+/home/dev/demo/warn.py:6: DeprecationWarning: old() is deprecated
+  old()
+done

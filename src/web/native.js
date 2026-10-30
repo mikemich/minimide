@@ -14,7 +14,7 @@ const USER_DIR = `${HOME}/.minimide`;
 const STORE = 'minimide-demo-fs-v1';
 const STATE = 'minimide-demo-state-v1';
 // Need a desktop: language servers, terminals, running code and git.
-const LEFT_OUT = new Set(['lsp', 'terminal', 'runner', 'git', 'git-blame', 'source-control', 'debugger', 'ai', 'settings-sync', 'vscode-import', 'remote-ssh', 'local-history', 'git-history', 'inlay-hints', 'git-hunks', 'test-explorer']);
+const LEFT_OUT = new Set(['lsp', 'terminal', 'runner', 'git', 'git-blame', 'source-control', 'debugger', 'ai', 'settings-sync', 'vscode-import', 'remote-ssh', 'local-history', 'git-history', 'inlay-hints', 'git-hunks', 'test-explorer', 'task-problems']);
 const DESKTOP_ONLY = 'This needs the desktop app. Download Minimide from GitHub to use it.';
 
 // --- which project: the sample, or a GitHub repo -------------------------------------

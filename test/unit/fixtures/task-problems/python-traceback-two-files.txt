@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/dev/demo/main.py", line 3, in <module>
+    helper.run({})
+    ~~~~~~~~~~^^^^
+  File "/home/dev/demo/helper.py", line 2, in run
+    return cfg["missing"]
+           ~~~^^^^^^^^^^^
+KeyError: 'missing'

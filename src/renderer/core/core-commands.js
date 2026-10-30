@@ -44,6 +44,8 @@ export const CORE_KEYMAP = {
   'Mod-Shift-d': 'editor:duplicate-lines',
   'Mod-l': 'editor:select-line',
   'Ctrl-m': 'editor:go-to-matching-bracket',
+  'F8': 'editor:next-problem',
+  'Shift-F8': 'editor:previous-problem',
   'Mod-,': 'settings:open',
   'Mod-/': 'editor:toggle-comment',
   'Mod-Shift-k': 'editor:delete-line',

@@ -1,0 +1,9 @@
+src/demo/Main.java:5: error: incompatible types: String cannot be converted to int
+        int x = "s";
+                ^
+src/demo/Main.java:6: error: cannot find symbol
+        System.out.println(y);
+                           ^
+  symbol:   variable y
+  location: class Main
+2 errors

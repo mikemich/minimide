@@ -785,6 +785,9 @@ const SUITES = [
         ...generic('inlay-hints', { commands: false, keys: false }),
         'inlay-hints.probe': (p) => Array.isArray(p) && p[0].hints >= 2 && p[1].hints === 0 && p[2].hints > p[0].hints, // the edit while off adds two
         'inlay-hints.others': { asked: 0, toggle: true },
+        ...generic('task-problems', { keys: false }),
+        'task-problems.probe': [{ problems: 1, marks: ['error:total'] }, { problems: 0, marks: [] }, { problems: 1, marks: ['error:total'] }],
+        'task-problems.others': { runner: true, lspView: true },
         totalErrors: 0,
       };
     },
@@ -891,6 +894,42 @@ const SUITES = [
       notifiedWhenHidden: true, showButtonWorks: true, quietWhenVisible: true,
       stopTargetsRecentTask: true, stoppedMarker: true, runFileTab: 'Task: loop.py',
     }),
+  },
+  {
+    name: 'taskProblems', home: 'tph', project: 'tpproj', timeout: 180, requires: ['node'],
+    expect: () => {
+      const lsp = 'src/app.ts:1:4 fake error flagged by the fake server';
+      const check = [
+        "../tp-outside.c:2:5 check warning outside the project, but there", "lib/util.c:1:10 check error expected ';' after top level declarator",
+        'missing/inside.c:7:1 check error in the project, not written yet', "src/app.ts:2:7 check error Type 'string' is not assignable to type 'number'.",
+        "src/app.ts:4:7 check warning unused variable 'unused'",
+      ];
+      const inApp = ['error@1:lsp-error', 'error@2:n', 'warning@4:unused'];
+      return {
+        'lspAlone.rows': ['app.ts 1:4 fake: flagged by the fake server'], 'lspAlone.marks': ['error@1:lsp-error'],
+        'firstRun.problems': check,
+        'firstRun.rows': [
+          'app.ts 1:4 fake: flagged by the fake server', "app.ts 2:7 check: Type 'string' is not assignable to type 'number'.", "app.ts 4:7 check: unused variable 'unused'",
+          'inside.c 7:1 check: in the project, not written yet', 'tp-outside.c 2:5 check: outside the project, but there', "util.c 1:10 check: expected ';' after top level declarator",
+        ],
+        'firstRun.accessible': true, 'firstRun.marks': inApp, 'firstRun.gutter': 3, 'firstRun.counts': { errors: 4, warnings: 2 }, 'firstRun.status': '42',
+        'secondTask.problems': ['src/app.ts:3:10 other.js warning from the other task'], 'secondTask.marks': ['error@1:lsp-error', 'error@2:n', 'warning@3:f', 'warning@4:unused'],
+        'secondTask.sources': ['check', 'fake', 'other.js'],
+        'jump.at': 'util.c:1:10', 'jump.marks': ['error@1:1'],
+        'nextPrevious.seen': ['app.ts:1:4', 'app.ts:2:7', 'app.ts:3:10', 'app.ts:2:7', 'app.ts:3:10', 'app.ts:4:7'], 'nextPrevious.nextFile': true,
+        'lspRepublishes.lsp': [lsp, 'src/app.ts:6:4 fake error flagged by the fake server'], 'lspRepublishes.task': 5,
+        'lspRepublishes.marks': ['error@1:lsp-error', 'error@2:n', 'error@6:lsp-error', 'warning@3:f', 'warning@4:unused'],
+        'rerun.check': ['lib/util.c:2:5 check warning only this one now'], 'rerun.other': ['src/app.ts:3:10 other.js warning from the other task'],
+        'rerun.lsp': [lsp], 'rerun.marks': ['error@1:lsp-error', 'warning@3:f'],
+        kept: ['lib/util.c:2:5 check warning only this one now'],
+        'customMatchers.reported': true, 'customMatchers.mine': ['lib/util.c:2:1 check error a format of my own'],
+        'listOnly.off': { marks: ['error@1:lsp-error'], gutter: 1, listed: 6 }, 'listOnly.on': ['error@1:lsp-error', 'error@2:n', 'warning@3:f', 'warning@4:unused'],
+        'clear.enabled': true, 'clear.left': [lsp], 'clear.rows': ['app.ts 1:4 fake: flagged by the fake server'], 'clear.marks': ['error@1:lsp-error'], 'clear.enabledAfter': false,
+        'lspOff.off': { marks: ['error@2:n', 'warning@4:unused'], gutter: 2, view: false, known: 6, listed: 6 }, 'lspOff.rowsOn': 7, 'lspOff.marksOn': inApp,
+        'packageOff.off': { known: [lsp], marks: ['error@1:lsp-error'], commands: [], afterRun: 1, ran: true },
+        'packageOff.on': { known: 1, commands: 2, afterRun: 6, marks: inApp },
+      };
+    },
   },
   {
     name: 'debugger', home: 'dbgh', project: 'dbgproj', timeout: 150,

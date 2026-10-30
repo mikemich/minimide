@@ -1,0 +1,11 @@
+{
+  "name": "task-problems",
+  "displayName": "Task Problems",
+  "description": "Errors and warnings from task output (compilers, linters, test runners) in the Problems view and as underlines in open files.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "configSchema": {
+    "showInEditor": { "type": "boolean", "default": true, "title": "Show in Editors", "description": "Underline task problems in open files and mark their lines. Off: they're only listed in the Problems view." },
+    "matchers": { "type": "object", "default": {}, "title": "Custom Matchers", "description": "Your own formats, as regular expressions with named groups file, line and optionally column, severity, message and code: { \"mytool\": \"^(?<file>[^:]+):(?<line>\\\\d+): (?<message>.*)$\" }, or { \"mytool\": { \"pattern\": \"…\", \"severity\": \"warning\" } }. They're tried before the built-in ones." }
+  }
+}

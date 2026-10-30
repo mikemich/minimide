@@ -510,8 +510,9 @@ function outlineproj(root) {
 /**
  * `fpoproj`: a repository in the middle of a merge (conflict.txt), with files for every feature package
  * to act on: app.js (symbols from the syntax), shapes.ts (the fake language server: symbols and inlay
- * hints) and notes.txt (bookmarks, local history). The `fpoh` home still has the settings that switched
- * breadcrumbs off and inlay hints on before they were packages (featurePackagesOff).
+ * hints), notes.txt (bookmarks, local history) and check.js (a task that prints a problem in app.js). The
+ * `fpoh` home still has the settings that switched breadcrumbs off and inlay hints on before they were
+ * packages (featurePackagesOff).
  */
 function fpoproj(root) {
   const d = path.join(root, 'fpoproj');
@@ -519,6 +520,7 @@ function fpoproj(root) {
   write(path.join(d, 'app.js'), 'export class Cart {\n  total() {\n    return 1;\n  }\n}\n');
   write(path.join(d, 'shapes.ts'), 'function scale(value: number, factor: number) {\n  return value * factor;\n}\n\nconst big = scale(10, 3);\n');
   write(path.join(d, 'notes.txt'), Array.from({ length: 8 }, (_, i) => `note ${i + 1}`).join('\n') + '\n');
+  write(path.join(d, 'check.js'), "console.log('app.js:2:3: error: from a task');\n");
   write(path.join(d, 'conflict.txt'), 'top\nshared\nbottom\n');
   commitAll(d, 'base');
   git(d, 'checkout', '-q', '-b', 'feature');
@@ -533,6 +535,48 @@ function fpoproj(root) {
     core: { theme: 'nightfall' },
     outline: { breadcrumbs: false },
     lsp: { inlayHints: true, servers: { typescript: { command: [process.execPath, path.join(REPO, 'test/fake-lsp.mjs'), path.join(home, 'fake-lsp.json')], extensions: ['ts'] } } },
+  }, null, 2) + '\n');
+}
+
+/**
+ * `tpproj`: a project whose `check` task (report.js) prints compiler-like problems: for files in the
+ * project, a missing one, one outside it that exists (`tp-outside.c`, beside the project) and one that
+ * doesn't; other.js is a second task, run with F5. mode.txt switches report.js to a shorter report. The
+ * `tph` home runs the fake language server (test/fake-lsp.mjs) for .ts files, which flags `lsp-error`
+ * (taskProblems).
+ */
+function tpproj(root) {
+  const d = path.join(root, 'tpproj');
+  write(path.join(d, 'src/app.ts'), '// lsp-error is flagged by the fake server\nconst n: number = "x";\nfunction f() {\n  let unused = 1;\n}\n');
+  write(path.join(d, 'lib/util.c'), 'int x = 1\nint y = 2;\n');
+  write(path.join(root, 'tp-outside.c'), 'int a;\nint b;\n');
+  write(path.join(d, 'report.js'), [
+    '// Prints problems the way compilers do. mode.txt says which report.',
+    "const fs = require('fs');",
+    "const path = require('path');",
+    "const mode = fs.existsSync('mode.txt') ? fs.readFileSync('mode.txt', 'utf8').trim() : 'full';",
+    'const red = (s) => `\\x1b[1;31m${s}\\x1b[0m`;',
+    "if (mode === 'full') {",
+    "  console.log('Checking 3 files...');",
+    "  console.log(`src/app.ts(2,7): ${red('error')} TS2322: Type 'string' is not assignable to type 'number'.`);",
+    '  console.log("src/app.ts:4:7: warning: unused variable \'unused\' [-Wunused-variable]");',
+    '  console.error("lib/util.c:1:10: error: expected \';\' after top level declarator");',
+    "  console.log(`${path.resolve('..', 'tp-outside.c')}:2:5: warning: outside the project, but there`);",
+    "  console.log('/nowhere/at/all/gone.c:3:1: error: outside the project and missing');",
+    "  console.log('missing/inside.c:7: error: in the project, not written yet');",
+    "  console.log('CHECK lib/util.c#2 a format of my own');",
+    '  process.exit(1);',
+    '}',
+    "console.log('lib/util.c:2:5: warning: only this one now');",
+    '',
+  ].join('\n'));
+  write(path.join(d, 'other.js'), "console.log('src/app.ts:3:10: warning: from the other task');\n");
+  const home = path.join(root, 'tph');
+  write(path.join(home, 'config.json'), JSON.stringify({
+    core: { theme: 'nightfall' },
+    runner: { tasks: { check: 'node report.js' } },
+    // clangd, when installed, would flag util.c too.
+    lsp: { servers: { typescript: { command: [process.execPath, path.join(REPO, 'test/fake-lsp.mjs'), path.join(home, 'fake-lsp.json')], extensions: ['ts'] }, c: { disabled: true } } },
   }, null, 2) + '\n');
 }
 
@@ -831,6 +875,7 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   bmproj(root);
   fpoproj(root);
   txproj(root);
+  tpproj(root);
   vsc(root);
   aiproj(root);
   remote(root);
