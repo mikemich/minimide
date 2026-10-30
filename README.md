@@ -219,6 +219,19 @@ case transforms, trim-whitespace-on-save, reopen closed tab, live reload of ever
 
 ![Settings with the Daylight theme](docs/screenshots/light.png)
 
+## Large files
+
+Logs of hundreds of megabytes and minified bundles open in a fraction of a second and stay smooth to
+scroll and type in. A file over `editor.largeFileSize` (10 MB by default), or one with a line longer than
+200 KB, opens as a **large file**: you edit and save it as usual (the bytes you didn't touch stay exactly
+as they were), but syntax highlighting, bracket matching and bracket colors, word completion, the minimap,
+sticky scroll, indent guides, color swatches, todo highlights, git change markers and blame, symbols for
+the breadcrumbs and the outline, inlay hints, the language server and local history versions are off for
+it. Soft wrap stays off in a file with lines that long. The status bar says **Large file: some features
+are off**; click it for **Turn features on anyway**, which brings them all back for that file. Files over
+512 MB aren't opened at all: Minimide says so instead of freezing. Set `editor.largeFileSize` to `0` to
+open every file normally.
+
 ## Language servers
 
 The `lsp` package starts a server the first time you open a matching file. It only
