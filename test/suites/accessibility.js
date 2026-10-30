@@ -236,10 +236,12 @@
   });
 
   await step('notifications', async () => {
+    // Only the three shown here: on a slow machine an earlier step's notification can still be up.
+    const before = new Set($$('#notifications .notification'));
     const err = app.ui.notify.error('Something broke', 'details');
     const info = app.ui.notify.info('All saved');
     const warn = app.ui.notify.warn('Careful');
-    const list = $$('#notifications .notification');
+    const list = $$('#notifications .notification').filter((n) => !before.has(n));
     const out = { roles: list.map((n) => attr(n, 'role')), dismiss: list.map((n) => attr($('.notification-close', n), 'aria-label')) };
     err.close(); info.close(); warn.close();
     await wait(300);

@@ -353,7 +353,7 @@
     await wait(150);
     const reset = size() === base;
     await app.config.set('editor.softWrap', true);
-    const wrapOn = ed.view.lineWrapping;
+    const wrapOn = !!(await until(() => ed.view.lineWrapping, 2000));
     await app.config.set('editor.softWrap', undefined);
     await app.config.set('editor.showLineNumbers', false);
     await wait(100);
