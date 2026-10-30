@@ -491,6 +491,97 @@ function bmproj(root) {
   write(path.join(d, 'ext.txt'), lines('ext', 8));
 }
 
+/**
+ * `txproj`: tests for testExplorer in every framework: Jest (test/fake-jest.cjs stands in for it),
+ * node:test, pytest (test/fake-pytest.mjs, set as the pytest command in `txh`) and Go (when it is
+ * installed). `txuntrusted` has Jest tests too, but the home `txh` trusts only txproj. Both Jest
+ * shims log where they run to txcalls.log, to show nothing runs in txuntrusted.
+ */
+function txproj(root) {
+  const d = path.join(root, 'txproj');
+  const log = path.join(root, 'txcalls.log');
+  const jest = (dir) => {
+    write(path.join(dir, 'package.json'), JSON.stringify({ name: path.basename(dir), private: true, devDependencies: { jest: '0.0.0-fake' } }, null, 2) + '\n');
+    write(path.join(dir, 'node_modules/.bin/jest'), `#!/bin/sh\necho "$(pwd -P) $*" >> '${log}'\nexec node '${path.join(REPO, 'test/fake-jest.cjs')}' "$@"\n`);
+    fs.chmodSync(path.join(dir, 'node_modules/.bin/jest'), 0o755);
+  };
+  jest(d);
+  write(path.join(d, 'src/math.js'), 'exports.add = (a, b) => a + b;\nexports.mul = (a, b) => a + b; // oops\n');
+  write(path.join(d, 'src/math.test.js'), [
+    "const { add, mul } = require('./math');", // 1
+    '', // 2
+    "describe('math', () => {", // 3
+    "  it('adds', () => {", // 4
+    '    expect(add(1, 2)).toBe(3);', // 5
+    '  });', // 6
+    "  it('multiplies', () => {", // 7
+    '    expect(mul(1, 2)).toBe(2);', // 8
+    '  });', // 9
+    "  it.skip('later', () => {});", // 10
+    '});', // 11
+    '',
+  ].join('\n'));
+  write(path.join(d, 'src/strings.test.js'), "test('upper', () => {\n  expect('a'.toUpperCase()).toBe('A');\n});\n\ntest('lower', () => {\n  expect('B'.toLowerCase()).toBe('b');\n});\n");
+  write(path.join(d, 'tools/check.test.mjs'), [
+    "import { describe, test } from 'node:test';",
+    "import assert from 'node:assert/strict';",
+    '',
+    "describe('parse', () => {",
+    "  test('numbers', () => assert.equal(Number('4'), 4));",
+    "  test('words', () => assert.equal('cat', 'dog'));",
+    '});',
+    '',
+  ].join('\n'));
+  write(path.join(d, 'py/pytest.ini'), '[pytest]\n');
+  write(path.join(d, 'py/tests/test_calc.py'), [
+    'import pytest',
+    '',
+    'def test_add():',
+    '    assert 1 + 1 == 2',
+    '',
+    'class TestCalc:',
+    '    def test_mul_fails(self):',
+    '        assert 1 + 1 == 3',
+    '',
+    '@pytest.mark.parametrize("n", [1, 2])',
+    'def test_param(n):',
+    '    assert n',
+    '',
+    'def test_skip_me():',
+    '    pass',
+    '',
+  ].join('\n'));
+  write(path.join(d, 'gomod/go.mod'), 'module example.com/txgo\n\ngo 1.21\n');
+  write(path.join(d, 'gomod/calc.go'), 'package txgo\n\nfunc Add(a, b int) int { return a + b }\n');
+  write(path.join(d, 'gomod/calc_test.go'), [
+    'package txgo',
+    '',
+    'import "testing"',
+    '',
+    'func TestAdd(t *testing.T) {',
+    '\tif Add(1, 2) != 3 {',
+    '\t\tt.Fatal("bad")',
+    '\t}',
+    '}',
+    '',
+    'func TestSub(t *testing.T) {',
+    '\tt.Run("ok", func(t *testing.T) {})',
+    '\tt.Run("bad case", func(t *testing.T) {',
+    '\t\tt.Errorf("got %d, want %d", 1, 2)',
+    '\t})',
+    '}',
+    '',
+  ].join('\n'));
+  const u = path.join(root, 'txuntrusted');
+  jest(u);
+  write(path.join(u, 'src/u.test.js'), "test('never runs here', () => {\n  expect(1).toBe(1);\n});\n");
+  const home = path.join(root, 'txh');
+  write(path.join(home, 'trusted-folders.json'), JSON.stringify({ folders: [{ path: d, real: d }] }, null, 2) + '\n');
+  write(path.join(home, 'config.json'), JSON.stringify({
+    'test-explorer': { pytestCommand: `node '${path.join(REPO, 'test/fake-pytest.mjs')}'` },
+  }, null, 2) + '\n');
+}
+
 /** `vsc`: a fake VS Code folder (User/ and extensions/) for "Import from VS Code" (vscodeImport). */
 function vsc(root) {
   const d = path.join(root, 'vsc');
@@ -671,6 +762,7 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   ghproj(root);
   outlineproj(root);
   bmproj(root);
+  txproj(root);
   vsc(root);
   aiproj(root);
   remote(root);

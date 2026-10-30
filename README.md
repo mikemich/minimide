@@ -135,6 +135,7 @@ Forgot one? Hold `⌘` for a moment and every shortcut on screen gets a label: t
 | `⌘⇧5` | Split the terminal (up to four side by side) |
 | `F5` / `⌘⇧R` | Run the current file in its own task tab (`⇧F5` stops, `⌘⌥R` runs it again) |
 | `⌘⇧B` | Run a task: npm scripts, Makefile targets, Cargo, Go, or any command |
+| `⌘; C` / `⌘; F` / `⌘; A` | Run the test at the cursor / the tests in the file / all tests (`⌘; L` runs the last ones again, `⌘; E` the failed ones, `⌘; T` shows the Testing view) |
 | `⌥F5` | Debug the current Python or JavaScript file (while debugging: `F5` continues, `⇧F5` stops, `⌘⇧F5` restarts) |
 | `F9` / `F10` / `F11` / `⇧F11` | Toggle breakpoint / step over / step into / step out |
 | `⌘⇧↩` | Send the selection (or current line) to the terminal |
@@ -183,6 +184,7 @@ Everything works without a mouse and is labelled for VoiceOver, NVDA and Orca: t
 | `terminal` | A real terminal (xterm.js + node-pty) in tabs, with side-by-side splits; click `file:line` in output to jump there |
 | `remote-ssh` | **Remote: Open Folder over SSH…** edits a folder on another machine through a local copy, kept in sync with your own `ssh` and `rsync` (uploads on save, asks when both copies changed). macOS and Linux |
 | `runner` | Run the current file with `F5` (Python, JS/TS, Go, Rust, C/C++, Java, Ruby, shell and more) or a project task with `⌘⇧B`; each task gets its own terminal tab and long ones notify you when they finish out of sight (`runner.notifyAfter`) |
+| `test-explorer` | Finds the tests of each project folder (Jest, Vitest, node:test, pytest and Go, from `package.json`, `pytest.ini` / `pyproject.toml` / `conftest.py` and `go.mod`) and lists them in the **Testing** view as folder › file › suite › test, with a filter, pass / fail / skip icons and durations. A scan of the files fills it at once; each framework's own list then adds each-cases and parametrized tests. Run all, the failed ones, a file, a suite or one test from the view, the ▶ beside each test in the editor or the keys (`⌘; C` at the cursor, `⌘; F` file, `⌘; A` all, `⌘; L` last, `⌘; E` failed); results come from the frameworks' JSON / JUnit reporters. A failure shows under its test's line with expected and received values, the full output is in the **Test Output** panel, the status bar keeps the counts, and a run can be cancelled. Commands can be set per framework (`test-explorer.jestCommand`…); **Run Tests on Save** is off by default. Trusted folders only |
 | `debugger` | Breakpoints (click the gutter or `F9`, optionally with a condition), stepping, call stack, variables, watch expressions and a Debug Console, for Python (needs `debugpy`) and JavaScript (Node.js 22+) |
 | `markdown-preview` | Live, sanitized preview in a split pane that scrolls with the editor (and the other way round). In the editor itself, pasting an image into a Markdown file saves it to `images/` and inserts the link, and Markdown and plain text get spell check with suggestions in the right-click menu (turn it off with `editor.spellcheck`) |
 | `settings-view` | Settings, themes, packages and keybindings, generated from schemas |

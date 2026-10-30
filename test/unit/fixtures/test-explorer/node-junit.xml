@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testsuite name="math" time="0.001825" disabled="0" errors="0" tests="4" failures="1" skipped="1" timestamp="2026-10-30T11:11:01.681Z" hostname="host">
+		<testcase name="adds" time="0.000235" classname="math" file="/proj/a.test.mjs"/>
+		<testcase name="fails" time="0.001020" classname="math" file="/proj/a.test.mjs" failure="Expected values to be strictly deep-equal:&#10;+ actual - expected&#10;&#10;  {&#10;+   a: 1&#10;-   a: 2&#10;  }&#10;">
+			<failure type="testCodeFailure" message="Expected values to be strictly deep-equal:&#10;+ actual - expected&#10;&#10;  {&#10;+   a: 1&#10;-   a: 2&#10;  }">
+Error [ERR_TEST_FAILURE]: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
++   a: 1
+-   a: 2
+  }
+
+    at async Promise.all (index 0) {
+  code: 'ERR_TEST_FAILURE',
+  failureType: 'testCodeFailure',
+  cause: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   a: 1
+  -   a: 2
+    }
+  
+      at TestContext.&lt;anonymous> (file:///proj/a.test.mjs:5:30)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1905:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { a: 1 },
+    expected: { a: 2 },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+}
+			</failure>
+		</testcase>
+		<testcase name="skipped" time="0.000046" classname="math" file="/proj/a.test.mjs">
+			<skipped type="skipped" message="true"/>
+		</testcase>
+		<testsuite name="inner" time="0.000113" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-30T11:11:01.681Z" hostname="host">
+			<testcase name="deep" time="0.000047" classname="math.inner" file="/proj/a.test.mjs"/>
+		</testsuite>
+	</testsuite>
+	<testcase name="top" time="0.000036" classname="test" file="/proj/a.test.mjs"/>
+	<testcase name="throws" time="0.000032" classname="test" file="/proj/a.test.mjs" failure="boom">
+		<failure type="testCodeFailure" message="boom">
+[Error [ERR_TEST_FAILURE]: boom] {
+  code: 'ERR_TEST_FAILURE',
+  failureType: 'testCodeFailure',
+  cause: Error: boom
+      at TestContext.&lt;anonymous> (file:///proj/a.test.mjs:10:30)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+}
+		</failure>
+	</testcase>
+	<!-- tests 6 -->
+	<!-- suites 2 -->
+	<!-- pass 3 -->
+	<!-- fail 2 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 1 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 53.0615 -->
+</testsuites>
