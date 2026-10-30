@@ -334,6 +334,27 @@
   });
   out.guard = results.guard;
 
+  // --- turning the package off closes its tabs; back on, it works again ----------------------------
+  await step('toggle', async () => {
+    await closeAll();
+    await ws.open(notes);
+    await app.commands.run('local-history:show');
+    await until(() => side('cm-merge-a'));
+    document.querySelector('.lh-actions .btn:not(.primary)').click(); // Open
+    await until(() => ws.allItems().some((i) => i.type === 'local-history-snapshot'));
+    const ours = () => ws.allItems().filter((i) => i.type === 'local-history' || i.type === 'local-history-snapshot').length;
+    const before = ours();
+    await app.packages.setEnabled('local-history', false);
+    await wait(100);
+    const after = ours();
+    await app.packages.setEnabled('local-history', true);
+    await until(() => app.commands.has('local-history:show'));
+    await app.commands.run('local-history:show');
+    const reopened = !!(await until(() => side('cm-merge-a')));
+    return { before, after, reopened };
+  });
+  out.toggle = results.toggle;
+
   // --- leave the view open for the screenshot ---------------------------------------------------------
   await closeAll();
   await ws.open(notes);

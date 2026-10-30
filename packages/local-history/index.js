@@ -117,6 +117,9 @@ export function activate(mide) {
 
   // --- the history view --------------------------------------------------------------
   const views = new Map(); // path -> HistoryView
+  const snapshots = new Set(); // open SnapshotItems
+  // Turning the package off closes its tabs (their timers and listeners go with them).
+  mide.subscriptions.add({ dispose: () => { for (const item of [...views.values(), ...snapshots]) ws.closeItem(item); } });
 
   class HistoryView {
     constructor(path) {
@@ -264,6 +267,7 @@ export function activate(mide) {
       this.path = path;
       this.version = version;
       this.body = h('div.lh-snapshot-body');
+      snapshots.add(this);
       this.element = h('div.lh-snapshot', { tabIndex: -1 },
         h('div.lh-snapshot-note', `Read-only version of ${path} from ${when(version.time)} (${ago(version.time)})${version.label ? ` · ${version.label}` : ''}`),
         this.body);
@@ -290,7 +294,7 @@ export function activate(mide) {
     isDirty() { return false; }
     focus() { this.view?.focus(); }
     serialize() { return null; }
-    destroy() { this.gone = true; this.view?.destroy(); }
+    destroy() { this.gone = true; this.view?.destroy(); snapshots.delete(this); }
   }
 
   async function openSnapshot(path, version) {
