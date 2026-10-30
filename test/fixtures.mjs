@@ -268,6 +268,64 @@ function lhproj(root) {
 }
 
 /**
+ * `mcproj`: a real repository in the middle of a merge. `master` and `feature` edited the same
+ * lines, so a real merge of `feature` left conflict markers (mergeConflicts):
+ *   app.js (2 conflicts), three.txt (3), crlf.txt (CRLF, 1), diff3.txt (diff3 style, with a base section),
+ *   resolve.txt (1; the suite resolves it by hand and stages it).
+ * `clean.txt` merged without a conflict. `tricky.txt` is untracked and only looks like it has markers
+ * (indented markers, a marker inside a string, a block that never closes) plus one real conflict.
+ */
+function mcproj(root) {
+  const d = path.join(root, 'mcproj');
+  gitInit(d, 'Merge', 'merge@example.com');
+  git(d, 'config', 'core.autocrlf', 'false');
+  const base = {
+    'app.js': ['// app', 'function a() {', '  return 1;', '}', "const mid = 'middle';", '// padding 1', '// padding 2', '// padding 3', '// padding 4', '// padding 5', 'function b() {', '  return 2;', '}', '// end', ''].join('\n'),
+    'three.txt': ['head', 'one', ...Array.from({ length: 6 }, (_, i) => `gap a${i}`), 'two', ...Array.from({ length: 6 }, (_, i) => `gap b${i}`), 'three', 'tail', ''].join('\n'),
+    'crlf.txt': 'first\r\nsecond\r\nthird\r\n',
+    'diff3.txt': 'x\nbase value\ny\n',
+    'resolve.txt': 'keep\nchange me\nkeep too\n',
+    'clean.txt': 'top\nmiddle\nbottom\n',
+  };
+  for (const [name, text] of Object.entries(base)) write(path.join(d, name), text);
+  commitAll(d, 'base');
+  const edit = (side) => {
+    for (const [name, text] of Object.entries(base)) {
+      let next = text;
+      if (name === 'app.js') next = text.replace('return 1;', `return ${side === 'ours' ? 10 : 100};`).replace('return 2;', `return ${side === 'ours' ? 20 : 200};`);
+      else if (name === 'three.txt') next = text.replace('one', `one ${side}`).replace('two', `two ${side}`).replace('three', `three ${side}`);
+      else if (name === 'crlf.txt') next = text.replace('second', `second ${side}`);
+      else if (name === 'diff3.txt') next = text.replace('base value', `${side} value`);
+      else if (name === 'resolve.txt') next = text.replace('change me', `${side} changed it`);
+      else if (name === 'clean.txt' && side === 'theirs') next = text.replace('bottom', 'bottom edited');
+      write(path.join(d, name), next);
+    }
+    commitAll(d, `${side} edits`);
+  };
+  git(d, 'checkout', '-q', '-b', 'feature');
+  edit('theirs');
+  git(d, 'checkout', '-q', 'master');
+  edit('ours');
+  try { git(d, '-c', 'merge.conflictStyle=merge', 'merge', '--no-edit', 'feature'); } catch { /* the conflicts are the point */ }
+  git(d, 'checkout', '--conflict=diff3', '--', 'diff3.txt');
+  write(path.join(d, 'tricky.txt'), [
+    'const note = "<<<<<<< not a marker";',
+    '  <<<<<<< indented, so not a marker',
+    '  ======= neither is this',
+    '<<<<<<<not a marker either, no space',
+    '<<<<<<< lost',
+    'this block never closes',
+    '<<<<<<< HEAD',
+    'current',
+    '=======',
+    'incoming',
+    '>>>>>>> topic',
+    'after',
+    '',
+  ].join('\n'));
+}
+
+/**
  * `outlineproj`: symbols in JavaScript, Markdown, Python, CSS and JSON (from the syntax tree) and a
  * TypeScript file served by the fake language server (test/fake-lsp.mjs), which the `outlineh` home
  * configures in place of typescript-language-server (outline).
@@ -497,12 +555,13 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   cimproj(root);
   dbgproj(root);
   lhproj(root);
+  mcproj(root);
   outlineproj(root);
   vsc(root);
   aiproj(root);
   remote(root);
   multiRoot(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih', 'dbgh', 'vsih', 'sync1', 'sync2', 'aih', 'remoteh', 'lhh', 'pkgbh', 'outlineh']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih', 'dbgh', 'vsih', 'sync1', 'sync2', 'aih', 'remoteh', 'lhh', 'pkgbh', 'outlineh', 'mch']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 
