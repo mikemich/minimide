@@ -105,7 +105,7 @@ export function activate(mide) {
     destroy() { instances.delete(this); clearTimeout(this.timer); }
   }
 
-  mide.editor.addExtension(ViewPlugin.fromClass(Hints, { decorations: (p) => p.decorations }));
+  mide.editor.addExtension(ViewPlugin.fromClass(Hints, { decorations: (p) => p.decorations }), { largeFiles: false });
 
   /** Ask again in every editor (or only those served by `client`). */
   function refresh(client) {

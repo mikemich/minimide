@@ -14,6 +14,7 @@ import { Trust } from './core/trust.js';
 import { wordCompletion } from './core/word-completion.js';
 import { symbolTracker } from './core/symbols.js';
 import { diagnosticsTracker } from './core/diagnostics.js';
+import { bindLargeFiles } from './core/large-files.js';
 import { Navigation } from './core/navigation.js';
 import { editorContextMenu } from './core/editor-menu.js';
 import { pasteImage } from './core/paste-image.js';
@@ -91,6 +92,7 @@ class App {
 
     this.keymap.add(CORE_KEYMAP, 'core');
     registerCoreCommands(this);
+    bindLargeFiles(this);
     this.bindMenuAccelerators();
     this.keyHints = bindKeyHints(this);
     this.welcomeCard = bindWelcomeTips(this);

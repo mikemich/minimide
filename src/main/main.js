@@ -14,7 +14,7 @@ import { createVscodeReader } from './vscode.js';
 import { createSecrets, createGist } from './sync.js';
 import { registerAi } from './ai.js';
 import { createRemoteSsh } from './remote-ssh.js';
-import { decodeText, encodeText } from './text-encoding.js';
+import { decodeText, encodeText, looksBinary } from './text-encoding.js';
 import dns from 'node:dns/promises';
 import net_ from 'node:net';
 
@@ -520,7 +520,13 @@ function registerIpc() {
   // filesystem
   handle('fs:read', (_e, p) => fs.readFile(p, 'utf8'));
   // A text file for the editor: { text, encoding, bom } (see text-encoding.js), so saving can write it back as it was.
-  handle('fs:readText', async (_e, p) => decodeText(await fs.readFile(p)));
+  // `sniff` answers { binary: true } for a binary file without decoding it; `maxBytes` refuses a bigger file unread.
+  handle('fs:readText', async (_e, p, { sniff = false, maxBytes = 0 } = {}) => {
+    const size = maxBytes ? (await fs.stat(p)).size : 0;
+    if (size > maxBytes) throw new Error(`It is ${Math.round(size / 1048576)} MB; the largest file Minimide opens is ${Math.round(maxBytes / 1048576)} MB.`);
+    const buf = await fs.readFile(p);
+    return sniff && looksBinary(buf) ? { binary: true } : decodeText(buf);
+  });
   // `options` ({ encoding, bom }) writes in the file's own encoding. Returns the encoding that was used,
   // which is UTF-8 when the text has characters the requested one can't hold.
   handle('fs:write', async (_e, p, data, options) => {

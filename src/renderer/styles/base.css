@@ -594,3 +594,4 @@ body.zen .editor-item .cm-content { max-width: 860px; margin: 0 auto; }
 .cm-scroller::-webkit-scrollbar-thumb, .tree-list::-webkit-scrollbar-thumb, .fip-results::-webkit-scrollbar-thumb { background: transparent; background-clip: content-box; }
 .cm-scroller:hover::-webkit-scrollbar-thumb, .tree-list:hover::-webkit-scrollbar-thumb, .fip-results:hover::-webkit-scrollbar-thumb { background: var(--scrollbar); background-clip: content-box; }
 .restricted-mode { color: var(--warn); font-weight: 500; }
+.large-file-item { color: var(--warn); }

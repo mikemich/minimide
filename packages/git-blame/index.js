@@ -96,7 +96,8 @@ export function activate(mide) {
     if (!editor?.view || !mide.config.get('git-blame.inline')) return;
     const path = editor.getPath();
     // Blame describes the file on disk, so line numbers only match when there are no unsaved edits.
-    if (!path || editor.isDirty() || !editor.view.hasFocus) return;
+    // Not in a large file: git reads all of it for every line asked about.
+    if (!path || editor.isDirty() || !editor.view.hasFocus || mide.editor.isLargeFile(editor)) return;
     const { state } = editor.view;
     const line = state.doc.lineAt(state.selection.main.head);
     if (!state.selection.main.empty || !line.text.trim()) return;

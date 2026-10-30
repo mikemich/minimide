@@ -156,7 +156,8 @@ mide.workspace.onDidOpenItem((item, pane) => …);
 mide.workspace.onDidCloseItem((item, pane) => …);
 mide.workspace.onDidOpenDocument((doc) => …);   // a file is loaded (once, however many tabs show it)
 mide.workspace.onDidCloseDocument((doc) => …);  // its last tab closed
-mide.workspace.getDocuments();                   // open Documents: { path, getText(), primaryView(), views, on('path') }
+mide.workspace.onDidChangeLargeFile((doc) => …); // a large file's features were turned on (see Large files)
+mide.workspace.getDocuments();                   // open Documents: { path, large, getText(), primaryView(), views, on('path') }
 mide.workspace.addOpener((path) => customItemOrNull);  // e.g. an image viewer
 ```
 
@@ -167,7 +168,7 @@ all of them, use `folders`, and for anything that runs in a folder (a terminal, 
 
 **EditorItem**: `getPath()`, `getTitle()`, `getText()`, `getSelectedText()`,
 `insertText(s)`, `goToLine(line, col)`, `getCursor()`, `getLanguageName()`,
-`isDirty()`, and `view`, the underlying CodeMirror
+`isDirty()`, `isLarge()` (see [Large files](#large-files)), and `view`, the underlying CodeMirror
 [EditorView](https://codemirror.net/docs/ref/#view.EditorView).
 
 ### Custom pane items
@@ -222,6 +223,32 @@ mide.editor.registerLanguage({
   load: async () => myLanguageSupport,
 });
 ```
+
+#### Large files
+
+A file over `editor.largeFileSize` MB, or with a line over 200 KB, opens as a large file: editable, but
+without a language (no parse, highlighting or folding), bracket matching or word completion, and the
+built-in packages leave it alone (no minimap, git markers, language server, symbols, history versions…).
+Do the same for anything that costs more as the file grows: work over the whole text, a marker per line,
+sending the text somewhere. **Turn features on anyway** makes the file normal again, for the rest of the
+time it is open.
+
+```js
+// Simplest: leave an extension out of large files' editors. It is added if their features are turned on.
+mide.editor.addExtension(myMinimap, { largeFiles: false });
+
+// Or ask: an EditorItem, a Document, an EditorView or an EditorState.
+if (mide.editor.isLargeFile(editor)) return;
+
+// Inside an extension, the facet behind it (it changes when features are turned on, so compare in update()):
+const { largeFile } = mide.editor;
+update(u) { if (u.startState.facet(largeFile) !== u.state.facet(largeFile)) this.rebuild(u.view); }
+
+// A large file's features were turned on: start what you skipped for it.
+mide.workspace.onDidChangeLargeFile((doc) => { for (const editor of doc.views) refresh(editor); });
+```
+
+Sandboxed packages get `large` in `mide.workspace.getActiveEditor()`.
 
 Popular add-ons are bundled against the same CodeMirror and load on demand:
 
@@ -570,7 +597,7 @@ export async function activate(mide) {
   mide.config.get('word-goal.target', 500); await mide.config.set('word-goal.target', 800);
   mide.config.observe('word-goal.target', (v) => {});
 
-  await mide.workspace.getActiveEditor();   // { path, language, dirty } or null
+  await mide.workspace.getActiveEditor();   // { path, language, dirty, large } or null
   mide.workspace.onDidChangeActiveEditor((info) => {});
   mide.workspace.onDidSave(({ path }) => {});
   mide.workspace.onDidChangeProject((root) => {}); mide.workspace.onDidChangeFolders((folders) => {});

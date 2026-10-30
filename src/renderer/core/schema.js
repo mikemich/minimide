@@ -32,4 +32,5 @@ export const CORE_SCHEMA = {
   'editor.spellcheck': { type: 'boolean', default: true, title: 'Spell Check', description: 'Underline misspelled words in Markdown and plain text files. Right-click one for suggestions.' },
   'editor.trimTrailingWhitespace': { type: 'boolean', default: false, title: 'Trim Trailing Whitespace on Save' },
   'editor.ensureFinalNewline': { type: 'boolean', default: false, title: 'Ensure Final Newline on Save' },
+  'editor.largeFileSize': { type: 'number', default: 10, title: 'Large File Size (MB)', description: 'Bigger files, and files with a line over 200 KB, open with syntax highlighting, git markers, the language server and other heavy features off. 0 turns this off.' },
 };

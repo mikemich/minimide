@@ -4,6 +4,7 @@
 import { ViewPlugin, Decoration } from '@codemirror/view';
 import { RangeSetBuilder } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
+import { largeFile } from './large-files.js';
 
 const LEVELS = 6;
 // Counting from the top of a very large file on every scroll would be too slow.
@@ -23,7 +24,7 @@ function inStringOrComment(tree, pos) {
 function build(view) {
   const builder = new RangeSetBuilder();
   const { state } = view;
-  if (state.doc.length > MAX_LENGTH) return builder.finish();
+  if (state.doc.length > MAX_LENGTH || state.facet(largeFile)) return builder.finish();
   const { from, to } = view.viewport;
   const tree = syntaxTree(state);
   const text = state.sliceDoc(0, to);
@@ -47,7 +48,8 @@ export const bracketPairColors = ViewPlugin.fromClass(class {
   constructor(view) { this.decorations = build(view); }
 
   update(update) {
-    if (update.docChanged || update.viewportChanged || syntaxTree(update.startState) !== syntaxTree(update.state)) {
+    if (update.docChanged || update.viewportChanged || syntaxTree(update.startState) !== syntaxTree(update.state)
+      || update.startState.facet(largeFile) !== update.state.facet(largeFile)) {
       this.decorations = build(update.view);
     }
   }

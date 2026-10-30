@@ -15,6 +15,12 @@ function reverseTable() {
   return cp1252Reverse;
 }
 
+/** A NUL byte near the start of a file that isn't UTF-16 means binary, so it isn't decoded at all. */
+export function looksBinary(buf) {
+  if ((buf[0] === 0xff && buf[1] === 0xfe) || (buf[0] === 0xfe && buf[1] === 0xff)) return false;
+  return buf.subarray(0, 8000).includes(0);
+}
+
 /** Decodes file bytes: { text, encoding: 'utf8' | 'utf16le' | 'utf16be' | 'windows-1252', bom }. */
 export function decodeText(buf) {
   if (buf[0] === 0xff && buf[1] === 0xfe && !((buf.length - 2) % 2)) return { text: buf.subarray(2).toString('utf16le'), encoding: 'utf16le', bom: true };
@@ -39,6 +45,8 @@ export function encodeText(text, { encoding = 'utf8', bom = false } = {}) {
     const out = Buffer.alloc(text.length);
     let ok = true;
     for (let i = 0; i < text.length; i++) {
+      const c = text.charCodeAt(i);
+      if (c < 0x80) { out[i] = c; continue; } // ASCII is the same byte: skip the lookup, a big file is mostly that
       const b = table.get(text[i]);
       if (b === undefined) { ok = false; break; }
       out[i] = b;

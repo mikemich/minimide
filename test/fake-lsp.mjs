@@ -11,11 +11,17 @@
 //
 // Saving the file switches the type hints to `: int` and sends workspace/inlayHint/refresh, to
 // check the client asks again. Everything it is asked is logged to the JSON file named by argv[2].
+// Every server also appends one JSON line per start, didOpen, didClose and exit to `<argv[2]>.events`
+// ({ pid, event, file? }), so a test can count the servers running and what each one has open.
 import fs from 'node:fs';
 
 const logFile = process.argv[2];
 const log = { initialize: null, inlayRequests: [], symbolRequests: 0, refreshes: 0 };
 const save = () => { if (logFile) fs.writeFileSync(logFile, JSON.stringify(log, null, 2)); };
+const event = (name, uri) => { if (logFile) fs.appendFileSync(`${logFile}.events`, JSON.stringify({ pid: process.pid, event: name, ...(uri ? { file: decodeURIComponent(uri.split('/').pop()) } : {}) }) + '\n'); };
+event('start');
+process.on('exit', () => event('exit'));
+for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => process.exit(0));
 const docs = new Map(); // uri -> text
 const flagged = new Set(); // uris with diagnostics published
 let typeName = 'number';
@@ -129,9 +135,9 @@ function handle(msg) {
       return send({ id, result: { capabilities: { textDocumentSync: 1, documentSymbolProvider: true, inlayHintProvider: true }, serverInfo: { name: 'fake-lsp', version: '1.0' } } });
     case 'shutdown': return send({ id, result: null });
     case 'exit': process.exit(0); return;
-    case 'textDocument/didOpen': docs.set(params.textDocument.uri, params.textDocument.text); return publishDiagnostics(params.textDocument.uri);
+    case 'textDocument/didOpen': docs.set(params.textDocument.uri, params.textDocument.text); event('open', params.textDocument.uri); return publishDiagnostics(params.textDocument.uri);
     case 'textDocument/didChange': docs.set(params.textDocument.uri, params.contentChanges.at(-1).text); return publishDiagnostics(params.textDocument.uri);
-    case 'textDocument/didClose': docs.delete(params.textDocument.uri); return;
+    case 'textDocument/didClose': docs.delete(params.textDocument.uri); event('close', params.textDocument.uri); return;
     case 'textDocument/didSave':
       typeName = 'int';
       log.refreshes++;

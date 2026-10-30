@@ -2,8 +2,7 @@
 import { Emitter, Disposable } from './events.js';
 import { h, icon, fileIcon, basename } from './dom.js';
 import { Document, EditorItem, BinaryItem, bindEditorConfig } from './editor.js';
-
-const MAX_TEXT_SIZE = 8 * 1024 * 1024;
+import { MAX_OPEN_SIZE, isLargeText, hasLongLine, formatSize } from './large-files.js';
 
 /** A row or column of panes (or of further splits). Each child has a `flex` share of the space. */
 class Split {
@@ -752,12 +751,24 @@ export class Workspace extends Emitter {
     if (stat && !stat.isFile) return null;
     let text = '';
     let meta = {};
+    let large = false;
+    let longLines = false;
     if (stat) {
-      if (stat.size > MAX_TEXT_SIZE) return new BinaryItem(path);
-      try { ({ text, ...meta } = await window.native.fs.readText(path)); } catch (err) { this.ui.notify.error(`Could not open ${basename(path)}`, err.message); return null; }
-      if (text.slice(0, 8000).includes('\u0000')) return new BinaryItem(path);
+      // Refused before reading: a string that big can't be built, and trying would freeze the window.
+      if (stat.size > MAX_OPEN_SIZE) {
+        this.ui.notify.error(`${basename(path)} is too large to open`, `It is ${formatSize(stat.size)}; the largest file Minimide opens is ${formatSize(MAX_OPEN_SIZE)}.`);
+        return new BinaryItem(path, `This file is ${formatSize(stat.size)}, too large to open here (the limit is ${formatSize(MAX_OPEN_SIZE)}).`);
+      }
+      let read;
+      try { read = await window.native.fs.readText(path, { sniff: true, maxBytes: MAX_OPEN_SIZE }); } catch (err) { this.ui.notify.error(`Could not open ${basename(path)}`, err.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); return null; }
+      if (read.binary || read.text.slice(0, 8000).includes('\u0000')) return new BinaryItem(path);
+      ({ text, ...meta } = read);
+      large = isLargeText(text, stat.size, this.config.get('editor.largeFileSize'));
+      longLines = large && hasLongLine(text);
     }
-    const doc = new Document(path, text, meta);
+    const doc = new Document(path, text, { ...meta, large, longLines });
+    doc.size = stat?.size || 0;
+    doc.on('large', () => this.emit('large-file-changed', doc));
     this.documents.set(path, doc);
     this.emit('document-opened', doc);
     return doc;
@@ -829,6 +840,7 @@ export class Workspace extends Emitter {
       try { await hook(item); } catch (err) { console.error('[save hook]', err); }
     }
     const text = doc.getTextForSave();
+    const saving = doc.primaryView()?.state.doc;
     try {
       this.selfWrites.set(doc.path, Date.now());
       // Files that aren't plain UTF-8 are written back the way they were read.
@@ -837,7 +849,7 @@ export class Workspace extends Emitter {
         doc.encoding = used;
         this.ui.notify.warn(`${doc.title} is now saved as UTF-8`, "It had characters its old encoding can't hold.");
       }
-      doc.markSaved(text);
+      doc.markSaved(text, saving);
       this.activePane.pin(item);
       this.emit('did-save', item, { auto: !!opts.auto });
       return true;
@@ -955,12 +967,14 @@ export class Workspace extends Emitter {
   }
 
   // --- editor extensions ---------------------------------------------------
-  addEditorExtension(ext) {
-    this.extensions.add(ext);
+  /** `largeFiles: false` leaves the extension out of large files' editors (until their features are turned on). */
+  addEditorExtension(ext, { largeFiles = true } = {}) {
+    const entry = { ext, largeFiles };
+    this.extensions.add(entry);
     this.emit('editor-extensions-changed');
-    return new Disposable(() => { this.extensions.delete(ext); this.emit('editor-extensions-changed'); });
+    return new Disposable(() => { this.extensions.delete(entry); this.emit('editor-extensions-changed'); });
   }
-  editorExtensions() { return [...this.extensions]; }
+  editorExtensions(large = false) { return [...this.extensions].filter((e) => e.largeFiles || !large).map((e) => e.ext); }
 
   // --- session -------------------------------------------------------------
   serialize() {

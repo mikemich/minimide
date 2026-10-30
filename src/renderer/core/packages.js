@@ -13,6 +13,7 @@ import { Emitter, Disposable } from './events.js';
 import { h, icon, fileIcon, registerIcon, basename, dirname } from './dom.js';
 import { fuzzyFilter, fuzzyMatch, highlightMatches } from './fuzzy.js';
 import { registerLanguage, detectLanguage, createPreviewView, richHighlighter } from './editor.js';
+import { largeFile, isLargeFile } from './large-files.js';
 import { packageUrl } from './urls.js';
 import { prettyBinding, normalizeBinding } from './keymap.js';
 import { parseJSONC } from './config.js';
@@ -426,10 +427,13 @@ export class PackageManager extends Emitter {
         onDidCloseItem: (fn) => track(ws.on('item-removed', fn)),
         onDidOpenDocument: (fn) => track(ws.on('document-opened', fn)),
         onDidCloseDocument: (fn) => track(ws.on('document-closed', fn)),
+        /** A large file's heavy features were turned on ("Turn features on anyway"): (doc). */
+        onDidChangeLargeFile: (fn) => track(ws.on('large-file-changed', fn)),
         getDocuments: () => [...ws.documents.values()],
       },
       editor: {
-        addExtension: (ext) => track(ws.addEditorExtension(ext)),
+        /** `{ largeFiles: false }` leaves it out of large files' editors (see isLargeFile). */
+        addExtension: (ext, opts) => track(ws.addEditorExtension(ext, opts)),
         registerLanguage: (desc) => track(registerLanguage(desc)),
         /** LanguageSupport for a file path (loads the grammar), or null. */
         languageFor: async (path) => { const d = detectLanguage(path); return d ? d.support || d.load() : null; },
@@ -442,6 +446,10 @@ export class PackageManager extends Emitter {
         convertSnippet: (text, resolveVariable) => convertSnippet(text, resolveVariable),
         /** A small read-only, highlighted EditorView of `text`, scrolled to `line`. Destroy it when done. */
         createPreview: ({ text, path, line, parent, extensions }) => createPreviewView({ text, path, line, parent, extensions, config: app.config }),
+        /** Whether an editor, document, EditorView or EditorState is a large file with its heavy features off. */
+        isLargeFile,
+        /** The facet behind it, for extensions: `state.facet(largeFile)`. */
+        largeFile,
       },
       cm,
       ui: {

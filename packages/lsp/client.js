@@ -105,7 +105,7 @@ export class LspClient {
   }
 
   async stop() {
-    if (this.state === 'stopped') return;
+    if (this.state === 'stopped' || this.stopping) return;
     this.stopping = true;
     try {
       if (this.state === 'ready') await this.request('shutdown', null, { timeout: 1500 });

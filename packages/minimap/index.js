@@ -19,7 +19,7 @@ export async function activate(mide) {
       displayText: mide.config.get('minimap.display'),
       showOverlay: mide.config.get('minimap.showOverlay'),
     };
-    ext = mide.editor.addExtension(showMinimap.compute([], () => config));
+    ext = mide.editor.addExtension(showMinimap.compute([], () => config), { largeFiles: false });
   };
 
   mide.config.onDidChange('minimap.display', apply);

@@ -60,7 +60,7 @@ export function activate(mide) {
       instances.add(this);
       this.onScroll = () => { if (!this.frame) this.frame = requestAnimationFrame(() => { this.frame = 0; this.render(); }); };
       view.scrollDOM.addEventListener('scroll', this.onScroll, { passive: true });
-      this.render();
+      this.onScroll(); // next frame: a plugin added to a live editor is made during an update, when layout can't be read
     }
     update(u) { if (u.docChanged || u.geometryChanged || u.viewportChanged || syntaxTree(u.startState) !== syntaxTree(u.state)) this.onScroll(); }
     destroy() { instances.delete(this); this.view.scrollDOM.removeEventListener('scroll', this.onScroll); cancelAnimationFrame(this.frame); this.dom.remove(); }
@@ -131,7 +131,7 @@ export function activate(mide) {
     clear() { this.key = ''; this.dom.hidden = true; this.dom.replaceChildren(); }
   }
 
-  mide.editor.addExtension(ViewPlugin.fromClass(Sticky));
+  mide.editor.addExtension(ViewPlugin.fromClass(Sticky), { largeFiles: false }); // a header line could be megabytes
   mide.config.onDidChange('sticky-scroll.maxLines', () => { for (const s of instances) { s.key = ''; s.render(); } });
 
   mide.styles.add(`
