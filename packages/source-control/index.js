@@ -70,6 +70,7 @@ export function activate(mide) {
       }
     }
     Object.assign(state, { staged, changes, conflicts });
+    for (const p of offered) if (!conflicts.some((e) => e.path === p)) offered.delete(p);
     render();
     for (const d of diffs) d.reload();
   }
@@ -253,7 +254,7 @@ export function activate(mide) {
     const name = entry.path.slice(slash + 1);
     const dir = slash > 0 ? entry.path.slice(0, slash) : '';
     const btn = (title, label, fn) => h('button.icon-btn', { title, disabled: state.busy, onclick: (e) => { e.stopPropagation(); fn(); } }, label);
-    const open = btn('Open File', icon('file', 13), () => openFile(entry));
+    const open = btn(kind === 'conflict' ? 'Open at First Conflict' : 'Open File', icon('file', 13), () => (kind === 'conflict' ? openConflict(entry) : openFile(entry)));
     const actions = kind === 'staged'
       ? [open, btn('Unstage', '−', () => unstage([entry]))]
       : kind === 'conflict'
@@ -261,7 +262,7 @@ export function activate(mide) {
         : [open, btn('Discard Changes', '↺', () => discard([entry])), btn('Stage', '+', () => stage([entry.path]))];
     return h('div.sc-row', {
       title: `${entry.path} · ${LABELS[entry.code] || entry.code}${entry.orig ? ` (from ${entry.orig})` : ''}`,
-      onclick: () => (kind === 'conflict' ? openFile(entry) : openDiff(entry, kind)),
+      onclick: () => (kind === 'conflict' ? openConflict(entry) : openDiff(entry, kind)),
       oncontextmenu: async (ev) => {
         ev.preventDefault();
         const choice = await mide.ui.contextMenu([
@@ -272,7 +273,7 @@ export function activate(mide) {
           { type: 'separator' }, { id: 'reveal', label: 'Reveal in Finder' },
         ]);
         if (choice === 'diff') openDiff(entry, kind);
-        else if (choice === 'open') openFile(entry);
+        else if (choice === 'open') (kind === 'conflict' ? openConflict(entry) : openFile(entry));
         else if (choice === 'stage') stage([entry.path]);
         else if (choice === 'unstage') unstage([entry]);
         else if (choice === 'discard') discard([entry]);
@@ -283,6 +284,23 @@ export function activate(mide) {
   }
 
   function openFile(entry, root) { if (entry.code !== 'D') mide.workspace.open(abs(entry.path, root)); }
+  // A conflicted file opens at its first conflict (the merge-conflicts package does the jump).
+  async function openConflict(entry) {
+    const item = await mide.workspace.open(abs(entry.path));
+    mide.services.get('merge-conflicts')?.revealFirst(item);
+  }
+
+  // Once the last conflict marker is gone and the file is saved, offer to stage it.
+  const offered = new Set();
+  mide.workspace.onDidSave((editor) => {
+    const path = editor.getPath?.();
+    const rel = path && state.root && path.startsWith(`${state.root}/`) ? path.slice(state.root.length + 1) : null;
+    if (!rel || !state.conflicts.some((e) => e.path === rel) || offered.has(rel)) return;
+    const text = editor.getText();
+    if (/^(<{7}|>{7})(?: |$)/m.test(text)) return;
+    offered.add(rel);
+    mide.notify.info(`No conflict markers left in ${mide.path.basename(rel)}`, 'Mark it as resolved to stage it.', { actions: [{ label: 'Mark as resolved', run: () => stage([rel]) }] });
+  });
 
   // --- diff view -----------------------------------------------------------
   async function textAt(ref, path, root = state.root) {
