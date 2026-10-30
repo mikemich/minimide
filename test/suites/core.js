@@ -10,6 +10,8 @@
   const until = async (fn, ms = 8000) => { const t = Date.now(); while (Date.now() - t < ms) { let v; try { v = await fn(); } catch {} if (v) return v; await wait(80); } return null; };
   const key = (code, key, mods = {}) => window.dispatchEvent(new KeyboardEvent('keydown', { code, key, bubbles: true, cancelable: true, ...mods }));
   const root = await until(() => ws.project);
+  // init.js runs after the project opens; the body gets `ready` once it has.
+  await until(() => document.body.classList.contains('ready'));
   const out = {};
   out.helloActivated = window.__hello; out.init = window.__init;
   // chord: Mod-k Mod-h, bound by the user package
