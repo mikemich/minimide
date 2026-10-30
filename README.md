@@ -163,6 +163,10 @@ Forgot one? Hold `⌘` for a moment and every shortcut on screen gets a label: t
 
 On Linux and Windows, read `⌘` as `Ctrl`. Every binding can be changed in `keymap.json`.
 
+### Keyboard and screen readers
+
+Everything works without a mouse and is labelled for VoiceOver, NVDA and Orca: the file tree is a tree (arrows to move and expand, `Shift+F10` for its menu), tabs and sidebar views are tab lists (arrows, `Home`, `End`; `Delete` closes a tab), the command box is a combobox over a list of results, dialogs keep focus inside and give it back, and errors are announced. `⌘⌥N` puts the keyboard on the newest notification. Tabs move with *Move Tab Left / Right* and *Move Tab to Next Pane*, and the dividers resize with the arrow keys. Keyboard focus is drawn as a ring in the theme's accent color, and animations are skipped when the system asks for reduced motion.
+
 ## What's included
 
 | Package | What it does |

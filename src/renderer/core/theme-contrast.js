@@ -1,5 +1,6 @@
 // Makes a theme's secondary text readable: --fg-muted at 4.5:1 and --fg-subtle at 3:1 against each
-// panel background, and --accent-fg on --accent where a better choice exists. Shared by
+// panel background, --accent-fg on --accent where a better choice exists, and the keyboard focus ring
+// (--focus-ring, else the accent) at 3:1 against each panel background. Shared by
 // scripts/theme-contrast.mjs (all built-in themes) and Import from VS Code (converted themes).
 // Faint text is blended toward the theme's own --fg-strong, so the hue stays.
 const hex = (s) => { const m = /^#([0-9a-f]{6})$/i.exec(s?.trim() || ''); return m ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : null; };
@@ -33,6 +34,19 @@ export function fixThemeContrast(source) {
     if (ratio(accentFg, accent) < 4.5 && ratio(other, accent) >= 4.5) {
       changes.push(`--accent-fg ${v('--accent-fg')} -> ${toHex(other)} (${ratio(accentFg, accent).toFixed(2)} -> ${ratio(other, accent).toFixed(2)})`);
       css = css.replace(/(--accent-fg:\s*)#[0-9a-f]{6}/i, `$1${toHex(other)}`);
+    }
+  }
+  // The focus ring is drawn in --focus-ring, falling back to the accent. When the accent is too faint to
+  // see on a panel, a stronger --focus-ring is added rather than recoloring the whole theme.
+  const ring = hex(v('--focus-ring')) || accent;
+  if (ring && strong) {
+    const worst = (c) => Math.min(...bgs.map((b) => ratio(c, b)));
+    if (worst(ring) < 3) {
+      let t = 0, next = ring;
+      while (worst(next) < 3.05 && t < 1) { t += 0.01; next = mix(ring, strong, t); }
+      changes.push(`--focus-ring ${v('--focus-ring') || v('--accent')} -> ${toHex(next)} (${worst(ring).toFixed(2)} -> ${worst(next).toFixed(2)})`);
+      if (v('--focus-ring')) css = css.replace(/(--focus-ring:\s*)#[0-9a-f]{6}/i, `$1${toHex(next)}`);
+      else css = css.replace(/(--accent:\s*[^;]+;)/, `$1\n  --focus-ring: ${toHex(next)};`);
     }
   }
   return { css, changes };
