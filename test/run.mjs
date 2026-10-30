@@ -177,7 +177,7 @@ const SUITES = [
       readmeHeading: 'Goal Tracker', readmeBold: 'daily word goal', readmeCode: 'mide.commands.run("goal:set");',
       readmeImages: ['/_raw/ada/goal-tracker/main/docs/shot.png', '/_raw/ada/goal-tracker/main/x.png'], readmeImagePlaceholders: ['[Badge]', '[Pixel]'], readmeForeignRequests: [],
       readmeLinks: { CONTRIBUTING: 'https://github.com/ada/goal-tracker/blob/main/CONTRIBUTING.md', 'home page': 'https://example.com/goal', Install: '#install' },
-      readmeHasScript: false, readmeInlineHandlers: false, readmeXss: 'none', anchorStaysInApp: true, readmeRequests: 1,
+      readmeHasScript: false, readmeInlineHandlers: false, readmeAppClasses: [], readmeXss: 'none', anchorStaysInApp: true, readmeRequests: 1,
       backKeepsSearch: 'tracker', backKeepsList: ['goal-tracker'], backKeepsScroll: true, detailFetches: 1,
       fullAccessTitleBadges: ['full access'], fullAccessWarning: 'Needs full access', fullAccessPermissionRows: 0,
       problem: "This repository has no package.json at its root, so it can't be installed.", installDisabled: true,

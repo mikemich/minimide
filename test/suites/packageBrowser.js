@@ -95,6 +95,7 @@
   const links = Object.fromEntries(all('.pkg-readme a').map((a) => [text(a), a.getAttribute('href')]));
   out.readmeLinks = links;
   out.readmeHasScript = !!one('.pkg-readme script');
+  out.readmeAppClasses = all('.pkg-readme [class]').map((e) => e.className).filter((c) => !/^(language-|pkg-readme-img$)/.test(c));
   out.readmeInlineHandlers = all('.pkg-readme *').some((e) => [...e.attributes].some((a) => /^on/i.test(a.name)));
   await wait(300);
   out.readmeXss = window.__readmeXss ?? 'none';

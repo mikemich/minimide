@@ -130,6 +130,7 @@ const README_GOAL = [
   '```js', 'mide.commands.run("goal:set");', '```', '',
   '<script>window.__readmeXss = 1</script>',
   '<img src="x.png" onerror="window.__readmeXss = 2">', '',
+  '<div class="fatal key-hints">Minimide crashed</div>', '',
 ].join('\n');
 
 const FAKE_REPOS = {

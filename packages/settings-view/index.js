@@ -405,6 +405,12 @@ export function activate(mide) {
     // Fix up images and links in an inert document first: an <img> made in this one starts loading
     // straight away, so a README could make Minimide fetch from any server just by being viewed.
     const inert = new DOMParser().parseFromString(`<body>${clean}</body>`, 'text/html').body;
+    // The app's own class names could dress README content up as Minimide's UI (a fixed overlay, a
+    // crash screen): keep only the code-language classes Markdown adds.
+    for (const el of inert.querySelectorAll('[class]')) {
+      const keep = [...el.classList].filter((c) => /^language-[\w+#-]+$/.test(c));
+      if (keep.length) el.className = keep.join(' '); else el.removeAttribute('class');
+    }
     for (const img of inert.querySelectorAll('img')) {
       let url = null;
       try { url = resolveIn(d.rawBase, img.getAttribute('src') || ''); } catch {}
