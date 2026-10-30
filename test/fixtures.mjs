@@ -525,7 +525,7 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   remote(root);
   multiRoot(root);
   everyday(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih', 'dbgh', 'vsih', 'sync1', 'sync2', 'aih', 'remoteh', 'lhh', 'pkgbh', 'outlineh', 'evh']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih', 'dbgh', 'vsih', 'sync1', 'sync2', 'aih', 'remoteh', 'lhh', 'pkgbh', 'outlineh', 'evh', 'a11yh']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 

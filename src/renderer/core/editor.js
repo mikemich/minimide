@@ -188,6 +188,7 @@ export class EditorItem extends Emitter {
     this.workspace = workspace;
     this.langCompartment = compartments.language();
     this.spellCompartment = new Compartment();
+    this.labelCompartment = new Compartment();
     this.element = h('div.editor-item');
     document.views.add(this);
 
@@ -199,6 +200,7 @@ export class EditorItem extends Emitter {
       extensions: [
         this.langCompartment.of([]),
         this.spellCompartment.of([]),
+        this.labelCompartment.of(EditorView.contentAttributes.of({ 'aria-label': `Editor: ${document.title}` })),
         ...baseExtensions(ws),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) document.updateDirty();
@@ -227,7 +229,7 @@ export class EditorItem extends Emitter {
     });
 
     this.disposeDirty = document.on('dirty', () => this.emit('title-changed'));
-    this.disposePath = document.on('path', () => this.emit('title-changed'));
+    this.disposePath = document.on('path', () => { this.emit('title-changed'); this.view?.dispatch({ effects: this.labelCompartment.reconfigure(EditorView.contentAttributes.of({ 'aria-label': `Editor: ${document.title}` })) }); });
     this.applyLanguage();
   }
 

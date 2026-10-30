@@ -499,7 +499,7 @@ body.compact-tabs { --tab-height: 30px; }
   padding: 18px 22px 14px; background: var(--bg-elevated); border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg); box-shadow: var(--shadow); animation: drop-in 0.14s var(--ease);
 }
-.cheat-title { font-size: 1.15em; font-weight: 600; color: var(--fg-strong); margin-bottom: 12px; }
+.cheat-title { font-size: 1.15em; font-weight: 600; color: var(--fg-strong); margin: 0 0 12px; }
 .cheat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 6px 28px; }
 .cheat-section h3 { margin: 10px 0 4px; font-size: 0.78em; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
 .cheat-row {
@@ -572,8 +572,23 @@ body.zen .editor-item .cm-content { max-width: 860px; margin: 0 auto; }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+
+/* ------------------------------------------------------------------ accessibility */
+/* A visible focus ring for keyboard users. Themes can set --focus-ring; it defaults to the accent
+   (npm run test:themes checks that the accent reads at 3:1 against every panel background). */
+:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 2px; }
+.tab:focus-visible, .dock-tab:focus-visible, .status-item:focus-visible, .icon-btn:focus-visible, .tab-close:focus-visible,
+.tree-list:focus-visible, .outline-list:focus-visible, .btn:focus-visible, .settings-nav-item:focus-visible { outline-offset: -2px; }
+.cm-editor .cm-content:focus-visible, .cm-editor.cm-focused { outline: none; } /* the caret shows where you are */
+.select-input:focus-visible { outline: none; box-shadow: inset 0 -2px 0 var(--focus-ring, var(--accent)); }
+.input:focus-visible, .cheat-sheet:focus-visible, .select-list:focus-visible { outline: none; } /* the input has its own accent border and glow; dialogs are focused only to receive keys */
+.resizer:focus-visible { outline: none; background: var(--focus-ring, var(--accent)); }
+/* Controls that appear on hover must also appear when the keyboard reaches them. */
+.tab-actions .icon-btn:focus-visible, .tree-actions:focus-within, .dbg-section-actions:focus-within, .dbg-row-action:focus-visible,
+.term-tab-close:focus-visible, .sc-group-actions:focus-within, .sc-row-actions:focus-within, .kb-row .btn:focus-visible { opacity: 1; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 /* Quiet scrollbars in editors and lists until you reach for them. */
 .cm-scroller::-webkit-scrollbar-thumb, .tree-list::-webkit-scrollbar-thumb, .fip-results::-webkit-scrollbar-thumb { background: transparent; background-clip: content-box; }

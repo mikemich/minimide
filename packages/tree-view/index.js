@@ -3,6 +3,7 @@
 
 export function activate(mide) {
   const { h, icon, fileIcon } = mide.ui;
+  let rowCount = 0;
   class Node {
     constructor(path, name, isDir, depth, parent) {
       Object.assign(this, { path, name, isDir, depth, parent, children: null, expanded: false, row: null });
@@ -16,7 +17,7 @@ export function activate(mide) {
     this.nodes = new Map();
     this.selected = null;
     this.git = null;
-    this.list = h('div.tree-list', { tabIndex: 0, role: 'tree' });
+    this.list = h('div.tree-list', { tabIndex: 0, role: 'tree', 'aria-label': 'Files' });
     this.header = h('div.tree-header');
     this.element = h('div.tree-view', this.header, this.list);
     this.list.addEventListener('keydown', (e) => this.onKey(e));
@@ -171,13 +172,21 @@ export function activate(mide) {
       this.list.scrollTop = scroll;
       this.markActive();
       this.decorate();
+      this.announceSelection();
+    },
+
+    /** The tree keeps focus; the selected row is what a screen reader reads (aria-activedescendant). */
+    announceSelection() {
+      const row = this.selected?.row;
+      if (row?.isConnected) this.list.setAttribute('aria-activedescendant', row.id);
+      else this.list.removeAttribute('aria-activedescendant');
     },
 
     renderHeader() {
       const actions = this.root ? [
-        h('button.icon-btn', { title: 'New File', onclick: () => this.newEntry(false) }, icon('plus', 15)),
-        h('button.icon-btn', { title: 'Refresh', onclick: () => this.refresh() }, icon('refresh', 14)),
-        h('button.icon-btn', { title: 'Collapse All', onclick: () => this.collapseAll() }, icon('collapse', 14)),
+        h('button.icon-btn', { title: 'New File', 'aria-label': 'New File', onclick: () => this.newEntry(false) }, icon('plus', 15)),
+        h('button.icon-btn', { title: 'Refresh', 'aria-label': 'Refresh', onclick: () => this.refresh() }, icon('refresh', 14)),
+        h('button.icon-btn', { title: 'Collapse All', 'aria-label': 'Collapse All', onclick: () => this.collapseAll() }, icon('collapse', 14)),
       ] : [];
       const folders = this.folders();
       this.header.replaceChildren(
@@ -186,8 +195,13 @@ export function activate(mide) {
     },
 
     renderRow(node) {
+      node.rowId ??= `tree-row-${++rowCount}`;
       const row = h('div.tree-row', {
+        id: node.rowId,
         role: 'treeitem',
+        'aria-level': String(node.depth + 1),
+        ...(node.isDir ? { 'aria-expanded': String(!!node.expanded) } : {}),
+        'aria-selected': String(node === this.selected),
         draggable: !node.folder,
         ...(node.folder ? { title: node.path } : {}),
         style: { paddingLeft: `${10 + node.depth * 14}px` },
@@ -245,9 +259,10 @@ export function activate(mide) {
     },
 
     select(node) {
-      if (this.selected?.row) this.selected.row.classList.remove('selected');
+      if (this.selected?.row) { this.selected.row.classList.remove('selected'); this.selected.row.setAttribute('aria-selected', 'false'); }
       this.selected = node || null;
-      if (node?.row) { node.row.classList.add('selected'); node.row.scrollIntoView({ block: 'nearest' }); }
+      if (node?.row) { node.row.classList.add('selected'); node.row.setAttribute('aria-selected', 'true'); node.row.scrollIntoView({ block: 'nearest' }); }
+      this.announceSelection();
     },
 
     markActive() {
@@ -284,6 +299,7 @@ export function activate(mide) {
         if (!node.row) continue;
         const s = node.isDir ? this.git.dirStatus(node.path) : statuses.get(node.path);
         node.row.dataset.git = s || '';
+        if (s) node.row.setAttribute('aria-description', `status: ${s}`); else node.row.removeAttribute('aria-description');
       }
     },
 
@@ -319,6 +335,8 @@ export function activate(mide) {
           if (node && !node.isDir) mide.workspace.open(node.path, { pending: true, focus: false });
           break;
         case 'F2': e.preventDefault(); if (node) this.rename(node); break;
+        case 'ContextMenu': e.preventDefault(); this.contextMenu(node || this.root); break;
+        case 'F10': if (e.shiftKey) { e.preventDefault(); this.contextMenu(node || this.root); } break;
         case 'Backspace': case 'Delete':
           if (mod || e.key === 'Delete') { e.preventDefault(); if (node) this.remove(node); }
           break;

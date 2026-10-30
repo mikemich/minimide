@@ -240,6 +240,29 @@
     return out;
   });
 
+  await step('previewTabs', async () => {
+    await closeAll();
+    const a = await ws.open(root + '/plain.txt', { pending: true });
+    const b = await ws.open(root + '/code.js', { pending: true });
+    const replaced = ws.allItems().map((i) => i.getTitle());
+    type(b.view, '// ');
+    const pinned = !b.pending;
+    await ws.open(root + '/style.css', { pending: true });
+    const kept = ws.allItems().map((i) => i.getTitle());
+    return { replaced, pinned, kept, firstGone: !ws.allItems().includes(a) };
+  });
+
+  await step('closeDirtyAndSave', async () => {
+    await closeAll();
+    await window.native.fs.write(root + '/closesave.txt', 'start\n');
+    const ed = await openEd('closesave.txt');
+    ed.view.dispatch({ selection: { anchor: 0 } });
+    type(ed.view, 'edit ');
+    await T.answers('confirm', 0); // Save
+    const closed = await ws.closeItem(ed);
+    return { closed, gone: !ws.allItems().includes(ed), disk: JSON.stringify(await read('closesave.txt')) };
+  });
+
   await step('externalChange', async () => {
     await closeAll();
     await window.native.fs.write(root + '/ext-clean.txt', 'one\n');

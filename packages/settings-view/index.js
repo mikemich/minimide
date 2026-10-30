@@ -24,7 +24,7 @@ export function activate(mide) {
       this.details = new Map(); // owner/name -> { data } or { error }, for the package details page
       this.detailsLoading = new Set();
       this.pkgDetail = null; // owner/name of the package whose details are open
-      this.nav = h('nav.settings-nav');
+      this.nav = h('nav.settings-nav', { 'aria-label': 'Settings sections' });
       this.content = h('div.settings-content');
       this.element = h('div.settings-view', this.nav, this.content);
       this.subs = [
@@ -54,7 +54,7 @@ export function activate(mide) {
     render() {
       this.nav.replaceChildren(
         h('div.settings-brand', h('span.logo-mark.small', 'm'), 'Settings'),
-        ...SECTIONS.map((s) => h('button.settings-nav-item', { class: s.id === this.section ? 'active' : '', onclick: () => this.show(s.id) }, icon(s.icon, 15), s.title)));
+        ...SECTIONS.map((s) => h('button.settings-nav-item', { class: s.id === this.section ? 'active' : '', 'aria-current': s.id === this.section ? 'page' : null, onclick: () => this.show(s.id) }, icon(s.icon, 15), s.title)));
       this.renderContent();
     }
 
@@ -70,27 +70,28 @@ export function activate(mide) {
   function control(def) {
     const value = mide.config.get(def.key);
     const set = (v) => mide.config.set(def.key, v);
+    const label = def.title || def.key; // what a screen reader calls the control
     if (def.type === 'boolean') {
-      return h('label.switch', h('input', { type: 'checkbox', checked: !!value, onchange: (e) => set(e.target.checked) }), h('span.switch-track'));
+      return h('label.switch', h('input', { type: 'checkbox', role: 'switch', 'aria-label': label, checked: !!value, onchange: (e) => set(e.target.checked) }), h('span.switch-track'));
     }
     const options = def.enumFrom === 'themes' ? mide.packages.list().filter((p) => p.theme).map((p) => p.name) : def.enum;
     if (options) {
-      return h('select.input.settings-select', { onchange: (e) => set(e.target.value) },
+      return h('select.input.settings-select', { 'aria-label': label, onchange: (e) => set(e.target.value) },
         options.map((o) => h('option', { value: o, selected: o === value }, o)));
     }
     if (def.type === 'number') {
       const commit = (e) => { const n = parseFloat(e.target.value); if (!Number.isNaN(n)) set(n); };
-      return h('input.input.settings-number', { type: 'number', value: String(value ?? ''), step: def.key.includes('lineHeight') ? 0.1 : 1, onchange: commit });
+      return h('input.input.settings-number', { 'aria-label': label, type: 'number', value: String(value ?? ''), step: def.key.includes('lineHeight') ? 0.1 : 1, onchange: commit });
     }
     if (def.type === 'object') {
       const count = Object.keys(value || {}).length;
       return h('div.setting-object', h('span', count ? `${count} entr${count === 1 ? 'y' : 'ies'}` : 'Default'),
-        h('button.btn.small', { onclick: () => mide.commands.run('settings:open-config-file') }, 'Edit in config.json'));
+        h('button.btn.small', { 'aria-label': `Edit ${label} in config.json`, onclick: () => mide.commands.run('settings:open-config-file') }, 'Edit in config.json'));
     }
     if (def.type === 'array') {
-      return h('input.input', { type: 'text', value: (value || []).join(', '), onchange: (e) => set(e.target.value.split(',').map((s) => s.trim()).filter(Boolean)) });
+      return h('input.input', { type: 'text', 'aria-label': label, value: (value || []).join(', '), onchange: (e) => set(e.target.value.split(',').map((s) => s.trim()).filter(Boolean)) });
     }
-    return h('input.input', { type: 'text', value: value ?? '', onchange: (e) => set(e.target.value) });
+    return h('input.input', { type: 'text', 'aria-label': label, value: value ?? '', onchange: (e) => set(e.target.value) });
   }
 
   function settingRow(def) {
@@ -98,7 +99,7 @@ export function activate(mide) {
     return h('div.setting', { class: def.type === 'boolean' ? 'inline' : '' },
       h('div.setting-text',
         h('div.setting-title', def.title || def.key,
-          !isDefault ? h('button.setting-reset', { title: 'Reset to default', onclick: () => mide.config.set(def.key, undefined) }, 'reset') : null),
+          !isDefault ? h('button.setting-reset', { title: 'Reset to default', 'aria-label': `Reset ${def.title || def.key} to default`, onclick: () => mide.config.set(def.key, undefined) }, 'reset') : null),
         def.description ? h('div.setting-desc', def.description) : null,
         h('code.setting-key', def.key)),
       h('div.setting-control', control(def)));
@@ -138,7 +139,7 @@ export function activate(mide) {
     const uiNow = fonts.currentUi();
     const code = ['const ok = (a, b) => {', '  return a !== b && a >= 0;', '}'];
     const card = ({ family, title, detail, active, sample, onclick, tag }) =>
-      h('button.font-card', { class: active ? 'active' : '', onclick },
+      h('button.font-card', { class: active ? 'active' : '', 'aria-pressed': String(!!active), onclick },
         h('div.font-card-sample', { style: { fontFamily: family ? `"${family}"` : null } }, sample),
         h('div.font-card-meta', h('span.font-card-name', title), tag ? h('span.font-card-tag', tag) : null),
         h('div.font-card-desc', detail));
@@ -186,10 +187,10 @@ export function activate(mide) {
     const now = (mide.config.get('ui.accentColor') || '').toLowerCase();
     const set = (v) => mide.config.set('ui.accentColor', v || undefined);
     return h('div.accent-row',
-      h('button.accent-chip.theme-default', { class: !now ? 'active' : '', title: "Use the theme's own accent", onclick: () => set('') }, 'Theme'),
-      ACCENTS.map(([name, hex]) => h('button.accent-chip', { class: now === hex ? 'active' : '', title: name, style: { background: hex }, onclick: () => set(hex) })),
+      h('button.accent-chip.theme-default', { class: !now ? 'active' : '', title: "Use the theme's own accent", 'aria-pressed': String(!now), onclick: () => set('') }, 'Theme'),
+      ACCENTS.map(([name, hex]) => h('button.accent-chip', { class: now === hex ? 'active' : '', title: name, 'aria-label': `${name} accent`, 'aria-pressed': String(now === hex), style: { background: hex }, onclick: () => set(hex) })),
       h('label.accent-chip.accent-custom', { title: 'Custom color', class: now && !ACCENTS.some(([, x]) => x === now) ? 'active' : '' },
-        h('input', { type: 'color', value: /^#[0-9a-f]{6}$/.test(now) ? now : '#4c8dff', onchange: (e) => set(e.target.value) }), '+'));
+        h('input', { type: 'color', 'aria-label': 'Custom accent color', value: /^#[0-9a-f]{6}$/.test(now) ? now : '#4c8dff', onchange: (e) => set(e.target.value) }), '+'));
   }
 
   function themesSection() {
@@ -202,7 +203,7 @@ export function activate(mide) {
       appIconRow(),
       h('h2.settings-subhead', 'Theme'),
       h('div.theme-grid', mide.packages.list().filter((p) => p.theme).map((p) =>
-        h('button.theme-card', { class: p.name === current ? 'active' : '', onclick: () => mide.packages.setTheme(p.name) },
+        h('button.theme-card', { class: p.name === current ? 'active' : '', 'aria-pressed': String(p.name === current), onclick: () => mide.packages.setTheme(p.name) },
           // Themes describe themselves with "swatches": [bg, accent, color, color, color] in package.json.
           h('div.theme-swatch', { dataset: { theme: p.name } }, ...['bg', 'accent', 'c1', 'c2', 'c3'].map((k, i) =>
             h(`span.sw-${k}`, { style: p.manifest.swatches?.[i] ? { background: p.manifest.swatches[i] } : null }))),
@@ -278,7 +279,7 @@ export function activate(mide) {
       if (!inBrowser() && mide.config.get('core.checkForUpdates') !== false) checkForUpdates(view, { force: false });
     }
     const tabs = h('div.pkg-tabs',
-      ['installed', 'discover'].map((t) => h('button.pkg-tab', { class: view.pkgTab === t ? 'active' : '', onclick: () => { view.pkgTab = t; view.renderContent(); } },
+      ['installed', 'discover'].map((t) => h('button.pkg-tab', { class: view.pkgTab === t ? 'active' : '', 'aria-pressed': String(view.pkgTab === t), onclick: () => { view.pkgTab = t; view.renderContent(); } },
         t === 'installed' ? 'Installed' : 'Discover',
         t === 'installed' && view.updates?.updates.length ? h('span.pkg-tab-count', { title: 'Updates available' }, String(view.updates.updates.length)) : null)));
     const intro = header('Packages', 'Everything in Minimide is a package — including the tree view and this screen.');
@@ -555,16 +556,16 @@ export function activate(mide) {
             p.manifest.version ? h('span.package-version', `v${p.manifest.version}`) : null),
           h('div.package-desc', p.error ? `Error: ${p.error}` : p.manifest.description || '')),
         h('div.package-actions',
-          update ? h('button.btn.small.primary', { disabled: !!view.updating, onclick: () => applyUpdates(view, p.name) }, 'Update') : null,
-          repo ? h('button.btn.small', { onclick: () => openDetails(view, repo) }, 'Details') : null,
-          settings.length ? h('button.btn.small', { onclick: () => { view.expanded = open ? null : p.name; view.renderContent(); } }, open ? 'Hide settings' : 'Settings') : null,
-          p.active ? h('button.icon-btn', { title: 'Reload package', onclick: () => mide.packages.reload(p.name) }, icon('refresh', 14)) : null,
-          p.install ? h('button.icon-btn', { title: 'Uninstall', onclick: async () => {
+          update ? h('button.btn.small.primary', { disabled: !!view.updating, 'aria-label': `Update ${name}`, onclick: () => applyUpdates(view, p.name) }, 'Update') : null,
+          repo ? h('button.btn.small', { 'aria-label': `Details for ${name}`, onclick: () => openDetails(view, repo) }, 'Details') : null,
+          settings.length ? h('button.btn.small', { 'aria-label': `${open ? 'Hide' : 'Show'} settings for ${name}`, 'aria-expanded': String(open), onclick: () => { view.expanded = open ? null : p.name; view.renderContent(); } }, open ? 'Hide settings' : 'Settings') : null,
+          p.active ? h('button.icon-btn', { title: 'Reload package', 'aria-label': `Reload ${name}`, onclick: () => mide.packages.reload(p.name) }, icon('refresh', 14)) : null,
+          p.install ? h('button.icon-btn', { title: 'Uninstall', 'aria-label': `Uninstall ${name}`, onclick: async () => {
             const choice = await mide.ui.confirm({ message: `Uninstall "${name}"?`, detail: 'Its folder is moved to the Trash.', buttons: ['Uninstall', 'Cancel'] });
             if (choice === 0) { await mide.packages.uninstall(p.name); mide.notify.success(`Uninstalled ${p.name}`); }
           } }, icon('trash', 14)) : null,
           h('label.switch', { title: p.disabled ? 'Enable' : 'Disable' },
-            h('input', { type: 'checkbox', checked: !p.disabled, onchange: (e) => mide.packages.setEnabled(p.name, e.target.checked) }),
+            h('input', { type: 'checkbox', role: 'switch', 'aria-label': `Enable ${name}`, checked: !p.disabled, onchange: (e) => mide.packages.setEnabled(p.name, e.target.checked) }),
             h('span.switch-track')))),
       open ? h('div.package-settings', settings.map(settingRow)) : null);
   }

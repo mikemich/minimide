@@ -23,6 +23,23 @@ export function h(spec, props, ...children) {
     else el.setAttribute(k, v === true ? '' : v);
   }
   append(el, children);
+  // A plain element that is clicked (a result row, a card) must also work from the keyboard.
+  if (typeof props.onclick === 'function' && typeof props.onkeydown !== 'function' && !el.hasAttribute('role') && !NATIVELY_INTERACTIVE.test(el.tagName) && !el.querySelector(INTERACTIVE_INSIDE)) makeActivatable(el);
+  return el;
+}
+
+const NATIVELY_INTERACTIVE = /^(BUTTON|A|INPUT|SELECT|TEXTAREA|SUMMARY|LABEL|OPTION)$/;
+const INTERACTIVE_INSIDE = 'button, a[href], input, select, textarea, [tabindex]';
+
+/** Makes a clickable element reachable with Tab and operable with Enter and Space, announced as a button. */
+export function makeActivatable(el, role = 'button') {
+  el.setAttribute('role', role);
+  if (!el.hasAttribute('tabindex')) el.tabIndex = 0;
+  el.addEventListener('keydown', (e) => {
+    if (e.target !== el || e.altKey || e.ctrlKey || e.metaKey || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault();
+    el.click();
+  });
   return el;
 }
 
@@ -62,6 +79,7 @@ const ICONS = {
 export function icon(name, size = 16) {
   const span = document.createElement('span');
   span.className = `icon icon-${name}`;
+  span.setAttribute('aria-hidden', 'true'); // decorative: the control it sits in carries the name
   span.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ICONS.file}</svg>`;
   return span;
 }

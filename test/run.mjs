@@ -173,6 +173,8 @@ const SUITES = [
       'commentToggle.script_py': ['# def f():', 'def f():'], 'commentToggle.conf_yml': ['# a: 1', 'a: 1'], 'commentToggle.run_sh': ['# echo hi', 'echo hi'],
       'autoIndentAndBrackets.keepsIndent': true, 'autoIndentAndBrackets.paren': 'f()', 'autoIndentAndBrackets.skipsClosing': 'f()', 'autoIndentAndBrackets.brace': 'f() {}',
       'autoIndentAndBrackets.blockOnEnter': JSON.stringify('f() {\n  \n}'), 'autoIndentAndBrackets.quote': JSON.stringify('  ""'),
+      'previewTabs.replaced': ['code.js'], 'previewTabs.pinned': true, 'previewTabs.kept': ['code.js', 'style.css'], 'previewTabs.firstGone': true,
+      'closeDirtyAndSave.closed': true, 'closeDirtyAndSave.gone': true, 'closeDirtyAndSave.disk': JSON.stringify('edit start\n'),
       'externalChange.reloaded': true, 'externalChange.warned': true, 'externalChange.keptMine': true, 'externalChange.revertedTo': JSON.stringify('theirs\n'), 'externalChange.dirtyAfterRevert': false,
       // Deleting or moving a folder that has files open in tabs.
       'folderDeleteWithOpenFile.markedUnsaved': true,
@@ -182,6 +184,43 @@ const SUITES = [
       'goToLine.line': 3, 'goToLine.clamped': 4,
       'settingsLiveAndZoom': { grew: true, reset: true, wrapOn: true, gutterOff: true, gutterBack: true, tab8: 8 },
       statusBar: ['file-path=code.js', 'cursor=Ln 1, Col 1', 'indent=Spaces: 2', 'eol=LF', 'encoding=UTF-8', 'language=JavaScript'],
+      totalErrors: 0,
+    }),
+  },
+  {
+    name: 'accessibility', home: 'a11yh', project: 'ev', timeout: 180,
+    expect: () => ({
+      landmarks: { sidebar: 'Sidebar', main: 'Editor area', panel: 'Bottom panel', status: 'Status bar', notifications: ['region', 'Notifications'], lang: 'en' },
+      // Sidebar views are tabs: one tab stop, arrows move the selection and focus follows.
+      dockTabs: { role: 'tablist', label: 'Sidebar views', count: true, allNamed: true, oneSelected: true, oneTabStop: true, panelFor: true, arrowMoved: true, focusFollows: true, homeIsFirst: true },
+      'treeView.role': 'tree', 'treeView.label': 'Files', 'treeView.focused': true, 'treeView.levels': ['1'], 'treeView.dirExpanded': 'false', 'treeView.fileHasExpanded': false,
+      'treeView.oneSelected': true, 'treeView.uniqueIds': true, 'treeView.activeDescendant': true, 'treeView.arrowMovesSelection': true,
+      'treeView.expanded': 'true', 'treeView.childLevel': '2', 'treeView.collapsed': 'false', 'treeView.headerButtons': ['New File', 'Refresh', 'Collapse All'],
+      'editorTabs.role': 'tablist', 'editorTabs.label': 'Open files', 'editorTabs.tabs': ['code.js', 'plain.txt', 'style.css'],
+      'editorTabs.selected': ['true', 'false', 'false'], 'editorTabs.tabStops': [0, -1, -1], 'editorTabs.closeLabels': ['Close code.js', 'Close plain.txt', 'Close style.css'],
+      'editorTabs.dirtyName': 'code.js, unsaved changes', 'editorTabs.afterRight': ['plain.txt', true], 'editorTabs.afterEnd': ['style.css', true], 'editorTabs.wraps': 'code.js',
+      'editorTabs.movedRight': ['plain.txt', 'code.js', 'style.css'], 'editorTabs.movedLeft': ['code.js', 'plain.txt', 'style.css'],
+      'editorTabs.paneLabels': ['Editor pane 1 of 2', 'Editor pane 2 of 2'], 'editorTabs.movedToPane': [2, true, true], 'editorTabs.deleteClosed': true,
+      editorLabel: { role: 'textbox', multiline: 'true', before: 'Editor: code.js', after: 'Editor: renamed-for-a11y.js' },
+      // The quick-open box is a combobox over a listbox, with the highlighted option as the active descendant.
+      'quickOpenCombobox.dialog': ['dialog', 'true', true], 'quickOpenCombobox.combobox': ['combobox', 'true', true, 'list', true], 'quickOpenCombobox.listbox': ['listbox', true],
+      'quickOpenCombobox.options': true, 'quickOpenCombobox.oneSelected': true, 'quickOpenCombobox.uniqueIds': true, 'quickOpenCombobox.activeDescendant': true,
+      'quickOpenCombobox.focusInInput': true, 'quickOpenCombobox.arrowMoves': true, 'quickOpenCombobox.noMatch': [null, 'No matching files'], 'quickOpenCombobox.results': true,
+      'quickOpenCombobox.tabStaysInside': true, 'quickOpenCombobox.shiftTabStaysInside': true, 'quickOpenCombobox.closed': true, 'quickOpenCombobox.focusRestored': true,
+      promptDialog: { dialog: ['dialog', 'true', 'Name the thing'], inputLabel: 'Name the thing', described: true, invalid: ['true', 'A name is required.', 'polite'], clearedOnInput: true, cancelled: true, focusRestored: true },
+      notifications: { roles: ['alert', 'status', 'alert'], dismiss: ['Dismiss notification', 'Dismiss notification', 'Dismiss notification'], keptWhileFocused: true, escapeCloses: true, focusCommand: true },
+      statusBarItems: { clickable: true, allButtons: true, named: true, cursorText: 'Ln 1, Col 1', cursorName: 'Ln 1, Col 1', cursorTooltip: 'Go to Line', enterActivates: true },
+      settingsControls: { general: [], editor: [], themes: [], fonts: [], packages: [], keybindings: [], hack: [], navCurrent: ['page'], switches: true, selects: true, themeCardsPressed: true },
+      clickableRowsKeyboard: {
+        role: 'button', tabindex: 0, expanded: 'true', collapsedByEnter: 'false', match: true, reopenedBySpace: 'true',
+        toggles: [['Match Case', 'false'], ['Use Regular Expression', 'false']], togglePressed: 'true', summaryLive: 'status',
+      },
+      // Focus rings: one rule built from the theme's accent, readable on every panel in a dark and a light theme.
+      'focusRings.rule': [true, true, true], 'focusRings.editorExempt': true, 'focusRings.resizerFocus': true, 'focusRings.hoverControlsShowOnFocus': true,
+      'focusRings.nightfall': { lightBackground: false, ringReadable: true, low: [] }, 'focusRings.daylight': { lightBackground: true, ringReadable: true, low: [] },
+      reducedMotion: { hasRule: true, shortensAnimations: true, shortensTransitions: true, noLooping: true, noSmoothScroll: true },
+      // After opening every sidebar and panel view and the common dialogs, no control is without a name.
+      'everyControlHasAName.checked': (n) => n >= 12, 'everyControlHasAName.offenders': {}, 'everyControlHasAName.duplicateIds': [], 'everyControlHasAName.positiveTabindex': 0,
       totalErrors: 0,
     }),
   },

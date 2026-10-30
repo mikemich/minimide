@@ -50,6 +50,7 @@ export const CORE_KEYMAP = {
   'Alt-ArrowUp': 'editor:move-line-up',
   'Alt-ArrowDown': 'editor:move-line-down',
   'Mod-k Mod-h': 'help:cheat-sheet',
+  'Mod-Alt-n': 'notifications:focus',
   'Escape': 'core:cancel',
   // Back / forward after a jump, as in VS Code.
   ...(isMac ? { 'Ctrl--': 'navigate:back', 'Ctrl-Shift--': 'navigate:forward' } : { 'Alt-ArrowLeft': 'navigate:back', 'Alt-ArrowRight': 'navigate:forward' }),
@@ -169,6 +170,10 @@ export function registerCoreCommands(app) {
       title: 'Reopen Closed Tab',
       run: async () => { const p = app.closedPaths.shift(); if (p) await ws.open(p); },
     },
+    'tab:move-left': { title: 'Move Tab Left', when: () => !!ws.getActiveItem(), run: () => ws.activePane.moveTab(ws.getActiveItem(), -1) },
+    'tab:move-right': { title: 'Move Tab Right', when: () => !!ws.getActiveItem(), run: () => ws.activePane.moveTab(ws.getActiveItem(), 1) },
+    'tab:move-to-next-pane': { title: 'Move Tab to Next Pane', when: () => ws.panes.length > 1 && !!ws.getActiveItem(), run: () => moveTabToPane(ws, 1) },
+    'tab:move-to-previous-pane': { title: 'Move Tab to Previous Pane', when: () => ws.panes.length > 1 && !!ws.getActiveItem(), run: () => moveTabToPane(ws, -1) },
     'tab:next': { title: 'Next Tab', run: () => cycleTab(ws, 1) },
     'tab:previous': { title: 'Previous Tab', run: () => cycleTab(ws, -1) },
     'tab:go-last': { title: 'Go to Last Tab', hidden: true, run: () => { const p = ws.activePane; const last = p.items.at(-1); if (last) p.activate(last); } },
@@ -192,6 +197,14 @@ export function registerCoreCommands(app) {
       // Escape closes the bottom panel when focus is inside it; otherwise it falls through to the editor.
       when: () => app.panel.visible && document.getElementById('panel').contains(document.activeElement) && !document.activeElement.closest('[data-keymap-passthrough]'),
       run: () => { app.panel.hide(); ws.getActiveItem()?.focus(); },
+    },
+    // Notifications fade away on their own; this puts the keyboard on the newest one (Escape dismisses it).
+    'notifications:focus': {
+      title: 'Focus Notifications',
+      run: () => {
+        const latest = [...document.querySelectorAll('#notifications .notification:not(.closing)')].at(-1);
+        (latest?.querySelector('.notification-actions .btn') || latest?.querySelector('.notification-close'))?.focus();
+      },
     },
     'window:new': { title: 'New Window', run: () => window.native.window.newWindow() },
     'window:close': { title: 'Close Window', run: () => app.requestClose() },
@@ -384,6 +397,17 @@ function trimTrailing(v) {
     if (m) changes.push({ from: line.from + m.index, to: line.to });
   }
   if (changes.length) v.dispatch({ changes });
+}
+
+/** The keyboard way to drag a tab into the next or previous pane. */
+function moveTabToPane(ws, delta) {
+  const item = ws.getActiveItem();
+  const from = ws.activePane;
+  const panes = ws.panes;
+  const to = panes[(panes.indexOf(from) + delta + panes.length) % panes.length];
+  if (!item || to === from) return;
+  ws.moveItem(item, from, to);
+  item.focus?.();
 }
 
 function cycleTab(ws, delta) {
