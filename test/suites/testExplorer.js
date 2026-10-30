@@ -101,7 +101,8 @@
       summary: view().querySelector('.tx-summary').textContent,
       statusBar: statusItem()?.getAttribute('aria-label'), statusShown: !statusItem()?.hidden,
       output: ['node_modules/.bin/jest', 'fake-pytest.mjs', ' --test --test-reporter=spec', ...(hasGo ? ["go' test -json"] : [])].filter((s) => !outputText().includes(s)),
-      notes: notes(),
+      // Without go the Go tests can't run, and saying so is right.
+      notes: notes().filter((n) => hasGo || !n.startsWith('Go didn’t report any results')),
     };
   });
 

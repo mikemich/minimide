@@ -193,7 +193,8 @@
   await detailsReady();
   out.detailsUpdateBadge = all('.pkg-detail-title .badge').map(text);
   press('Update');
-  await until(() => record('goal-tracker')?.install?.version === '1.1.0');
+  // The new version is recorded before it has finished activating, so wait for both.
+  await until(() => record('goal-tracker')?.install?.version === '1.1.0' && record('goal-tracker').active);
   await until(() => !one('.pkg-detail-title .badge.update') && one('.pkg-detail-body[data-ready]'));
   out.goalUpdated = { version: record('goal-tracker').install.version, permissions: record('goal-tracker').install.permissions, active: record('goal-tracker').active, badges: all('.pkg-detail-title .badge').map(text) };
   out.statusAfterUpdate = await until(() => [...document.querySelectorAll('.status-item')].map(text).find((t) => t === 'goal-tracker v1.1.0'));
