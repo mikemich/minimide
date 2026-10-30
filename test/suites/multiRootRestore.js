@@ -1,6 +1,7 @@
 // Several project folders, part 2: a fresh launch on the same project brings back the folders that
 // multiRoot added, still with the untrusted one in Restricted Mode (and without asking again); the
-// tree follows changes in each of them, and in a folder that is inside another one.
+// tree follows changes in each of them, and in a folder that is inside another one; two folders with
+// the same name get told apart in relative paths.
 // Evaluated in the renderer; returns a JSON-able results object.
 (async () => {
   const app = window.minimide, ws = app.workspace;
@@ -38,6 +39,16 @@
   out.nestedSecondBoth = await until(() => rows(`${alpha}/src/second.js`).length === 2 && 2);
   await ws.open(`${alpha}/src/app.js`);
   out.nestedActiveRows = await until(() => rows(`${alpha}/src/app.js`).filter((r) => r.classList.contains('active')).length === 2 && 2);
+
+  // Two folders with the same name: relative paths tell them apart, and lead back to the right one.
+  const twin = `${alpha.replace(/\/[^/]+$/, '')}/other/beta`;
+  await window.mideTest.answers('confirm', 2); // not trusted: Restricted Mode
+  await app.addFolder(twin);
+  await until(() => ws.folders.length === 5);
+  out.twinRel = [ws.relativePath(`${beta}/readme.md`), ws.relativePath(`${twin}/twin.txt`), ws.relativePath(twin)];
+  out.twinResolved = ws.resolvePath(out.twinRel[1]) === `${twin}/twin.txt` && ws.resolvePath(out.twinRel[0]) === `${beta}/readme.md`;
+  out.twinSearch = (await app.packages.createApi({ meta: { name: 'probe', dir: twin, url: '', manifest: { name: 'probe' } }, subscriptions: [], styleEls: [] })
+    .project.search('shared-needle', { root: ws.resolvePath(ws.relativePath(twin)) })).results.map((r) => ws.relativePath(r.file));
   out.errors = errors;
   return out;
 })()

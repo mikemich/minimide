@@ -231,6 +231,7 @@ const SUITES = [
       folders: ['alpha', 'gamma', 'beta'], treeRoots: ['alpha', 'gamma', 'beta'], tab: 'beta/lib/util.py', title: 'util.py — alpha +2 — Minimide',
       restricted: true, gammaTrusted: false,
       newFilesShown: true, nestedNewFile: 1, nestedBoth: 2, nestedSecondBoth: 2, nestedActiveRows: 2,
+      twinRel: ['beta (mr)/readme.md', 'beta (other)/twin.txt', 'beta (other)'], twinResolved: true, twinSearch: ['beta (other)/twin.txt'],
     }),
   },
   {

@@ -474,6 +474,8 @@ function multiRoot(root) {
   write(path.join(gamma, 'g.txt'), 'gamma\n');
   commitAll(gamma, 'init');
   write(path.join(gamma, 'g.txt'), 'gamma changed\n');
+  // Another folder named beta, to add next to the first one.
+  write(path.join(d, 'other/beta/twin.txt'), 'shared-needle in the other beta\n');
   const trusted = [path.join(d, 'alpha'), beta].map((p) => ({ path: p, real: p }));
   write(path.join(root, 'mrh/trusted-folders.json'), JSON.stringify({ folders: trusted }, null, 2) + '\n');
 }

@@ -47,7 +47,7 @@ export function activate(mide) {
     if (!folders.length) return recent.map((p) => ({ path: p, rel: p }));
     // With several folders, `rel` starts with the folder's name (as relativePath() shows it).
     const lists = await Promise.all(folders.map(async (root) => (await mide.project.files(root))
-      .map((rel) => ({ rel: folders.length > 1 ? `${mide.path.basename(root)}/${rel}` : rel, path: `${root}/${rel}` }))));
+      .map((rel) => ({ rel: folders.length > 1 ? `${mide.workspace.relativePath(root)}/${rel}` : rel, path: `${root}/${rel}` }))));
     const recentRank = new Map(recent.map((p, i) => [p, i]));
     const seen = new Set(); // a folder inside another one lists its files twice
     return lists.flat()

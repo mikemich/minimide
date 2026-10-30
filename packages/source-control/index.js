@@ -194,7 +194,7 @@ export function activate(mide) {
   function renderFolders() {
     const folders = mide.workspace.folders;
     folderSelect.hidden = folders.length < 2;
-    folderSelect.replaceChildren(...folders.map((f) => h('option', { value: f, title: f }, mide.path.basename(f))));
+    folderSelect.replaceChildren(...folders.map((f) => h('option', { value: f, title: f }, mide.workspace.relativePath(f) || mide.path.basename(f))));
     folderSelect.value = currentFolder() || '';
   }
 
