@@ -405,6 +405,7 @@ export class PackageManager extends Emitter {
         splitDown: (opts = {}) => ws.splitDown(ws.activePane, opts.empty ? null : ws.activePane.active),
         addOpener: (fn) => track(ws.addOpener(fn)),
         onWillSave: (fn) => track(ws.onWillSave(fn)),
+        /** (item, { auto }): `auto` is true for a save made by Auto Save. */
         onDidSave: (fn) => track(ws.on('did-save', fn)),
         onDidChangeActiveItem: (fn) => track(ws.on('active-item-changed', fn)),
         observeActiveItem: (fn) => { fn(ws.getActiveItem()); return track(ws.on('active-item-changed', fn)); },
@@ -459,6 +460,9 @@ export class PackageManager extends Emitter {
         setWelcomeTip: (tip) => track(app.addWelcomeTip(tip)),
         /** PNG data URL of the app icon drawn in the current theme's colors. */
         renderAppIcon: () => app.renderAppIcon?.() ?? null,
+        /** Whether the OS reports a screen reader (or other assistive technology) in use. */
+        isScreenReaderActive: () => app.screenReader.active,
+        onDidChangeScreenReader: (fn) => track(app.screenReader.onDidChange(fn)),
       },
       notify: app.ui.notify,
       sidebar: {

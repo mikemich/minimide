@@ -60,9 +60,18 @@ export async function activate(mide) {
       s.term.options.fontSize = fontSize();
       s.term.options.cursorStyle = mide.config.get('terminal.cursorStyle');
       s.term.options.scrollback = mide.config.get('terminal.scrollback');
+      s.term.options.screenReaderMode = screenReaderMode();
       fit(s);
     }
   }
+  // xterm's screen reader mode keeps the visible rows in an accessibility tree and announces new output.
+  const screenReaderMode = () => {
+    const mode = mide.config.get('terminal.screenReaderMode');
+    return mode === 'on' || mode === true || (mode !== 'off' && mode !== false && mide.ui.isScreenReaderActive());
+  };
+  const applyScreenReaderMode = () => { for (const s of sessions) s.term.options.screenReaderMode = screenReaderMode(); };
+  mide.config.onDidChange('terminal.screenReaderMode', applyScreenReaderMode);
+  mide.ui.onDidChangeScreenReader(applyScreenReaderMode);
   // Theme stylesheets load asynchronously, so re-read colours once they settle.
   mide.packages.onDidChange(() => setTimeout(applyOptions, 50));
   for (const key of ['editor.fontFamily', 'editor.fontSize', 'terminal.fontSize', 'terminal.cursorStyle', 'terminal.scrollback']) {
@@ -76,7 +85,7 @@ export async function activate(mide) {
       return null;
     }
     const id = ++seq;
-    const container = h('div.term-instance', { dataset: { keymapPassthrough: '' } });
+    const container = h('div.term-instance', { role: 'group', dataset: { keymapPassthrough: '' } });
     const tab = group || newGroup();
     const term = new Terminal({
       allowProposedApi: true,
@@ -89,6 +98,7 @@ export async function activate(mide) {
       theme: theme(),
       macOptionIsMeta: true,
       drawBoldTextInBrightColors: false,
+      screenReaderMode: screenReaderMode(),
     });
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
@@ -294,6 +304,10 @@ export async function activate(mide) {
   const closeGroup = (tab) => { for (const s of [...tab.splits]) closeSession(s); };
 
   function renderTabs() {
+    // Each terminal is named for screen readers (its title, and where it is when the tab is split).
+    for (const g of groups) {
+      g.splits.forEach((s, i) => s.container.setAttribute('aria-label', `Terminal: ${s.title}${g.splits.length > 1 ? `, split ${i + 1} of ${g.splits.length}` : ''}`));
+    }
     tabsEl.replaceChildren(...groups.map((g) => {
       const lead = g.splits.find((s) => s.command);
       const exit = lead?.running ? null : lead?.exit;

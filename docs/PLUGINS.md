@@ -83,6 +83,9 @@ The core does most of it for you:
   that rings have 3:1 contrast on every panel.
 - **Motion.** Animations and transitions are shortened for people who ask the system for reduced motion; use
   `matchMedia('(prefers-reduced-motion: reduce)')` before starting motion from script, e.g. smooth scrolling.
+- **Screen readers.** `mide.ui.isScreenReaderActive()` says whether the OS reports one (or other assistive
+  technology), and `mide.ui.onDidChangeScreenReader((on) => …)` when that changes: the terminal uses it to
+  turn on xterm's screen reader mode.
 
 ## The `mide` API
 
@@ -143,7 +146,7 @@ mide.workspace.observeActiveItem((item) => …);
 mide.workspace.onDidChangeActiveItem((item) => …);
 mide.workspace.onDidUpdateEditor((editor, update) => { if (update?.docChanged) … });
 mide.workspace.onWillSave(async (editor) => { /* format, lint-fix… */ });
-mide.workspace.onDidSave((editor) => …);
+mide.workspace.onDidSave((editor, { auto }) => …); // auto: saved by Auto Save, not by the user
 mide.workspace.onDidChangeProject((root) => …);
 mide.workspace.onDidChangeFolders((folders) => …); // a folder was added or removed (or the project changed)
 mide.workspace.onDidChangeFiles((paths) => …); // debounced fs events in the project

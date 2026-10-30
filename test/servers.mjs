@@ -116,7 +116,9 @@ export function gistServer({ name, gh = 'fail', seed } = {}) {
 // use instead of codeload.github.com). Every request is logged to <fixtures>/github/requests.json.
 // Which version of each repository is "pushed" is read from <fixtures>/github/head.json
 // ({ "ada/goal-tracker": 2 }) on every request, so a suite can publish a new commit by writing it.
-// Searching for "limited" is rate-limited, for "offline" the connection is dropped.
+// Searching for "limited" is rate-limited, for "offline" the connection is dropped. Writing
+// <fixtures>/github/limit.json ({ "commits": 1 }) lets that many more commit lookups through, then
+// rate-limits the rest until the file is removed.
 
 const README_GOAL = [
   '# Goal Tracker', '',
@@ -163,6 +165,15 @@ export function githubServer({ name = 'packageBrowser' } = {}) {
     fs.writeFileSync(logFile, '[]');
     const sha = (full, v) => crypto.createHash('sha1').update(`${name}:${full}:${v}`).digest('hex');
     const head = (full) => { try { return JSON.parse(fs.readFileSync(headFile, 'utf8'))[full] || 1; } catch { return 1; } };
+    const limitFile = path.join(root, 'limit.json');
+    /** Whether GitHub's rate limit stops this commit lookup (each one let through uses up one of limit.json's "commits"). */
+    const commitLimited = () => {
+      let limit;
+      try { limit = JSON.parse(fs.readFileSync(limitFile, 'utf8')); } catch { return false; }
+      if (limit.commits > 0) { fs.writeFileSync(limitFile, JSON.stringify({ ...limit, commits: limit.commits - 1 })); return false; }
+      return true;
+    };
+    const limited = (res, send) => send(403, { message: 'API rate limit exceeded' }, { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': String(Math.floor(Date.now() / 1000) + 170) });
     const files = (full, v) => {
       const ver = FAKE_REPOS[full].versions[v - 1];
       if (!ver.version) return null;
@@ -203,7 +214,7 @@ export function githubServer({ name = 'packageBrowser' } = {}) {
       };
       if (url.pathname === '/search/repositories') {
         if (term === 'offline') return req.socket.destroy();
-        if (term === 'limited') return send(403, { message: 'API rate limit exceeded' }, { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': String(Math.floor(Date.now() / 1000) + 170) });
+        if (term === 'limited') return limited(res, send);
         const hits = Object.keys(FAKE_REPOS).filter((f) => !term || `${f} ${FAKE_REPOS[f].description}`.toLowerCase().includes(term));
         hits.sort((a, b) => (url.searchParams.get('sort') === 'updated' ? FAKE_REPOS[b].pushed.localeCompare(FAKE_REPOS[a].pushed) : FAKE_REPOS[b].stars - FAKE_REPOS[a].stars));
         return send(200, { total_count: hits.length, items: hits.map(view) });
@@ -213,7 +224,7 @@ export function githubServer({ name = 'packageBrowser' } = {}) {
         const full = m[1];
         const v = head(full);
         if (!m[2]) return send(200, view(full));
-        if (m[2].startsWith('/commits/')) return send(200, { sha: sha(full, v) });
+        if (m[2].startsWith('/commits/')) return commitLimited() ? limited(res, send) : send(200, { sha: sha(full, v) });
         if (m[2] === '/contents/package.json') { const f = files(full, v); return f ? text(f['package.json']) : send(404, { message: 'Not Found' }); }
         if (m[2] === '/readme') return FAKE_REPOS[full].readme == null ? send(404, { message: 'Not Found' }) : text(FAKE_REPOS[full].readme);
       }

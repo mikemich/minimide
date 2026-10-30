@@ -115,6 +115,8 @@ contextBridge.exposeInMainWorld('native', {
     onExit: (fn) => on('term:exit', fn),
   },
   user: { info: call('user:info') },
+  // Whether the OS reports a screen reader (or other assistive technology), and when that changes.
+  screenReader: { active: call('app:screenReader'), onChange: (fn) => on('app:screen-reader', fn) },
   ai: {
     status: call('ai:status'),
     setKey: call('ai:set-key'),

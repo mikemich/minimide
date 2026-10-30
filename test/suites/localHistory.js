@@ -287,6 +287,73 @@
   });
   out.rename = results.rename;
 
+  // --- an open history view follows its file to the new name ----------------------------------------
+  await step('renameView', async () => {
+    await closeAll();
+    const from = `${root}/renview.txt`, to = `${root}/renview2.txt`;
+    const ed = await ws.open(from);
+    await saveWith(ed, 'rv1\n');
+    await saveWith(ed, 'rv2\n');
+    await until(async () => (await countOf(from)) === 2);
+    await app.commands.run('local-history:show');
+    const view = await until(historyView);
+    await until(() => side('cm-merge-a'));
+    await native.fs.rename(from, to);
+    ws.renamePath(from, to);
+    await until(async () => (await countOf(to)) === 2);
+    await until(() => document.querySelectorAll('.lh-row').length === 2);
+    const r = {
+      title: view.getTitle(), head: document.querySelector('.lh-file')?.textContent, rows: document.querySelectorAll('.lh-row').length,
+    };
+    // A save under the new name shows up in the open view, and Show File History finds the same tab.
+    await saveWith(ed, 'rv3\n');
+    r.rowsAfterSave = await until(() => document.querySelectorAll('.lh-row').length === 3 && 3);
+    await ws.openItem(ed);
+    await app.commands.run('local-history:show');
+    r.oneView = ws.allItems().filter((i) => i.type === 'local-history').length;
+    // Restore writes to the buffer of the renamed file.
+    document.querySelector('.lh-row:last-child').click();
+    await until(() => side('cm-merge-a') === 'rv1\n');
+    document.querySelector('.lh-actions .btn.primary').click();
+    r.restored = await until(() => bufferOf(ed) === 'rv1\n' && bufferOf(ed));
+    r.oldGone = !await historyOf(from);
+    return r;
+  });
+  out.renameView = results.renameView;
+
+  // --- Auto Save keeps at most one version every few minutes; saving by hand always keeps one ------
+  await step('autoSave', async () => {
+    await closeAll();
+    const p = `${root}/auto.txt`;
+    const ed = await ws.open(p);
+    await app.config.set('core.autoSaveDelay', 30);
+    await app.config.set('core.autoSave', 'afterDelay');
+    const autoType = async (text) => { setText(ed, text); await until(async () => (await native.fs.read(p)) === text && !ed.isDirty()); };
+    for (let i = 1; i <= 4; i++) await autoType(`auto ${i}\n`);
+    await until(async () => (await textsOf(p)).at(-1) === 'auto 4\n');
+    const r = { afterAutoSaves: await textsOf(p), flags: (await historyOf(p)).versions.map((v) => !!v.auto) };
+    // ⌘S (the text Auto Save already wrote): that version is kept for good.
+    ed.view.focus();
+    ed.view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key: 's', code: 'KeyS', ...MOD, bubbles: true, cancelable: true }));
+    await until(async () => (await historyOf(p)).versions.every((v) => !v.auto));
+    for (let i = 5; i <= 7; i++) await autoType(`auto ${i}\n`);
+    await until(async () => (await textsOf(p)).at(-1) === 'auto 7\n');
+    r.afterManual = await textsOf(p);
+    // Once the run is older than the interval, the next auto save starts a new version.
+    const h = await historyOf(p);
+    const last = h.versions.at(-1);
+    last.time -= 10 * 60 * 1000; last.since = last.time;
+    const { dir, ...index } = h;
+    await native.fs.write(`${dir}/index.json`, JSON.stringify(index));
+    await autoType('auto 8\n');
+    await until(async () => (await textsOf(p)).at(-1) === 'auto 8\n');
+    r.afterInterval = await textsOf(p);
+    await app.config.set('core.autoSave', undefined);
+    await app.config.set('core.autoSaveDelay', undefined);
+    return r;
+  });
+  out.autoSave = results.autoSave;
+
   // --- before a reload from disk or a revert --------------------------------------------------------
   await step('reload', async () => {
     await closeAll();

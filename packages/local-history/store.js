@@ -1,7 +1,8 @@
 // The history on disk: <user dir>/history/<hash of the file's path>/index.json plus one file per
 // version (<timestamp><extension>). The index holds the path and, for each version, its time, size,
-// content hash, file name and an optional label. History is keyed by the absolute path, so it does
-// not depend on which folder is open.
+// content hash, file name and an optional label; a version from Auto Save is marked `auto` (and
+// `since`: when the run of auto saves it stands for began). History is keyed by the absolute path,
+// so it does not depend on which folder is open.
 
 const MINUTE = 60 * 1000;
 const DAY = 24 * 60 * MINUTE;
@@ -12,6 +13,7 @@ export function createStore(mide) {
   const REMOTE = `${mide.user.dir}/remote/`; // mirrors of SSH folders: the remote machine is the source of truth
   const listeners = new Set();
   const locks = new Map();
+  let order = Promise.resolve();
 
   // --- small helpers ---------------------------------------------------------
   const bytes = new TextEncoder();
@@ -27,6 +29,13 @@ export function createStore(mide) {
     const tail = run.catch(() => {});
     locks.set(key, tail);
     tail.then(() => { if (locks.get(key) === tail) locks.delete(key); });
+    return run;
+  }
+
+  /** Snapshots and moves run in the order they were asked for, so a save just before a rename is moved with it. */
+  function inOrder(job) {
+    const run = order.then(job, job);
+    order = run.catch(() => {});
     return run;
   }
 
@@ -80,7 +89,8 @@ export function createStore(mide) {
 
   function ignored(path) {
     const root = folderRoots().filter((r) => path.startsWith(r + '/')).sort((a, b) => b.length - a.length)[0];
-    const rel = root ? path.slice(root.length + 1) : path.slice(1);
+    // Outside the folders only the file's name is matched: ~/build/notes.txt is not build output.
+    const rel = root ? path.slice(root.length + 1) : path.slice(path.lastIndexOf('/') + 1);
     const segments = rel.split('/');
     const patterns = [...(mide.config.get('local-history.ignore') || []), ...(mide.config.get('core.ignoredNames') || [])];
     return patterns.some((p) => typeof p === 'string' && matcher(p)(segments, rel));
@@ -144,29 +154,45 @@ export function createStore(mide) {
   // --- snapshots --------------------------------------------------------------
   const extOf = (path) => { const m = /\.[A-Za-z0-9]{1,12}$/.exec(path.slice(path.lastIndexOf('/') + 1)); return m ? m[0] : ''; };
 
-  /** Keeps `text` as the newest version of `path`, unless it is unchanged, ignored or too big. */
-  async function snapshot(path, text, label = null) {
-    if (!eligible(path, text)) return null;
-    const dir = await dirFor(path);
-    const added = await locked(dir, async () => {
-      const hash = await sha1(text);
-      const index = (await readIndex(dir)) || { path, versions: [] };
-      const last = index.versions.at(-1);
-      if (last && last.hash === hash) return null;
-      const time = Math.max(Date.now(), (last?.time || 0) + 1);
-      const version = { id: String(time), time, size: bytes.encode(text).length, hash, file: `${time}${extOf(path)}` };
-      if (label) version.label = label;
-      await fs.write(`${dir}/${version.file}`, text);
-      index.path = path;
-      index.versions.push(version);
-      const { keep, drop } = retention(index.versions);
-      index.versions = keep;
-      await writeIndex(dir, index);
-      if (drop.length) await removeFiles(dir, drop.map((v) => v.file));
-      return version;
+  /**
+   * Keeps `text` as the newest version of `path`, unless it is unchanged, ignored or too big.
+   * With `auto` (a save by Auto Save) it replaces the newest version while that one is from Auto Save
+   * too and its run began less than `autoSaveMinutes` ago, so typing with Auto Save on doesn't push
+   * the real history out.
+   */
+  function snapshot(path, text, label = null, { auto = false } = {}) {
+    if (!eligible(path, text)) return Promise.resolve(null);
+    return inOrder(async () => {
+      const dir = await dirFor(path);
+      const added = await locked(dir, async () => {
+        const hash = await sha1(text);
+        const index = (await readIndex(dir)) || { path, versions: [] };
+        const last = index.versions.at(-1);
+        if (last && last.hash === hash) {
+          // Saved by hand: the auto save version with this text is kept like any other.
+          if (!auto && last.auto) { delete last.auto; delete last.since; await writeIndex(dir, index); }
+          return null;
+        }
+        const time = Math.max(Date.now(), (last?.time || 0) + 1);
+        const version = { id: String(time), time, size: bytes.encode(text).length, hash, file: `${time}${extOf(path)}` };
+        if (label) version.label = label;
+        const since = last?.since ?? last?.time;
+        const replace = auto && !label && last?.auto && time - since < number('autoSaveMinutes', 5) * MINUTE;
+        if (auto && !label) version.auto = true;
+        if (replace) { version.since = since; index.versions.pop(); }
+        await fs.write(`${dir}/${version.file}`, text);
+        index.path = path;
+        index.versions.push(version);
+        const { keep, drop } = retention(index.versions);
+        index.versions = keep;
+        await writeIndex(dir, index);
+        if (replace) drop.push(last);
+        if (drop.length) await removeFiles(dir, drop.map((v) => v.file));
+        return version;
+      });
+      if (added) for (const fn of listeners) fn(path);
+      return added;
     });
-    if (added) for (const fn of listeners) fn(path);
-    return added;
   }
 
   /** The versions of a file, newest first. */
@@ -217,12 +243,14 @@ export function createStore(mide) {
     for (const fn of listeners) { fn(from); fn(to); }
   }
 
-  /** A file or a folder was renamed. */
-  async function move(from, to) {
-    await moveFile(from, to);
-    const stat = await fs.stat(to).catch(() => null);
-    if (!stat?.isDir) return;
-    for (const entry of await all()) if (entry.path.startsWith(from + '/')) await moveFile(entry.path, to + entry.path.slice(from.length));
+  /** A file or a folder was renamed. Waits for the snapshots asked for before it, so they move too. */
+  function move(from, to) {
+    return inOrder(async () => {
+      await moveFile(from, to);
+      const stat = await fs.stat(to).catch(() => null);
+      if (!stat?.isDir) return;
+      for (const entry of await all()) if (entry.path.startsWith(from + '/')) await moveFile(entry.path, to + entry.path.slice(from.length));
+    });
   }
 
   return {

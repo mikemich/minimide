@@ -229,9 +229,16 @@ export function activate(mide) {
   };
   const day = (iso) => (Date.parse(iso) ? new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '');
 
-  // What the last update check found: { checkedAt, updates: [{ name, fullName, … }], errors }. Kept in
-  // main (once a day at most); the button asks for a fresh look.
+  // What the last update check found: { checkedAt, updates: [{ name, fullName, … }], errors, unchecked, retryAt }.
+  // Kept in main (once a day at most); the button asks for a fresh look.
   const pendingUpdate = (view, name) => view.updates?.updates.find((u) => u.name === name);
+  /** "Couldn't check 2 packages (rate limited, try again at 14:05)." for a check GitHub cut short, else ''. */
+  function uncheckedText(found) {
+    const n = found?.unchecked?.length;
+    if (!n) return '';
+    const at = found.retryAt ? new Date(found.retryAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+    return `Couldn't check ${plural(n, 'package')} (${found.retryAt ? `rate limited, try again at ${at}` : "can't reach GitHub"}).`;
+  }
 
   async function checkForUpdates(view, { force }) {
     if (view.checking) return;
@@ -313,9 +320,10 @@ export function activate(mide) {
     if (view.checking) text = 'Checking GitHub for updates…';
     else if (view.updateError) text = view.updateError;
     else if (view.updating) text = 'Updating…';
+    else if (uncheckedText(found)) text = `${n ? `${plural(n, 'update')} available. ` : ''}${uncheckedText(found)}`;
     else if (n) text = `${plural(n, 'update')} available`;
     else if (found?.checkedAt) text = `Everything from GitHub is up to date. Checked ${ago(found.checkedAt)}.`;
-    return h('div.pkg-updates', { class: view.updateError ? 'error' : n ? 'available' : '' },
+    return h('div.pkg-updates', { class: view.updateError || (!n && uncheckedText(found)) ? 'error' : n ? 'available' : '' },
       h('span.pkg-updates-text', text),
       n ? h('button.btn.small.primary', { disabled: !!view.updating, onclick: () => applyUpdates(view) }, 'Update All') : null,
       h('button.btn.small', { disabled: view.checking || !!view.updating, onclick: () => checkForUpdates(view, { force: true }) }, 'Check for Updates'));

@@ -366,6 +366,40 @@
     return { hasRule: rules.length > 0, shortensAnimations: /animation-duration: 0\.01ms/.test(text), shortensTransitions: /transition-duration: 0\.01ms/.test(text), noLooping: /animation-iteration-count: 1/.test(text), noSmoothScroll: /scroll-behavior: auto/.test(text) };
   });
 
+  // The terminal panel is a named tab panel; each terminal in it is named; its output is readable by a screen
+  // reader (xterm's screen reader mode) when the system reports one, or when the setting asks for it.
+  await step('terminal', async () => {
+    const os = app.screenReader.active;
+    const tree = () => $('.term-instance .xterm-accessibility-tree');
+    const out = { pty: await window.native.term.available() };
+    if (!out.pty) return out;
+    app.screenReader.set(false);
+    await app.commands.run('terminal:new');
+    const instance = await until(() => $('.term-instance .xterm') && $('.term-instance'));
+    out.region = [attr($('.term-view'), 'role'), nameOf($('.term-view'))];
+    out.instance = [attr(instance, 'role'), await until(() => /^Terminal: \S/.test(attr(instance, 'aria-label')) && 'named')];
+    out.input = attr($('.term-instance .xterm-helper-textarea'), 'aria-label');
+    out.offWithoutScreenReader = !tree();
+    // The system starts reporting a screen reader ("auto"): output becomes readable, and stops being when it goes.
+    app.screenReader.set(true);
+    out.onWithScreenReader = !!(await until(tree));
+    const marker = 'a11y-terminal-output';
+    app.packages.services.get('terminal').run(`echo ${marker}`, { key: 'a11y', title: 'a11y' });
+    out.outputReadable = !!(await until(() => [...$$('.term-instance .xterm-accessibility-tree')].some((t) => t.textContent.includes(marker))));
+    out.liveRegion = attr($('.term-instance .xterm-accessibility .live-region'), 'aria-live');
+    await app.config.set('terminal.screenReaderMode', 'off');
+    out.offBySetting = !!(await until(() => !tree()));
+    app.screenReader.set(false);
+    await app.config.set('terminal.screenReaderMode', 'on');
+    out.onBySetting = !!(await until(tree));
+    await app.config.set('terminal.screenReaderMode', undefined);
+    out.autoAgain = !!(await until(() => !tree()));
+    app.screenReader.set(os);
+    while (app.commands.has('terminal:kill') && $('.term-instance')) { await app.commands.run('terminal:kill'); await wait(50); }
+    app.panel.hide();
+    return out;
+  });
+
   // Open every sidebar and panel view and the common dialogs, then look for anything without a name.
   await step('everyControlHasAName', async () => {
     await closeAll();

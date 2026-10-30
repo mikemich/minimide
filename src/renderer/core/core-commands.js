@@ -327,9 +327,11 @@ export function registerCoreCommands(app) {
       run: async () => {
         let found;
         try { found = await window.native.pkgmgr.checkUpdates({ force: true }); } catch (err) { return ui.notify.error("Couldn't check for updates", err.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); }
-        const { updates, errors } = found;
-        if (!updates.length) return ui.notify.info(errors.length ? "Couldn't check some packages" : 'All installed packages are up to date', errors.map((u) => `${u.name}: ${u.error}`).join('\n') || undefined);
-        ui.notify.info(`${updates.length} package update${updates.length === 1 ? '' : 's'} available`, updates.map((u) => u.name).join(', '), {
+        const { updates, errors, unchecked = [], retryAt } = found;
+        // GitHub's rate limit cut the check short: name what wasn't looked at, and when to try again.
+        const limited = unchecked.length ? `Couldn't check ${unchecked.join(', ')}${retryAt ? ` (rate limited, try again at ${new Date(retryAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ''}.` : '';
+        if (!updates.length) return ui.notify.info(errors.length ? "Couldn't check some packages" : 'All installed packages are up to date', limited || errors.map((u) => `${u.name}: ${u.error}`).join('\n') || undefined);
+        ui.notify.info(`${updates.length} package update${updates.length === 1 ? '' : 's'} available`, [updates.map((u) => u.name).join(', '), limited].filter(Boolean).join('\n'), {
           timeout: 0,
           actions: [{ label: 'Update All', run: () => app.packages.updateAll() }],
         });

@@ -572,6 +572,8 @@ function registerIpc() {
     await fs.rm(target, { recursive: true, force: true });
   });
   handle('fs:realpath', (_e, p) => fs.realpath(p).catch(() => null));
+  // Is a screen reader (or other assistive technology) using the app? Windows hear when that changes.
+  handle('app:screenReader', () => app.accessibilitySupportEnabled);
   handle('fs:watch', (event, root, key = 'project') => {
     const id = `${event.sender.id}:${key}`;
     watchers.get(id)?.close();
@@ -1094,6 +1096,10 @@ function openPath(p) {
   sendOpenPath(win, p);
   win.focus();
 }
+app.on('accessibility-support-changed', (_e, on) => {
+  for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('app:screen-reader', on);
+});
+
 app.on('open-file', (e, p) => {
   e.preventDefault();
   if (app.isReady()) openPath(p);

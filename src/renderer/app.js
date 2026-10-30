@@ -20,7 +20,7 @@ import { bindKeyHints } from './core/key-hints.js';
 import { QuickOpen } from './core/quick-open.js';
 import { bindWelcomeTips } from './core/welcome-tips.js';
 import { userFileUrl } from './core/urls.js';
-import { installA11y } from './core/a11y.js';
+import { installA11y, screenReader } from './core/a11y.js';
 
 // ui.accentColor overrides the theme's accent and everything derived from it.
 // Inline styles on <html> beat the theme's :root rules, so this survives theme switches.
@@ -59,6 +59,9 @@ class App {
     this.userInfo = await window.native.user.info();
     document.body.classList.add(`platform-${this.userInfo.platform}`);
     installA11y(document.body);
+    this.screenReader = screenReader;
+    screenReader.set(await window.native.screenReader?.active().catch(() => false));
+    window.native.screenReader?.onChange((on) => screenReader.set(on));
 
     this.config.register(CORE_SCHEMA, 'core');
     // Listen before loading, so a broken config.json is reported at launch too.
@@ -239,6 +242,11 @@ class App {
   async addFolder(path) {
     if (!path) return false;
     if (!this.workspace.project) { await this.openProject(path); return true; }
+    const same = await this.workspace.sameFolder(path);
+    if (same) {
+      this.ui.notify.info(`${this.workspace.folderLabel(same)} is already open`, same === path.replace(/(.)\/+$/, '$1') ? undefined : `${path} is the same folder as ${same}.`);
+      return false;
+    }
     if (!await this.workspace.addFolder(path)) return false;
     if (!this.trust.isTrusted(path)) await this.trust.prompt(path);
     return true;
@@ -470,7 +478,7 @@ class App {
     const saveDirty = () => {
       for (const doc of this.workspace.dirtyDocuments()) {
         const item = [...doc.views][0];
-        if (doc.path && item) this.workspace.save(item);
+        if (doc.path && item) this.workspace.save(item, { auto: true });
       }
     };
     window.addEventListener('blur', () => { if (this.config.get('core.autoSave') === 'onFocusChange') saveDirty(); });

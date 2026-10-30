@@ -220,6 +220,11 @@ const SUITES = [
       'focusRings.rule': [true, true, true], 'focusRings.editorExempt': true, 'focusRings.resizerFocus': true, 'focusRings.hoverControlsShowOnFocus': true,
       'focusRings.nightfall': { lightBackground: false, ringReadable: true, low: [] }, 'focusRings.daylight': { lightBackground: true, ringReadable: true, low: [] },
       reducedMotion: { hasRule: true, shortensAnimations: true, shortensTransitions: true, noLooping: true, noSmoothScroll: true },
+      // The terminal: named, and readable by a screen reader when the system has one on (or the setting says so).
+      terminal: (t) => !t?.pty || JSON.stringify(t) === JSON.stringify({
+        pty: true, region: ['tabpanel', 'Terminal'], instance: ['group', 'named'], input: 'Terminal input', offWithoutScreenReader: true,
+        onWithScreenReader: true, outputReadable: true, liveRegion: 'assertive', offBySetting: true, onBySetting: true, autoAgain: true,
+      }),
       // After opening every sidebar and panel view and the common dialogs, no control is without a name.
       'everyControlHasAName.checked': (n) => n >= 12, 'everyControlHasAName.offenders': {}, 'everyControlHasAName.duplicateIds': [], 'everyControlHasAName.positiveTabindex': 0,
       totalErrors: 0,
@@ -273,6 +278,11 @@ const SUITES = [
       cancelledUpdate: { version: '1.0.0', permissions: [], stillOffered: true },
       notesUpdated: { version: '2.0.0', permissions: ['clipboard'], active: true },
       'afterUpdates.text': /^Everything from GitHub is up to date\./, 'afterUpdates.badges': 0, 'afterUpdates.tabCount': false,
+      // A check cut short by GitHub's rate limit isn't kept as today's.
+      'limitedCheck.text': /^1 update available\. Couldn't check 1 package \(rate limited, try again at \d{1,2}:\d{2}( ?[AP]M)?\)\.$/,
+      'limitedCheck.badges': ['goal-tracker'], 'limitedCheck.keptAsToday': false,
+      'limitedCheck.reused': { unchecked: ['quick-notes'], requests: 0 },
+      limitedRetried: { requests: 2, unchecked: [], updates: ['goal-tracker'], keptAsToday: true },
       // Messages.
       rateLimit: /^GitHub's search limit was reached; try again in 3 minutes\. Try Again$/, rateLimitCards: 0, tryAgain: true,
       offline: /^Can't reach GitHub\. Check your internet connection and try again\./, noMatches: /^No packages match "zzz-nothing"\./, recovered: 4,
@@ -299,6 +309,9 @@ const SUITES = [
       sourceControl: { folder: 'beta', rows: ['new.txt', 'readme.md'], pickerShown: true },
       'removed.folders': ['alpha'], 'removed.rel': 'src/app.js', 'removed.title': /— alpha — Minimide$/, treeAfterRemove: true, folderForRemoved: null, gitAfterRemove: true,
       restrictedBefore: false, gammaTrusted: false, alphaStillTrusted: true, restrictedAfter: true, restrictedTooltip: /off for gamma\./, noGitInGamma: true,
+      // The same folder, by its own path or through a link, isn't added twice (or watched twice).
+      'duplicate.added': [false, false], 'duplicate.folders': ['alpha', 'gamma'], 'duplicate.treeRoots': ['alpha', 'gamma'], 'duplicate.watched': ['alpha', 'gamma'],
+      'duplicate.notes': ['alpha is already open', 'alpha is already open | alpha-link is the same folder as alpha.', 'alpha is already open | alpha-link is the same folder as alpha.'],
       saved: ['alpha', 'gamma', 'beta'], sessionFolders: ['gamma', 'beta'], finalTitle: 'util.py — alpha +2 — Minimide',
     }),
   },
@@ -454,6 +467,10 @@ const SUITES = [
       'recover.listed': true, 'recover.restored': 'gone v1\n', 'recover.opened': true,
       'rename.fileMoved': ['r1\n'], 'rename.oldGone': true,
       'rename.folderMoved': ['i1\n'], 'rename.folderOldGone': true,
+      'renameView.title': 'renview2.txt (history)', 'renameView.head': 'renview2.txt', 'renameView.rows': 2, 'renameView.rowsAfterSave': 3,
+      'renameView.oneView': 1, 'renameView.restored': 'rv1\n', 'renameView.oldGone': true,
+      'autoSave.afterAutoSaves': ['auto 4\n'], 'autoSave.flags': [true],
+      'autoSave.afterManual': ['auto 4\n', 'auto 7\n'], 'autoSave.afterInterval': ['auto 4\n', 'auto 7\n', 'auto 8\n'],
       'reload.disk': { text: 'changed outside\n', label: 'Before reload from disk', saved: 'ext original\n' },
       'reload.revert': { label: 'Before revert', saved: 'scratch\n' },
       'toggle.before': 2, 'toggle.after': 0, 'toggle.reopened': true,
