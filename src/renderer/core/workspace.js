@@ -193,7 +193,9 @@ export class Pane extends Emitter {
       { id: 'copy-rel', label: 'Copy Relative Path', enabled: !!path && !!this.ws.project },
       { id: 'reveal', label: 'Reveal in Finder', enabled: !!path },
       { id: 'tree', label: 'Reveal in Tree View', enabled: !!path },
-      ...(path && this.ws.commands.has('local-history:show') ? [{ type: 'separator' }, { id: 'history', label: 'Show Local History' }] : []),
+      ...(path && (this.ws.commands.has('local-history:show') || this.ws.commands.has('git-history:file-history')) ? [{ type: 'separator' }] : []),
+      ...(path && this.ws.commands.has('local-history:show') ? [{ id: 'history', label: 'Show Local History' }] : []),
+      ...(path && this.ws.commands.has('git-history:file-history') ? [{ id: 'git-history', label: 'Git: File History' }] : []),
     ]);
     const idx = this.items.indexOf(item);
     switch (choice) {
@@ -209,6 +211,7 @@ export class Pane extends Emitter {
       case 'reveal': return window.native.shell.reveal(path);
       case 'tree': this.activate(item); return this.ws.commands.run('tree-view:reveal-active-file');
       case 'history': return this.ws.commands.run('local-history:show-for', path);
+      case 'git-history': return this.ws.commands.run('git-history:file-history-for', path);
     }
   }
 

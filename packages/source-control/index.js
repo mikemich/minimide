@@ -391,6 +391,7 @@ export function activate(mide) {
   mide.sidebar.addView({ id: 'source-control', title: 'Source Control', icon: 'branch', order: 15, command: 'source-control:show', element: el, onShow: refresh, focus: () => msgInput.focus() });
   mide.commands.add({
     'source-control:show': { title: 'Show Source Control', run: () => { mide.sidebar.show('source-control', { focus: true }); refresh(); } },
+    'source-control:refresh': { title: 'Refresh', hidden: true, run: () => refresh() }, // after changes made elsewhere (git-history)
     'source-control:commit': { title: 'Commit', when: () => !!state.root, run: () => { mide.sidebar.show('source-control'); commit(); } },
     'source-control:push': { title: 'Push', when: () => !!state.root, run: push },
     'source-control:pull': { title: 'Pull', when: () => !!state.root, run: pull },

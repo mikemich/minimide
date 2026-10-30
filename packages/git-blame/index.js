@@ -14,16 +14,26 @@ export function activate(mide) {
     provide: (f) => EditorView.decorations.from(f),
   });
 
+  // With git-history installed, clicking the annotation opens its commit there.
+  const canShowCommit = (hash) => hash && !/^0+$/.test(hash) && mide.commands.has('git-history:show-commit');
+  const showCommit = (hash, path) => mide.commands.run('git-history:show-commit', { hash, path });
+
   class BlameWidget extends WidgetType {
-    constructor(text, title) { super(); this.text = text; this.title = title; }
-    eq(o) { return o.text === this.text; }
+    constructor(text, title, hash, path) { super(); this.text = text; this.title = title; this.hash = hash; this.path = path; }
+    eq(o) { return o.text === this.text && o.hash === this.hash; }
     toDOM() {
       const el = document.createElement('span');
       el.className = 'cm-blame';
       el.textContent = this.text;
       el.title = this.title;
+      if (canShowCommit(this.hash)) {
+        el.classList.add('cm-blame-link');
+        el.title += '\n\nClick to show the commit';
+        el.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); showCommit(this.hash, this.path); });
+      }
       return el;
     }
+    ignoreEvent() { return true; }
   }
 
   mide.editor.addExtension(field);
@@ -93,7 +103,7 @@ export function activate(mide) {
     if (!d || my !== seq || !editor.view) return;
     const current = editor.view.state.doc.lineAt(editor.view.state.selection.main.head);
     if (current.number !== line.number) return;
-    editor.view.dispatch({ effects: setBlame.of(Decoration.set([Decoration.widget({ widget: new BlameWidget(d.text, d.title), side: 1 }).range(current.to)])) });
+    editor.view.dispatch({ effects: setBlame.of(Decoration.set([Decoration.widget({ widget: new BlameWidget(d.text, d.title, d.info?.hash, path), side: 1 }).range(current.to)])) });
   }
 
   mide.workspace.onDidUpdateEditor((editor, u) => { if (editor === mide.workspace.getActiveEditor() && (u?.selectionSet || u?.focusChanged)) schedule(); });
@@ -113,11 +123,19 @@ export function activate(mide) {
     const line = editor.view.state.doc.lineAt(editor.view.state.selection.main.head).number;
     const d = describe(await blameLine(editor.getPath(), line));
     if (!d) return mide.notify.info('No blame information for this line', 'The file may be untracked or outside a git repository.');
-    mide.notify.info(d.text, d.title, d.info?.hash && !/^0+$/.test(d.info.hash) ? { actions: [{ label: 'Copy commit hash', run: () => mide.clipboard.write(d.info.hash) }] } : {});
+    const hash = d.info?.hash;
+    mide.notify.info(d.text, d.title, hash && !/^0+$/.test(hash) ? {
+      actions: [
+        ...(canShowCommit(hash) ? [{ label: 'Show Commit', run: () => showCommit(hash, editor.getPath()) }] : []),
+        { label: 'Copy commit hash', run: () => mide.clipboard.write(hash) },
+      ],
+    } : {});
   });
   mide.commands.add('git-blame:toggle', 'Toggle Inline Blame', () => mide.config.set('git-blame.inline', !mide.config.get('git-blame.inline')));
 
   mide.styles.add(`
     .cm-blame { margin-left: 3em; color: var(--fg-subtle); opacity: 0.75; font-style: italic; font-size: 0.9em; white-space: nowrap; pointer-events: auto; user-select: none; }
+    .cm-blame-link { cursor: pointer; }
+    .cm-blame-link:hover { opacity: 1; text-decoration: underline; }
   `);
 }

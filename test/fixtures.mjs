@@ -249,6 +249,77 @@ function extras(root) {
   write(path.join(d, 'code.js'), code.join('\n') + '\n');
 }
 
+/**
+ * `ghproj`: a repository with history for gitHistory: an initial commit, 450 small commits made with
+ * fast-import (for paging), a rename (for --follow), a branch merged with a merge commit, a tag,
+ * an unmerged branch to cherry-pick from, commits by a second author and a stash. Commit dates go
+ * up one minute per commit so the order is fixed. `ghuntrusted` is a repository nobody trusted;
+ * the home `ghh` trusts only ghproj.
+ */
+function ghproj(root) {
+  const d = path.join(root, 'ghproj');
+  gitInit(d, 'Ada Lovelace', 'ada@example.com');
+  let t = 1700000000;
+  const at = (...args) => {
+    t += 60;
+    execFileSync('git', args, { cwd: d, stdio: 'pipe', env: { ...process.env, GIT_AUTHOR_DATE: `${t} +0000`, GIT_COMMITTER_DATE: `${t} +0000` } });
+  };
+  const commit = (message, author) => { git(d, 'add', '-A'); at(...(author ? ['-c', `user.name=${author}`, '-c', 'user.email=grace@example.com'] : []), 'commit', '-qm', message); };
+  const lines = (name) => Array.from({ length: 10 }, (_, i) => `export const line${i + 1} = '${i === 0 ? name : `value ${i + 1}`}';`).join('\n') + '\n';
+  write(path.join(d, 'README.md'), '# History\n');
+  write(path.join(d, 'src/old-name.js'), lines('old'));
+  commit('Initial commit');
+  // 450 commits in one go: fast-import writes them without touching the working tree.
+  let stream = '';
+  const blob = (text) => `data ${Buffer.byteLength(text)}\n${text}\n`;
+  for (let n = 1; n <= 450; n++) {
+    t += 60;
+    const who = n % 100 === 0 ? 'Grace Hopper <grace@example.com>' : 'Ada Lovelace <ada@example.com>';
+    stream += `commit refs/heads/master\nauthor ${who} ${t} +0000\ncommitter ${who} ${t} +0000\n${blob(`Bump counter to ${n}`)}`
+      + (n === 1 ? 'from refs/heads/master^0\n' : '') + `M 100644 inline counter.txt\n${blob(`${n}\n`)}\n`;
+  }
+  execFileSync('git', ['fast-import', '--quiet'], { cwd: d, input: stream, stdio: ['pipe', 'pipe', 'pipe'] });
+  git(d, 'reset', '-q', '--hard');
+  write(path.join(d, 'src/old-name.js'), lines('older'));
+  commit('Edit old name');
+  git(d, 'mv', 'src/old-name.js', 'src/app.js');
+  write(path.join(d, 'src/app.js'), lines('app'));
+  commit('Rename old-name.js to app.js');
+  git(d, 'checkout', '-q', '-b', 'feature');
+  write(path.join(d, 'feature.txt'), 'one\ntwo\nthree\n');
+  commit('Add feature work');
+  git(d, 'checkout', '-q', 'master');
+  write(path.join(d, 'README.md'), '# History\n\nMaster work.\n');
+  commit('Master work');
+  at('merge', '-q', '--no-ff', 'feature', '-m', "Merge branch 'feature'");
+  at('tag', '-a', 'v1.0', '-m', 'Version 1.0');
+  git(d, 'checkout', '-q', '-b', 'pick-me');
+  write(path.join(d, 'pick.txt'), 'picked\n');
+  commit('Add pick.txt');
+  git(d, 'checkout', '-q', 'master');
+  write(path.join(d, 'src/app.js'), lines('tuned'));
+  commit('Tune app name');
+  write(path.join(d, 'notes.txt'), 'widget\n');
+  commit('Fix the widget\n\nThe widget was upside down.\nNow it is not.', 'Grace Hopper');
+  write(path.join(d, 'notes.txt'), 'widget\nfinal\n');
+  commit('Final tweak');
+  write(path.join(d, 'README.md'), '# History\n\nMaster work.\nstashed line\n');
+  at('stash', 'push', '-q', '-m', 'fixture stash');
+  const u = path.join(root, 'ghuntrusted');
+  gitInit(u, 'Mallory', 'mallory@example.com');
+  write(path.join(u, 'u.txt'), 'untrusted\n');
+  commitAll(u, 'Untrusted commit');
+  write(path.join(root, 'ghh/trusted-folders.json'), JSON.stringify({ folders: [{ path: d, real: d }] }, null, 2) + '\n');
+  // `ghshim/git` logs where every git command runs (then runs the real git): the suite puts it first
+  // on PATH to show that nothing runs git in ghuntrusted.
+  const real = (process.env.PATH || '').split(path.delimiter).map((dir) => path.join(dir, 'git')).find((f) => { try { fs.accessSync(f, fs.constants.X_OK); return true; } catch { return false; } });
+  if (process.platform !== 'win32' && real) {
+    const shim = path.join(root, 'ghshim');
+    write(path.join(shim, 'git'), `#!/bin/sh\necho "$(pwd -P) $*" >> '${shim}/calls.log'\nexec '${real}' "$@"\n`);
+    fs.chmodSync(path.join(shim, 'git'), 0o755);
+  }
+}
+
 /** `lhproj`: small files, some that local history must skip, and a folder to rename (localHistory). */
 function lhproj(root) {
   const d = path.join(root, 'lhproj');
@@ -568,6 +639,7 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   dbgproj(root);
   lhproj(root);
   mcproj(root);
+  ghproj(root);
   outlineproj(root);
   bmproj(root);
   vsc(root);
