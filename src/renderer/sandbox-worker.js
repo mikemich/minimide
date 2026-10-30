@@ -98,7 +98,7 @@ const mide = {
   },
 
   workspace: {
-    /** { path, language, dirty } of the active editor, or null. */
+    /** { path, language, dirty, large } of the active editor, or null. */
     getActiveEditor: () => call('editor.info'),
     onDidChangeActiveEditor: (fn) => on('activeEditor', fn),
     onDidSave: (fn) => on('save', fn),

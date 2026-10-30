@@ -1,10 +1,12 @@
 // Word completion: suggests words already in the file you're editing, for every language.
-// It stands aside where a language server provides completions, and ranks below snippets.
+// It stands aside where a language server provides completions, and ranks below snippets, and is off
+// in large files.
 import { completeAnyWord } from '@codemirror/autocomplete';
+import { largeFile } from './large-files.js';
 
 export function wordCompletion(app) {
   return (ctx) => {
-    if (app.config.get('editor.wordCompletion') === false) return null;
+    if (app.config.get('editor.wordCompletion') === false || ctx.state.facet(largeFile)) return null;
     // Two letters typed (or completion asked for explicitly) before suggesting anything.
     if (!ctx.explicit && !ctx.matchBefore(/[\p{L}\p{N}_]{2,}$/u)) return null;
     if (app.packages.services.get('lsp')?.handles(ctx.view)) return null;

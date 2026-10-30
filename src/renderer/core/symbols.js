@@ -8,6 +8,7 @@ import * as lang from '@codemirror/language';
 import { Disposable } from './events.js';
 import { icon, registerIcon } from './dom.js';
 import { syntaxSymbols, pathAt } from './syntax-symbols.js';
+import { largeFile } from './large-files.js';
 
 const DELAY = 300; // ms after the last edit before symbols are computed again
 
@@ -44,6 +45,9 @@ export function symbolTracker(app) {
         // The language just loaded, or the parser got further than last time.
         this.dirty = true;
         this.schedule(DELAY);
+      } else if (u.startState.facet(largeFile) !== u.state.facet(largeFile)) { // a large file's features were turned on
+        this.dirty = true;
+        this.schedule(0);
       } else if (this.dirty && (u.geometryChanged || u.viewportChanged)) this.schedule(100); // shown again
     }
 
@@ -70,6 +74,8 @@ export function symbolTracker(app) {
       this.dirty = false;
       this.reqChanges = null;
       this.pending = (async () => {
+        // A large file has none: it isn't parsed and no server opens it.
+        if (view.state.facet(largeFile)) { this.reqChanges = undefined; this.snapshot = { symbols: [], source: 'syntax', doc }; this.mapping = null; emitChange(this); return; }
         const server = lsp();
         const editor = editorFor(view);
         let fromServer = null;

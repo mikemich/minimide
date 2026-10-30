@@ -88,7 +88,7 @@ export class SandboxedPackage {
   }
 
   activeEditor() { return this.app.workspace.getActiveEditor(); }
-  editorInfo(ed = this.activeEditor()) { return ed ? { path: ed.getPath() || null, language: ed.getLanguageName(), dirty: ed.isDirty() } : null; }
+  editorInfo(ed = this.activeEditor()) { return ed ? { path: ed.getPath() || null, language: ed.getLanguageName(), dirty: ed.isDirty(), large: ed.isLarge() } : null; }
 
   subscribe(name) {
     if (this.subscribed.has(name)) return;

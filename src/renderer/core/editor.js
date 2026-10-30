@@ -39,6 +39,7 @@ export const richHighlighter = tagHighlighter([
 ]);
 import { Emitter } from './events.js';
 import { bracketPairColors } from './bracket-colors.js';
+import { largeFile } from './large-files.js';
 import { h, basename } from './dom.js';
 
 const syncAnnotation = Annotation.define();
@@ -88,7 +89,10 @@ function detectLineEnding(text) {
 const splitLines = (text) => text.split(/\r\n?|\n/);
 
 export class Document extends Emitter {
-  /** `meta` ({ encoding, bom }) says how the file is stored on disk, so saving writes it back the same way. */
+  /**
+   * `meta` ({ encoding, bom }) says how the file is stored on disk, so saving writes it back the same way;
+   * `meta.large` opens it as a large file.
+   */
   constructor(path, text = '', meta = {}) {
     super();
     this.id = nextId++;
@@ -96,6 +100,9 @@ export class Document extends Emitter {
     this.initialText = text;
     this.encoding = meta.encoding || 'utf8';
     this.bom = !!meta.bom;
+    this.large = !!meta.large;
+    this.longLines = !!meta.longLines; // soft wrap stays off while it's large: wrapping a megabyte line takes seconds
+    // The first editor starts from this same Text, so telling whether it changed doesn't compare every line.
     this.savedDoc = Text.of(splitLines(text));
     this.lineEnding = detectLineEnding(text);
     this.dirty = false;
@@ -121,8 +128,9 @@ export class Document extends Emitter {
     }
   }
 
-  markSaved(text) {
-    this.savedDoc = Text.of(splitLines(text));
+  /** `saved` is the editor's Text that `text` was made from, when there is one (cheaper to compare). */
+  markSaved(text, saved) {
+    this.savedDoc = saved || Text.of(splitLines(text));
     this.conflict = false;
     this.deleted = false;
     const doc = this.primaryView()?.state.doc;
@@ -161,7 +169,15 @@ export class Document extends Emitter {
     }
     this.lineEnding = detectLineEnding(text);
     this.deleted = false;
-    this.markSaved(text);
+    this.markSaved(text, view.state.doc);
+  }
+
+  /** "Turn features on anyway": a large file gets everything a normal one has, from now on. */
+  enableAllFeatures() {
+    if (!this.large) return;
+    this.large = false;
+    for (const item of this.views) item.applyLarge();
+    this.emit('large', false);
   }
 }
 
@@ -189,19 +205,21 @@ export class EditorItem extends Emitter {
     this.langCompartment = compartments.language();
     this.spellCompartment = new Compartment();
     this.labelCompartment = new Compartment();
+    this.largeCompartment = new Compartment();
     this.element = h('div.editor-item');
     document.views.add(this);
 
     const ws = workspace;
     const self = this;
     const state = EditorState.create({
-      doc: sourceView ? sourceView.state.doc : document.initialText,
+      doc: sourceView ? sourceView.state.doc : document.savedDoc,
       selection: sourceView ? sourceView.state.selection : undefined,
       extensions: [
         this.langCompartment.of([]),
+        this.largeCompartment.of(largeExtensions(document.large)),
         this.spellCompartment.of([]),
         this.labelCompartment.of(EditorView.contentAttributes.of({ 'aria-label': `Editor: ${document.title}` })),
-        ...baseExtensions(ws),
+        ...baseExtensions(ws, document),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) document.updateDirty();
           if (update.docChanged || update.selectionSet || update.focusChanged) ws.emit('editor-updated', self, update);
@@ -233,16 +251,30 @@ export class EditorItem extends Emitter {
     this.applyLanguage();
   }
 
+  /** After "Turn features on anyway": the heavy extensions and the language come back. */
+  applyLarge() {
+    const { large } = this.document;
+    this.view?.dispatch({ effects: [
+      this.largeCompartment.reconfigure(largeExtensions(large)),
+      compartments.plugins.reconfigure(this.workspace.editorExtensions(large)),
+      compartments.lineWrapping.reconfigure(wrapping(this.workspace.config.get('editor.softWrap'), this.document)),
+    ] });
+    this.applyLanguage();
+  }
+
+  isLarge() { return this.document.large; }
+
   /** Spell check only prose: Markdown and plain text (Chromium's checker, so the OS dictionary and menu apply). */
   applySpellcheck() {
-    const prose = !this.document.language || this.document.language.name === 'Markdown';
+    const prose = !this.document.large && (!this.document.language || this.document.language.name === 'Markdown');
     const on = prose && this.workspace.config.get('editor.spellcheck') !== false;
     this.view?.dispatch({ effects: this.spellCompartment.reconfigure(on ? EditorView.contentAttributes.of({ spellcheck: 'true', autocorrect: 'off' }) : []) });
   }
 
   async applyLanguage() {
     this.applySpellcheck();
-    const desc = this.document.language;
+    // A large file isn't parsed: no highlighting, folding or syntax-based indentation.
+    const desc = this.document.large ? null : this.document.language;
     if (!desc) {
       this.view.dispatch({ effects: this.langCompartment.reconfigure([]) });
       this.workspace.emit('editor-updated', this, null);
@@ -323,13 +355,21 @@ export class EditorItem extends Emitter {
   }
 }
 
-function baseExtensions(ws) {
+/** What differs in a large file's editor: the largeFile facet instead of bracket matching. */
+function largeExtensions(large) {
+  return large ? [largeFile.of(true), EditorView.editorAttributes.of({ class: 'cm-large-file' })] : bracketMatching();
+}
+
+const wrapping = (on, doc) => (on && !(doc.large && doc.longLines) ? EditorView.lineWrapping : []);
+
+function baseExtensions(ws, doc) {
+  const { large } = doc;
   const cfg = ws.config;
   return [
     compartments.lineNumbers.of(cfg.get('editor.showLineNumbers') ? [lineNumbers(), highlightActiveLineGutter()] : []),
     compartments.activeLine.of(cfg.get('editor.highlightActiveLine') ? highlightActiveLine() : []),
     compartments.tabSize.of(tabExtensions(cfg)),
-    compartments.lineWrapping.of(cfg.get('editor.softWrap') ? EditorView.lineWrapping : []),
+    compartments.lineWrapping.of(wrapping(cfg.get('editor.softWrap'), doc)),
     compartments.whitespace.of(cfg.get('editor.showInvisibles') ? highlightWhitespace() : []),
     compartments.bracketColors.of(cfg.get('editor.bracketPairColors') ? bracketPairColors : []),
     compartments.scrollPastEnd.of(cfg.get('editor.scrollPastEnd') ? scrollPastEnd() : []),
@@ -350,13 +390,12 @@ function baseExtensions(ws) {
     indentOnInput(),
     syntaxHighlighting(classHighlighter),
     syntaxHighlighting(richHighlighter),
-    bracketMatching(),
     closeBrackets(),
     autocompletion(),
     rectangularSelection(),
     crosshairCursor(),
     highlightSelectionMatches(),
-    compartments.plugins.of(ws.editorExtensions()),
+    compartments.plugins.of(ws.editorExtensions(large)),
     EditorState.languageData.of(() => [{ autocomplete: ws.extraCompletionSource }]),
     keymap.of([
       ...closeBracketsKeymap,
@@ -413,12 +452,12 @@ export function tabExtensions(cfg) {
 export function bindEditorConfig(ws) {
   const cfg = ws.config;
   const all = (effectFn) => {
-    for (const item of ws.allItems()) if (item.type === 'editor' && item.view) item.view.dispatch({ effects: effectFn() });
+    for (const item of ws.allItems()) if (item.type === 'editor' && item.view) item.view.dispatch({ effects: effectFn(item) });
   };
   const subs = [
     cfg.onDidChange('editor.tabSize', () => all(() => compartments.tabSize.reconfigure(tabExtensions(cfg)))),
     cfg.onDidChange('editor.softTabs', () => all(() => compartments.tabSize.reconfigure(tabExtensions(cfg)))),
-    cfg.onDidChange('editor.softWrap', (v) => all(() => compartments.lineWrapping.reconfigure(v ? EditorView.lineWrapping : []))),
+    cfg.onDidChange('editor.softWrap', (v) => all((item) => compartments.lineWrapping.reconfigure(wrapping(v, item.document)))),
     cfg.onDidChange('editor.showLineNumbers', (v) => all(() => compartments.lineNumbers.reconfigure(v ? [lineNumbers(), highlightActiveLineGutter()] : []))),
     cfg.onDidChange('editor.highlightActiveLine', (v) => all(() => compartments.activeLine.reconfigure(v ? highlightActiveLine() : []))),
     cfg.onDidChange('editor.showInvisibles', (v) => all(() => compartments.whitespace.reconfigure(v ? highlightWhitespace() : []))),
@@ -426,7 +465,7 @@ export function bindEditorConfig(ws) {
     cfg.onDidChange('editor.scrollPastEnd', (v) => all(() => compartments.scrollPastEnd.reconfigure(v ? scrollPastEnd() : []))),
     cfg.onDidChange('editor.bracketPairColors', (v) => all(() => compartments.bracketColors.reconfigure(v ? bracketPairColors : []))),
   ];
-  ws.on('editor-extensions-changed', () => all(() => compartments.plugins.reconfigure(ws.editorExtensions())));
+  ws.on('editor-extensions-changed', () => all((item) => compartments.plugins.reconfigure(ws.editorExtensions(item.document.large))));
   return subs;
 }
 
@@ -446,14 +485,14 @@ async function openWithDefaultApp(path) {
 }
 
 export class BinaryItem extends Emitter {
-  constructor(path) {
+  constructor(path, message = 'This file is binary or too large to edit here.') {
     super();
     this.type = 'binary';
     this.id = `binary-${nextId++}`;
     this.path = path;
     this.element = h('div.placeholder-item',
       h('div.placeholder-title', basename(path)),
-      h('p', 'This file is binary or too large to edit here.'),
+      h('p', message),
       h('button.btn', { onclick: () => openWithDefaultApp(path) }, 'Open with default app'));
   }
   getTitle() { return basename(this.path); }

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { decodeText, encodeText } from '../../src/main/text-encoding.js';
+import { decodeText, encodeText, looksBinary } from '../../src/main/text-encoding.js';
 
 const roundTrip = (bytes) => {
   const { text, ...meta } = decodeText(Buffer.from(bytes));
@@ -52,4 +52,18 @@ test('UTF-16 files with a byte order mark open as text and keep their encoding',
     assert.equal(r.meta.encoding, encoding);
     assert.deepEqual(r.back.data, bytes);
   }
+});
+
+test('a NUL byte near the start means binary, except in UTF-16', () => {
+  assert.equal(looksBinary(Buffer.from('plain text\n')), false);
+  assert.equal(looksBinary(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x01])), true);
+  assert.equal(looksBinary(Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('hi', 'utf16le')])), false);
+  assert.equal(looksBinary(Buffer.concat([Buffer.from('x'.repeat(9000)), Buffer.from([0])])), false); // only the start is looked at
+});
+
+test('a big Windows-1252 file is written back byte for byte', () => {
+  const bytes = Buffer.concat([Buffer.from('ascii line\n'.repeat(100000)), Buffer.from([0xe9, 0x93, 0x0a])]);
+  const r = roundTrip(bytes);
+  assert.equal(r.meta.encoding, 'windows-1252');
+  assert.deepEqual(r.back.data, bytes);
 });
