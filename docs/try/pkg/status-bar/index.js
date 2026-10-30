@@ -53,8 +53,8 @@ export function activate(mide) {
     const rel = p ? mide.workspace.relativePath(p) : '';
     path.textContent = p ? (rel === home || rel.startsWith(home + '/') ? '~' + rel.slice(home.length) : rel) : item ? item.getTitle() : '';
     path.classList.toggle('dirty', !!item?.isDirty?.());
-    // Word count only for prose: hidden by removing the item, since an empty one still takes its padding.
-    const prose = item?.type === 'editor' && item.view && PROSE.includes(item.getLanguageName());
+    // Word count only for prose, and not in a large file: hidden by removing the item, since an empty one still takes its padding.
+    const prose = item?.type === 'editor' && item.view && !item.isLarge() && PROSE.includes(item.getLanguageName());
     if (prose && !wordItem) wordItem = mide.statusBar.addItem({ id: 'word-count', element: words, align: 'right', priority: 15, tooltip: 'Words and reading time' });
     else if (!prose && wordItem) { wordItem.dispose(); wordItem = null; }
     if (prose) words.textContent = wordsText(item);
