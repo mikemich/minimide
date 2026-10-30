@@ -54,3 +54,10 @@
 .sc-diff-host .cm-merge-spacer { background: var(--bg-hover); }
 .sc-diff-empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--fg-muted); }
 .sc-diff-empty-title { color: var(--fg-strong); font-size: 1.15em; font-weight: 500; }
+
+/* Stage Change / Unstage Change above each change of a diff (with the git-hunks package). */
+.sc-hunk-actions { display: flex; padding: 1px 6px; font-family: var(--ui-font); font-size: 0.82em; line-height: 20px; background: color-mix(in srgb, var(--bg-sidebar) 80%, transparent); border-top: 1px solid var(--border); user-select: none; }
+.sc-hunk-btn { padding: 0 6px; height: 20px; border: 0; border-radius: 4px; background: none; color: var(--accent); font: inherit; cursor: pointer; }
+.sc-hunk-btn:hover { background: var(--bg-hover); color: var(--fg-strong); }
+.sc-hunk-btn:focus-visible { outline-offset: -2px; }
+.sc-hunk-btn[disabled] { opacity: 0.5; cursor: default; }

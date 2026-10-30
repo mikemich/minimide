@@ -16,6 +16,7 @@ export function activate(mide) {
   let statuses = new Map(); // abs path -> 'modified' | 'added' | 'untracked' | 'deleted'
   let dirStatuses = new Map();
   const listeners = new Set();
+  const markerClicks = new Set();
   const headCache = new Map(); // abs path -> HEAD text | null
 
   // Background git calls never run a repo's fsmonitor command (and only run at all in trusted folders).
@@ -127,6 +128,8 @@ export function activate(mide) {
     rootFor: (path) => repoOf(path),
     branchFor: (path) => repos.get(repoOf(path))?.branch ?? '',
     onDidChange: (fn) => { listeners.add(fn); return { dispose: () => listeners.delete(fn) }; },
+    /** A click on a change marker in the gutter: fn(view, line) with a 1-based line; return true to handle it. */
+    onDidClickMarker: (fn) => { markerClicks.add(fn); return { dispose: () => markerClicks.delete(fn) }; },
     refresh,
   });
 
@@ -191,7 +194,16 @@ export function activate(mide) {
       return tr.docChanged ? value.map(tr.changes) : value;
     },
   });
-  const gitGutter = [field, gutter({ class: 'cm-git-gutter', markers: (v) => v.state.field(field) })];
+  // A click on a marker goes to whoever asked for it (git-hunks opens that change).
+  function clickMarker(view, line) {
+    if (!markerClicks.size) return false;
+    let hit = false;
+    view.state.field(field).between(line.from, line.from, () => { hit = true; return false; });
+    const number = view.state.doc.lineAt(line.from).number;
+    for (const fn of hit ? markerClicks : []) if (fn(view, number)) return true;
+    return false;
+  }
+  const gitGutter = [field, gutter({ class: 'cm-git-gutter', markers: (v) => v.state.field(field), domEventHandlers: { mousedown: clickMarker } })];
 
   let gutterExt = null;
   mide.config.observe('git.gutter', (on) => {

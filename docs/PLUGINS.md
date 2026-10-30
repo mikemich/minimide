@@ -301,7 +301,8 @@ await mide.fs.removeHistory(path);   // deletes (without the Trash) inside ~/.mi
 await mide.project.files(folder);                // paths relative to folder (default: the project), respects core.ignoredNames
 await mide.project.search('TODO', { regex: false, caseSensitive: false }); // every folder, or { root }
 
-const { code, stdout, stderr } = await mide.process.exec('git', ['status'], { cwd });
+const { code, stdout, stderr } = await mide.process.exec('git', ['status'], { cwd });   // also { timeout, env }
+await mide.process.exec('git', ['apply', '--cached', '-'], { cwd, input: patchText });  // `input` is written to its stdin
 const proc = mide.process.spawn('npm test', { onData: (chunk, stream) => …, onExit: (code) => … });
 proc.write('input\n'); proc.kill(); await proc.done;
 
@@ -352,6 +353,20 @@ if (doc?.client.capabilities.inlayHintProvider) {
 }
 lsp?.onDidRequestRefresh((what, client) => …);    // workspace/<what>/refresh: 'inlayHint', 'codeLens'…
 lsp?.toPosition(state.doc, offset);       // offset -> { line, character }; fromPosition(doc, position) goes back
+
+// packages/git: file status, and clicks on the change markers in the gutter.
+const git = mide.services.get('git-status');
+git.rootFor(path);                          // the repository a file is in (trusted folders only), or null
+git.onDidClickMarker((view, line) => true); // 1-based line; return true when you handled the click
+
+// packages/git-hunks: stage or unstage some lines of a file. Lines are 1-based and inclusive; each
+// call resolves to whether the index changed, or rejects with git's message.
+const hunks = mide.services.get('git-hunks');
+await hunks.stageLines(path, 12, 15);                     // changes on lines 12–15 of the file on disk
+await hunks.stageLines(path, 12, 15, { text });           // … or of this text (an unsaved buffer)
+await hunks.unstageLines(path, 3, 3);                     // staged changes on line 3 of the index's version
+await hunks.changes(editor);                              // [{ from, to, removed, added }]: what isn't staged yet
+hunks.show(editor, line);                                 // opens the peek on the change at that line
 ```
 
 ### AI requests

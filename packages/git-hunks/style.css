@@ -1,0 +1,23 @@
+/* Git's change markers open the change while this package is on. */
+.cm-git-gutter .cm-gutterElement:has(> .git-marker) { cursor: pointer; }
+
+/* The peek under a change. Colors follow the theme through its CSS variables. */
+.hunk-peek { margin: 4px 0 6px; border: 1px solid var(--border); border-left: 3px solid var(--c-blue); border-radius: 4px; background: var(--bg-sidebar); font-family: var(--ui-font); font-size: 0.86em; line-height: 1.5; white-space: normal; cursor: default; }
+.hunk-peek:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: -2px; }
+.hunk-header { display: flex; align-items: center; gap: 6px; padding: 3px 6px 3px 10px; border-bottom: 1px solid var(--border); }
+.hunk-title { color: var(--fg-strong); font-weight: 600; white-space: nowrap; }
+.hunk-summary { color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.hunk-spacer { flex: 1; }
+.hunk-btn { flex: none; padding: 1px 8px; border: 0; border-radius: 4px; background: transparent; color: var(--fg-muted); font: inherit; white-space: nowrap; cursor: pointer; }
+.hunk-btn:focus-visible { outline-offset: -2px; }
+.hunk-btn:hover { background: var(--bg-hover); color: var(--fg-strong); }
+.hunk-btn[data-action="stage"] { color: var(--accent); }
+.hunk-note { padding: 3px 10px; border-bottom: 1px solid var(--border); color: var(--c-yellow); }
+.hunk-body { max-height: 260px; overflow: auto; padding: 2px 0; font-family: var(--editor-font); font-size: var(--editor-font-size); line-height: var(--editor-line-height); }
+.hunk-line { display: flex; padding: 0 10px; white-space: pre; tab-size: 4; }
+.hunk-sign { flex: none; width: 1.5ch; color: var(--fg-subtle); user-select: none; }
+.hunk-text { color: var(--fg); }
+.hunk-removed .hunk-line { background: color-mix(in srgb, var(--c-red) 14%, transparent); }
+.hunk-added .hunk-line { background: color-mix(in srgb, var(--c-green) 12%, transparent); }
+.hunk-eof { margin-left: 1.5ch; color: var(--fg-subtle); font-family: var(--ui-font); font-style: italic; }
+.hunk-more { padding: 0 10px; color: var(--fg-subtle); font-family: var(--ui-font); }

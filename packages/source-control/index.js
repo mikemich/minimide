@@ -342,17 +342,44 @@ export function activate(mide) {
     destroy() { this.view?.destroy(); diffs.delete(this); }
     toggleLayout() { this.layout = this.layout === 'inline' ? 'side-by-side' : 'inline'; this.reload(); }
 
+    /** The git-hunks service, for Stage / Unstage on each change (not for a deleted or renamed file). */
+    hunkService() {
+      if (this.entry.code === 'D' || this.entry.code === 'U' || this.entry.orig) return null;
+      return mide.services.get('git-hunks') || null;
+    }
+
+    /** Stages (or, in a staged diff, unstages) the change `index` of the diff shown in `view`. */
+    async stageChange(view, index, svc, button) {
+      const chunk = this.merge?.getChunks(view.state)?.chunks[index];
+      if (!chunk) return;
+      const doc = view.state.doc;
+      const from = doc.lineAt(Math.min(chunk.fromB, doc.length)).number;
+      const to = chunk.toB > chunk.fromB ? doc.lineAt(Math.min(chunk.toB - 1, doc.length)).number : from; // a deletion: the line below it
+      const path = abs(this.entry.path, this.root);
+      const unstaging = this.kind === 'staged';
+      button.disabled = true;
+      try {
+        await (unstaging ? svc.unstageLines(path, from, to) : svc.stageLines(path, from, to));
+      } catch (err) {
+        mide.notify.error(unstaging ? 'Couldn\'t unstage the change' : 'Couldn\'t stage the change', err.message);
+      }
+      button.disabled = false;
+      await afterChange();
+    }
+
     async reload() {
       const { entry, kind } = this;
       const [leftRef, rightRef, leftLabel, rightLabel] = kind === 'staged'
         ? [state.hasHead ? 'HEAD' : null, '', 'Last commit', 'Staged']
         : [entry.code === '?' ? null : '', 'worktree', entry.code === '?' ? 'New file' : 'Staged / last commit', 'Working tree'];
       const [a, b] = await Promise.all([leftRef == null ? '' : textAt(leftRef, entry.orig || entry.path, this.root), textAt(rightRef, entry.path, this.root)]);
-      if (a === this.a && b === this.b && this.view && this.shownLayout === this.layout) return;
+      const hunkSvc = this.hunkService();
+      if (a === this.a && b === this.b && this.view && this.shownLayout === this.layout && this.shownHunks === !!hunkSvc) return;
       Object.assign(this, { a, b });
       this.headerLeft.textContent = leftLabel;
       this.headerRight.textContent = rightLabel;
-      const { MergeView, unifiedMergeView } = await mide.cm.extras.merge();
+      this.merge = await mide.cm.extras.merge();
+      const { MergeView, unifiedMergeView } = this.merge;
       const { EditorView, lineNumbers } = mide.cm.view;
       const { EditorState } = mide.cm.state;
       const { syntaxHighlighting } = mide.cm.language;
@@ -372,13 +399,44 @@ export function activate(mide) {
       this.view?.destroy();
       this.host.replaceChildren();
       this.shownLayout = this.layout;
+      this.shownHunks = !!hunkSvc;
+      const actions = hunkSvc ? changeActions(this, hunkSvc) : [];
       if (this.layout === 'inline') {
-        this.view = new EditorView({ parent: this.host, doc: b, extensions: [...extensions, unifiedMergeView({ original: a, mergeControls: false, collapseUnchanged: { margin: 3, minSize: 6 } })] });
+        this.view = new EditorView({ parent: this.host, doc: b, extensions: [...extensions, actions, unifiedMergeView({ original: a, mergeControls: false, collapseUnchanged: { margin: 3, minSize: 6 } })] });
       } else {
-        this.view = new MergeView({ parent: this.host, a: { doc: a, extensions }, b: { doc: b, extensions }, collapseUnchanged: { margin: 3, minSize: 6 }, gutter: true, highlightChanges: true });
+        this.view = new MergeView({ parent: this.host, a: { doc: a, extensions }, b: { doc: b, extensions: [...extensions, actions] }, collapseUnchanged: { margin: 3, minSize: 6 }, gutter: true, highlightChanges: true });
       }
       requestAnimationFrame(() => { const s = this.host.querySelector('.cm-mergeView') || this.host.querySelector('.cm-scroller'); if (s) s.scrollTop = scroll; });
     }
+  }
+
+  // A Stage Change (or Unstage Change) button above each change of a diff; git-hunks does the staging.
+  function changeActions(item, svc) {
+    const { EditorView, Decoration, WidgetType } = mide.cm.view;
+    const { StateField } = mide.cm.state;
+    const label = item.kind === 'staged' ? 'Unstage Change' : 'Stage Change';
+    class ActionWidget extends WidgetType {
+      constructor(index, total) { super(); this.index = index; this.total = total; }
+      eq(o) { return o.index === this.index && o.total === this.total; }
+      get estimatedHeight() { return 24; }
+      ignoreEvent() { return true; }
+      toDOM(view) {
+        return h('div.sc-hunk-actions', h('button.sc-hunk-btn', {
+          type: 'button', dataset: { action: item.kind === 'staged' ? 'unstage' : 'stage' }, 'aria-label': `${label} ${this.index + 1} of ${this.total}`,
+          onclick: (e) => { e.preventDefault(); item.stageChange(view, this.index, svc, e.currentTarget); },
+        }, label));
+      }
+    }
+    const chunksOf = (state) => item.merge.getChunks(state)?.chunks || null;
+    const build = (state) => {
+      const chunks = chunksOf(state) || [];
+      return Decoration.set(chunks.map((c, i) => Decoration.widget({ widget: new ActionWidget(i, chunks.length), block: true, side: -2 }).range(Math.min(c.fromB, state.doc.length))));
+    };
+    return StateField.define({
+      create: build,
+      update: (deco, tr) => (chunksOf(tr.state) !== chunksOf(tr.startState) ? build(tr.state) : deco),
+      provide: (f) => EditorView.decorations.from(f),
+    });
   }
 
   function openDiff(entry, kind) {
@@ -413,6 +471,14 @@ export function activate(mide) {
     },
   });
   mide.workspace.onDidChangeFolders(() => { refresh(); });
+  // Diffs get (or lose) their per-change buttons when git-hunks is turned on or off.
+  let hunksOn = !!mide.services.get('git-hunks');
+  mide.packages.onDidChange(() => {
+    const on = !!mide.services.get('git-hunks');
+    if (on === hunksOn) return;
+    hunksOn = on;
+    for (const d of diffs) d.reload();
+  });
   mide.workspace.onDidChangeActiveItem((item) => {
     const folder = mide.workspace.folders.length > 1 && mide.workspace.folderFor(item?.getPath?.());
     if (folder) showFolder(folder);

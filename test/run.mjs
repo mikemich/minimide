@@ -519,6 +519,34 @@ const SUITES = [
     }),
   },
   {
+    // Every staged result is read back from the index with `git show :file`.
+    name: 'gitHunks', home: 'hkh', project: 'hkproj', timeout: 150,
+    expect: () => ({
+      'active.pkg': true, 'active.error': null, 'active.service': ['changes', 'show', 'stageLines', 'unstageLines'], 'active.markerHook': 'function', 'active.keys': [true, true, true],
+      // A click on the middle change's marker: a focused region under it; Stage puts only that change in the index.
+      'middle.shown': true, 'middle.role': 'region', 'middle.label': 'Change 2 of 3 in mid.txt: 1 line removed, 2 lines added', 'middle.focused': true,
+      'middle.removed': ['line 15'], 'middle.added': ['line fifteen', 'line fifteen and a half'], 'middle.note': false,
+      'middle.buttons': ['Stage this change', 'Revert this change', 'Previous change', 'Next change', 'Close (Escape)'], 'middle.groups': ['Removed: 1 line', 'Added: 2 lines'],
+      'middle.staged': true, 'middle.diskKept': true, 'middle.movedOn': 'Change 2 of 2', 'middle.closed': true, 'middle.editorFocused': true,
+      'middle.reopened': 'Change 1 of 2', 'middle.toggledOff': true,
+      'keys.next': ['Change 1 of 2', 2], 'keys.nextAgain': ['Change 2 of 2', 28], 'keys.wraps': 'Change 1 of 2', 'keys.previous': 'Change 2 of 2', 'keys.previousButton': 'Change 1 of 2',
+      'keys.closeButton': true, 'keys.atCursor': 'line two', 'keys.escapeInEditor': true,
+      'crlf.shown': 'ROW 10', 'crlf.removed': ['row 10'], 'crlf.staged': true, 'crlf.index': true, 'crlf.left': 'Change 1 of 1',
+      'noNewline.shown': { removed: ['c'], added: ['c', 'd'], noNewline: ['removed', 'added'] }, 'noNewline.last': 'a\nb\nc\nd', 'noNewline.all': 'A\nb\nc\nd', 'noNewline.peekClosed': true,
+      'partial.told': true, 'partial.shown': 'Change 2 of 2', 'partial.staged': true, 'partial.left': 'P 10',
+      'untracked.before': '?? new.txt', 'untracked.staged': 'x\ny\n', 'untracked.after': 'AM new.txt', 'untracked.rest': 'z',
+      'sourceControlStage.buttons': ['Stage Change', 'Stage Change'], 'sourceControlStage.labels': ['Stage Change 1 of 2', 'Stage Change 2 of 2'],
+      'sourceControlStage.staged': true, 'sourceControlStage.after': 1, 'sourceControlStage.stagedListed': true, 'sourceControlStage.inline': 1, 'sourceControlStage.allStaged': true,
+      'unstage.buttons': ['Unstage Change', 'Unstage Change'], 'unstage.index': true, 'unstage.diskKept': true, 'unstage.after': 1, 'unstage.backInChanges': true, 'unstage.newUntracked': '?? new.txt',
+      'dirty.note': 'Unsaved changes: Stage uses the text in the editor, not the file on disk.', 'dirty.staged': true, 'dirty.diskKept': true, 'dirty.stillDirty': true, 'dirty.peekClosed': true,
+      'revert.reverted': true, 'revert.closed': true, 'revert.indexKept': true, 'revert.undone': true,
+      'toggle.before': { peek: true, diffButtons: 2 },
+      'toggle.off': { peeks: 0, diffButtons: 0, service: false, commands: 0, styles: false, clickOpens: false },
+      'toggle.on': { service: true, styles: true, clickOpens: true, diffButtons: 2 },
+      totalErrors: 0,
+    }),
+  },
+  {
     name: 'bookmarks', home: 'bmh', project: 'bmproj', timeout: 120,
     expect: () => ({
       // Toggling by command, key and gutter; markers and tinted lines on the right lines; gutter order.

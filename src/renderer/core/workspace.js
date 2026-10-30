@@ -154,7 +154,7 @@ export class Pane extends Emitter {
     for (const i of this.items) i.getElement().hidden = i !== item;
     for (const i of this.items) this.updateTab(i);
     this.tabEls.get(item)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    if (item.view) item.view.requestMeasure();
+    item.view?.requestMeasure?.(); // a side-by-side diff's view is a MergeView, which has none
     this.ws.setActivePane(this, false);
     this.renderActions();
     if (prev !== item) this.ws.emit('pane-active-item-changed', this, item);

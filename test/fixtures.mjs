@@ -404,6 +404,39 @@ function mcproj(root) {
 }
 
 /**
+ * `hkproj`: a repository with unstaged changes for gitHunks. mid.txt has three changes (the middle one
+ * is staged by itself), crlf.txt Windows line ends, nonl.txt no final newline, partial.txt one of its
+ * three changes staged already, unstage.txt two staged changes, scstage.txt two changes to stage from
+ * Source Control, new.txt is untracked; dirty.txt, revert.txt and toggle.txt are edited by the suite.
+ */
+function hkproj(root) {
+  const d = path.join(root, 'hkproj');
+  gitInit(d, 'Hunk', 'hunk@example.com');
+  git(d, 'config', 'core.autocrlf', 'false');
+  const lines = (name, n) => Array.from({ length: n }, (_, i) => `${name} ${i + 1}`).join('\n') + '\n';
+  const base = {
+    'mid.txt': lines('line', 30), 'crlf.txt': lines('row', 12).replace(/\n/g, '\r\n'), 'nonl.txt': 'a\nb\nc',
+    'partial.txt': lines('p', 20), 'unstage.txt': lines('u', 20), 'scstage.txt': lines('s', 20),
+    'dirty.txt': lines('d', 10), 'revert.txt': lines('r', 10), 'toggle.txt': lines('t', 10),
+  };
+  for (const [name, text] of Object.entries(base)) write(path.join(d, name), text);
+  commitAll(d, 'base');
+  const edit = (name, ...pairs) => { let text = base[name]; for (let i = 0; i < pairs.length; i += 2) text = text.replace(pairs[i], pairs[i + 1]); write(path.join(d, name), text); };
+  edit('mid.txt', 'line 2\n', 'line two\n', 'line 15\n', 'line fifteen\nline fifteen and a half\n', 'line 28\n', '');
+  edit('crlf.txt', 'row 3\r\n', 'ROW 3\r\n', 'row 10\r\n', 'ROW 10\r\n');
+  write(path.join(d, 'nonl.txt'), 'A\nb\nc\nd');
+  edit('partial.txt', 'p 2\n', 'P 2\n');
+  git(d, 'add', 'partial.txt');
+  edit('partial.txt', 'p 2\n', 'P 2\n', 'p 10\n', 'P 10\n', 'p 18\n', 'P 18\n');
+  edit('unstage.txt', 'u 3\n', 'U 3\n', 'u 15\n', 'U 15\n');
+  git(d, 'add', 'unstage.txt');
+  edit('scstage.txt', 's 3\n', 'S 3\n', 's 15\n', 'S 15\n');
+  edit('revert.txt', 'r 5\n', 'R 5\n');
+  edit('toggle.txt', 't 5\n', 'T 5\n');
+  write(path.join(d, 'new.txt'), 'x\ny\nz\n');
+}
+
+/**
  * `outlineproj`: symbols in JavaScript, Markdown, Python, CSS and JSON (from the syntax tree) and a
  * TypeScript file served by the fake language server (test/fake-lsp.mjs), which the `outlineh` home
  * configures in place of typescript-language-server (outline).
@@ -701,6 +734,7 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   dbgproj(root);
   lhproj(root);
   mcproj(root);
+  hkproj(root);
   ghproj(root);
   outlineproj(root);
   bmproj(root);
@@ -710,7 +744,7 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   remote(root);
   multiRoot(root);
   everyday(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih', 'dbgh', 'vsih', 'sync1', 'sync2', 'aih', 'remoteh', 'lhh', 'pkgbh', 'outlineh', 'mch', 'bmh', 'evh', 'a11yh']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih', 'dbgh', 'vsih', 'sync1', 'sync2', 'aih', 'remoteh', 'lhh', 'pkgbh', 'outlineh', 'mch', 'hkh', 'bmh', 'evh', 'a11yh']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 
