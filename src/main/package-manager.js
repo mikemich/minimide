@@ -96,6 +96,7 @@ export function createPackageManager({ userDir, packagesDir, builtinNames, trash
         const minutes = Math.max(1, Math.ceil(seconds / 60) || 1);
         const err = new Error(`GitHub's ${pathname.startsWith('/search') ? 'search' : 'request'} limit was reached; try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`);
         err.rateLimited = true;
+        err.retryAt = Date.now() + (seconds > 0 ? seconds * 1000 : 60 * 1000);
         throw err;
       }
       throw new Error('GitHub refused the request (403). Is this network blocked from GitHub?');
@@ -264,12 +265,17 @@ export function createPackageManager({ userDir, packagesDir, builtinNames, trash
   // --- updates -------------------------------------------------------------
   // The commit each GitHub package's branch was at when we last looked is kept in package-updates.json.
   // An update is pending while that differs from the commit that was installed, so the "update
-  // available" badges need no network, and a check runs at most once a day unless forced.
+  // available" badges need no network, and a check runs at most once a day unless forced. A check
+  // GitHub's rate limit cut short lists what it didn't get to (`unchecked`) and runs again once the
+  // limit lifts (`retryAt`).
   async function readUpdateCache() {
     try {
       const c = JSON.parse(await fs.readFile(updatesFile, 'utf8'));
-      return { checkedAt: Number(c.checkedAt) || 0, latest: c.latest && typeof c.latest === 'object' ? c.latest : {} };
-    } catch { return { checkedAt: 0, latest: {} }; }
+      return {
+        checkedAt: Number(c.checkedAt) || 0, latest: c.latest && typeof c.latest === 'object' ? c.latest : {},
+        unchecked: Array.isArray(c.unchecked) ? c.unchecked : [], retryAt: Number(c.retryAt) || null,
+      };
+    } catch { return { checkedAt: 0, latest: {}, unchecked: [], retryAt: null }; }
   }
 
   const githubFull = (r) => (r.source?.startsWith('github:') ? r.source.slice('github:'.length) : null);
@@ -285,34 +291,43 @@ export function createPackageManager({ userDir, packagesDir, builtinNames, trash
 
   /**
    * Compares each installed GitHub package with the latest commit on its branch.
-   * Returns { checkedAt, updates: [{ name, fullName, source, current, latest }], errors: [{ name, error }] }.
-   * Without `force` a check made in the last day is reused.
+   * Returns { checkedAt, updates: [{ name, fullName, source, current, latest }], errors: [{ name, error }],
+   * unchecked: [name], retryAt }: `unchecked` are the packages GitHub's rate limit (or the network) kept
+   * from being looked at, and `retryAt` when the limit lifts.
+   * Without `force` a check made in the last day is reused; one that didn't get to every package isn't.
    */
   async function checkUpdates({ force = false } = {}) {
     const records = await readRecords();
     let state = await readUpdateCache();
     const errors = [];
-    if (force || Date.now() - state.checkedAt > UPDATE_CHECK_EVERY) {
+    const unchecked = [];
+    let retryAt = null;
+    const partial = state.unchecked.length && Date.now() >= (state.retryAt || 0);
+    if (force || partial || Date.now() - state.checkedAt > UPDATE_CHECK_EVERY) {
       const latest = {};
-      let tried = 0;
-      for (const [name, r] of Object.entries(records)) {
-        const full = githubFull(r);
-        if (!full) continue;
-        tried++;
+      const names = Object.keys(records).filter((name) => githubFull(records[name]));
+      for (const [i, name] of names.entries()) {
+        const r = records[name];
         try {
-          latest[name] = (await github(`/repos/${full}/commits/${encodeURIComponent(r.branch || 'HEAD')}`)).sha;
+          latest[name] = (await github(`/repos/${githubFull(r)}/commits/${encodeURIComponent(r.branch || 'HEAD')}`)).sha;
         } catch (err) {
           errors.push({ name, error: err.message });
-          if (err.rateLimited) break;
+          if (err.rateLimited) { unchecked.push(...names.slice(i)); retryAt = err.retryAt; break; }
+          if (err.message === OFFLINE) unchecked.push(name);
         }
       }
       // Nothing could be checked (offline, rate-limited): say so, and try again next time.
-      if (tried && !Object.keys(latest).length) throw new Error(errors[0].error);
-      state = { checkedAt: Date.now(), latest };
+      if (names.length && !Object.keys(latest).length) throw new Error(errors[0].error);
+      // Only a check that got to every package counts as today's; a partial one keeps what it found
+      // (over what was known) and the next look tries again.
+      state = unchecked.length
+        ? { checkedAt: state.checkedAt, latest: { ...state.latest, ...latest }, unchecked, retryAt }
+        : { checkedAt: Date.now(), latest, unchecked: [], retryAt: null };
       await fs.writeFile(updatesFile, JSON.stringify(state) + '\n').catch(() => {});
       for (const key of [...cache.keys()]) if (key.startsWith('details:')) cache.delete(key);
     }
-    return { checkedAt: state.checkedAt, updates: pendingUpdates(records, state.latest), errors };
+    const left = state.unchecked.filter((name) => githubFull(records[name] || {}));
+    return { checkedAt: state.checkedAt, updates: pendingUpdates(records, state.latest), errors, unchecked: left, retryAt: left.length ? state.retryAt : null };
   }
 
   // --- browsing ------------------------------------------------------------

@@ -272,6 +272,11 @@ const SUITES = [
       cancelledUpdate: { version: '1.0.0', permissions: [], stillOffered: true },
       notesUpdated: { version: '2.0.0', permissions: ['clipboard'], active: true },
       'afterUpdates.text': /^Everything from GitHub is up to date\./, 'afterUpdates.badges': 0, 'afterUpdates.tabCount': false,
+      // A check cut short by GitHub's rate limit isn't kept as today's.
+      'limitedCheck.text': /^1 update available\. Couldn't check 1 package \(rate limited, try again at \d{1,2}:\d{2}( ?[AP]M)?\)\.$/,
+      'limitedCheck.badges': ['goal-tracker'], 'limitedCheck.keptAsToday': false,
+      'limitedCheck.reused': { unchecked: ['quick-notes'], requests: 0 },
+      limitedRetried: { requests: 2, unchecked: [], updates: ['goal-tracker'], keptAsToday: true },
       // Messages.
       rateLimit: /^GitHub's search limit was reached; try again in 3 minutes\. Try Again$/, rateLimitCards: 0, tryAgain: true,
       offline: /^Can't reach GitHub\. Check your internet connection and try again\./, noMatches: /^No packages match "zzz-nothing"\./, recovered: 4,

@@ -216,6 +216,36 @@
   await until(() => /up to date/.test(text(one('.pkg-updates-text'))));
   out.afterUpdates = { text: text(one('.pkg-updates-text')), badges: all('.package-card .badge.update').length, tabCount: !!one('.pkg-tab-count') };
 
+  // GitHub's rate limit cuts a check short: what was found shows, the rest is named, and the check
+  // isn't kept as today's, so the next look asks again.
+  const updatesFile = `${app.userInfo.dir}/package-updates.json`;
+  const checkedAt = async () => JSON.parse(await fsx.read(updatesFile)).checkedAt;
+  const checkedBefore = await checkedAt();
+  await setHead({ 'ada/goal-tracker': 1, 'bob/quick-notes': 2 }); // a different commit on goal-tracker's branch
+  await fsx.write(`${fixtures}/github/limit.json`, JSON.stringify({ commits: 1 }));
+  press('Check for Updates');
+  await until(() => /Couldn't check/.test(text(one('.pkg-updates-text'))));
+  out.limitedCheck = {
+    text: text(one('.pkg-updates-text')),
+    badges: all('.package-card[data-package]').filter((c) => c.querySelector('.badge.update')).map((c) => c.dataset.package),
+    keptAsToday: (await checkedAt()) !== checkedBefore,
+  };
+  // Until the limit lifts, a look without asking doesn't ask GitHub, and still says what wasn't checked.
+  let checksAtLimit = await commitChecks();
+  const reused = await window.native.pkgmgr.checkUpdates();
+  out.limitedCheck.reused = { unchecked: reused.unchecked, requests: (await commitChecks()) - checksAtLimit };
+  // Once it has (the time GitHub gave is moved into the past), it checks again: a full check would be reused for a day.
+  const cache = JSON.parse(await fsx.read(updatesFile));
+  await fsx.write(updatesFile, JSON.stringify({ ...cache, retryAt: Date.now() - 1000 }));
+  await fsx.write(`${fixtures}/github/limit.json`, JSON.stringify({ commits: 99 }));
+  checksAtLimit = await commitChecks();
+  const again = await window.native.pkgmgr.checkUpdates();
+  out.limitedRetried = { requests: (await commitChecks()) - checksAtLimit, unchecked: again.unchecked, updates: again.updates.map((u) => u.name), keptAsToday: (await checkedAt()) !== checkedBefore };
+  // Put goal-tracker's branch back where it is installed.
+  await setHead({ 'ada/goal-tracker': 2, 'bob/quick-notes': 2 });
+  press('Check for Updates');
+  await until(() => /up to date/.test(text(one('.pkg-updates-text'))));
+
   // --- messages ------------------------------------------------------------
   tab('Discover');
   await until(() => one('.discover-card'));
