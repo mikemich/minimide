@@ -334,6 +334,8 @@ function lhproj(root) {
   write(path.join(d, 'prune.txt'), 'p0\n');
   write(path.join(d, 'gone.txt'), 'gone original\n');
   write(path.join(d, 'ren.txt'), 'ren original\n');
+  write(path.join(d, 'renview.txt'), 'renview original\n');
+  write(path.join(d, 'auto.txt'), 'auto original\n');
   write(path.join(d, 'olddir/inner.txt'), 'inner original\n');
   write(path.join(d, 'ext.txt'), 'ext original\n');
   write(path.join(d, 'crlf.txt'), 'one\r\n');

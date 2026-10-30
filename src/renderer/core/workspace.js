@@ -807,7 +807,8 @@ export class Workspace extends Emitter {
     return new Disposable(() => { this.saveHooks = this.saveHooks.filter((f) => f !== fn); });
   }
 
-  async save(item = this.getActiveItem()) {
+  /** Saves an editor. `opts.auto` marks a save made by Auto Save (passed on to 'did-save' listeners). */
+  async save(item = this.getActiveItem(), opts = {}) {
     if (!item) return false;
     if (item.type !== 'editor') return item.save ? item.save() : false;
     const doc = item.document;
@@ -826,7 +827,7 @@ export class Workspace extends Emitter {
       }
       doc.markSaved(text);
       this.activePane.pin(item);
-      this.emit('did-save', item);
+      this.emit('did-save', item, { auto: !!opts.auto });
       return true;
     } catch (err) {
       this.selfWrites.delete(doc.path);

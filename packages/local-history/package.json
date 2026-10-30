@@ -9,6 +9,7 @@
   "configSchema": {
     "maxVersions": { "type": "number", "default": 50, "title": "Versions per File", "description": "Keep this many of the newest versions of each file. 0 keeps all of them (until they are too old)." },
     "maxAgeDays": { "type": "number", "default": 30, "title": "Keep For (Days)", "description": "Drop versions older than this. 0 keeps them for ever." },
+    "autoSaveMinutes": { "type": "number", "default": 5, "title": "Auto Save Versions (Minutes)", "description": "With Auto Save on, its saves keep at most one version of a file every this many minutes (the newest text of that time). Saving yourself always keeps one. 0 keeps a version on every auto save." },
     "maxFileSizeKB": { "type": "number", "default": 1024, "title": "Largest File (KB)", "description": "Files bigger than this are not kept." },
     "ignore": {
       "type": "array",

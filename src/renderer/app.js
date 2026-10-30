@@ -464,7 +464,7 @@ class App {
     const saveDirty = () => {
       for (const doc of this.workspace.dirtyDocuments()) {
         const item = [...doc.views][0];
-        if (doc.path && item) this.workspace.save(item);
+        if (doc.path && item) this.workspace.save(item, { auto: true });
       }
     };
     window.addEventListener('blur', () => { if (this.config.get('core.autoSave') === 'onFocusChange') saveDirty(); });

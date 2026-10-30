@@ -389,6 +389,7 @@ export class PackageManager extends Emitter {
         splitDown: (opts = {}) => ws.splitDown(ws.activePane, opts.empty ? null : ws.activePane.active),
         addOpener: (fn) => track(ws.addOpener(fn)),
         onWillSave: (fn) => track(ws.onWillSave(fn)),
+        /** (item, { auto }): `auto` is true for a save made by Auto Save. */
         onDidSave: (fn) => track(ws.on('did-save', fn)),
         onDidChangeActiveItem: (fn) => track(ws.on('active-item-changed', fn)),
         observeActiveItem: (fn) => { fn(ws.getActiveItem()); return track(ws.on('active-item-changed', fn)); },

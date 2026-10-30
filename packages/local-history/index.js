@@ -51,16 +51,22 @@ export function activate(mide) {
   const activePath = () => ws.getActiveEditor()?.getPath() || null;
 
   // --- saving versions ----------------------------------------------------------
-  mide.workspace.onDidSave((item) => {
+  mide.workspace.onDidSave((item, info) => {
     const doc = item.document;
-    if (doc?.path) store.snapshot(doc.path, doc.getTextForSave()).catch((err) => console.warn('[local-history]', err));
+    if (doc?.path) store.snapshot(doc.path, doc.getTextForSave(), null, { auto: !!info?.auto }).catch((err) => console.warn('[local-history]', err));
   });
   // The buffer is about to be replaced by the file on disk: keep what is in it (the text is read now, synchronously).
   mide.workspace.onWillReload((doc, reason) => {
     if (!doc.path) return;
     store.snapshot(doc.path, doc.getTextForSave(), reason === 'revert' ? 'Before revert' : 'Before reload from disk').catch(() => {});
   });
-  mide.workspace.onDidRenamePath((from, to) => { store.move(from, to).catch((err) => console.warn('[local-history]', err)); });
+  mide.workspace.onDidRenamePath((from, to) => {
+    // Open history views follow the file (the workspace may already have moved their `path`).
+    for (const [key, view] of [...views]) {
+      if (key === from || key.startsWith(from + '/')) view.setPath(to + key.slice(from.length));
+    }
+    store.move(from, to).catch((err) => console.warn('[local-history]', err));
+  });
 
   // --- retention ------------------------------------------------------------------
   async function startupPrune() {
@@ -125,7 +131,7 @@ export function activate(mide) {
     constructor(path) {
       this.type = 'local-history';
       this.iconName = 'history';
-      this.path = path;
+      this.path = this.key = path; // `key`: where it is in `views` (the workspace moves `path` on a rename)
       this.id = `local-history-${path}`;
       this.listeners = new Map();
       this.versions = [];
@@ -134,24 +140,37 @@ export function activate(mide) {
       this.foot = h('div.lh-foot');
       this.leftLabel = h('span.lh-side-label');
       this.rightLabel = h('span.lh-side-label');
-      this.restoreBtn = h('button.btn.small.primary', { onclick: () => this.selected && restore(path, this.selected) }, 'Restore');
-      this.openBtn = h('button.btn.small', { onclick: () => this.selected && openSnapshot(path, this.selected) }, 'Open');
+      this.restoreBtn = h('button.btn.small.primary', { onclick: () => this.selected && restore(this.path, this.selected) }, 'Restore');
+      this.openBtn = h('button.btn.small', { onclick: () => this.selected && openSnapshot(this.path, this.selected) }, 'Open');
       this.host = h('div.lh-host');
+      this.fileLabel = h('div.lh-file', basename(path));
+      this.dirLabel = h('div.lh-path', { title: path }, dirname(path));
       this.element = h('div.lh-view', { tabIndex: -1 },
         h('div.lh-side',
-          h('div.lh-side-head', h('div.lh-file', basename(path)), h('div.lh-path', { title: path }, dirname(path))),
+          h('div.lh-side-head', this.fileLabel, this.dirLabel),
           this.list, this.foot),
         h('div.lh-main',
           h('div.lh-toolbar', this.leftLabel, h('span.lh-arrow', '→'), this.rightLabel, h('div.lh-actions', this.openBtn, this.restoreBtn)),
           this.host));
-      this.sub = store.onDidChange((changed) => { if (changed === path) this.load(); });
+      this.sub = store.onDidChange((changed) => { if (changed === this.path) this.load(); });
       this.tick = setInterval(() => this.renderList(), 30000);
       this.editorSub = ws.onDidUpdateEditor((editor, update) => {
-        if (update?.docChanged && editor.getPath?.() === path) { clearTimeout(this.liveTimer); this.liveTimer = setTimeout(() => this.refreshDiff(), 400); }
+        if (update?.docChanged && editor.getPath?.() === this.path) { clearTimeout(this.liveTimer); this.liveTimer = setTimeout(() => this.refreshDiff(), 400); }
       });
     }
 
     on(ev, fn) { this.listeners.set(ev, fn); return { dispose: () => this.listeners.delete(ev) }; }
+    /** The file was renamed: show (and look up) the history under its new path. */
+    setPath(next) {
+      if (views.get(this.key) === this) views.delete(this.key);
+      this.key = this.path = next;
+      this.id = `local-history-${next}`;
+      views.set(next, this);
+      this.fileLabel.textContent = basename(next);
+      this.dirLabel.textContent = dirname(next);
+      this.dirLabel.title = next;
+      this.listeners.get('title-changed')?.();
+    }
     getTitle() { return `${basename(this.path)} (history)`; }
     getElement() { return this.element; }
     getPath() { return null; }
@@ -164,7 +183,7 @@ export function activate(mide) {
       this.sub.dispose();
       this.editorSub?.dispose();
       this.diff?.destroy();
-      views.delete(this.path);
+      if (views.get(this.key) === this) views.delete(this.key);
     }
 
     /** (Re)reads the versions. `pick` chooses the version to show: 'previous' is the newest one that differs from the buffer. */
