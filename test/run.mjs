@@ -7,6 +7,7 @@
 //   node test/run.mjs handsOn core    run some suites (dependencies are added automatically)
 //   node test/run.mjs --no-build      skip `node build.mjs`
 //   node test/run.mjs --keep          keep the fixture dir even when everything passes
+//                                     (failed runs keep it too; only the newest two old ones stay)
 //
 // Logs and screenshots go to test/output/<suite>.{log,png}.
 import fs from 'node:fs';
@@ -930,6 +931,21 @@ function selectSuites(names) {
   return SUITES.filter((s) => want.has(s.name));
 }
 
+/**
+ * Fixtures of failed or interrupted runs stay behind for debugging (about 240 MB each). Keep the
+ * newest two of those over an hour old and delete the rest; younger ones may belong to a run that
+ * is still going in another checkout.
+ */
+function pruneOldFixtures() {
+  const tmp = os.tmpdir();
+  const old = fs.readdirSync(tmp)
+    .filter((n) => n.startsWith('minimide-test-'))
+    .map((n) => { const p = path.join(tmp, n); try { const st = fs.lstatSync(p); return st.isDirectory() ? { p, t: st.mtimeMs } : null; } catch { return null; } })
+    .filter((d) => d && Date.now() - d.t > 60 * 60 * 1000)
+    .sort((a, b) => b.t - a.t);
+  for (const { p } of old.slice(2)) fs.rmSync(p, { recursive: true, force: true });
+}
+
 function pad(s, n) { s = String(s); return s.length >= n ? s : s + ' '.repeat(n - s.length); }
 
 async function main() {
@@ -955,6 +971,7 @@ async function main() {
 
   // The electron package resolves (and on first use downloads) the binary for this platform.
   const electron = createRequire(import.meta.url)('electron');
+  pruneOldFixtures();
   const fixtures = createFixtures();
   fs.mkdirSync(OUTPUT, { recursive: true });
   console.log(`Fixtures: ${fixtures}\nOutput:   ${path.relative(REPO, OUTPUT)}/\n`);
