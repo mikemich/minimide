@@ -175,8 +175,12 @@ export function activate(mide) {
   });
   const peekOf = (view) => view?.state.field(peekField, false) || null;
 
+  // Bumped whenever a peek opens or closes, so a reopen that finishes late can tell it was overtaken.
+  let peekMoves = 0;
+
   function close(view, { focus = true } = {}) {
     if (!peekOf(view)) return false;
+    peekMoves++;
     view.dispatch({ effects: setPeek.of(null) });
     if (focus) view.focus();
     return true;
@@ -224,6 +228,7 @@ export function activate(mide) {
 
   /** Opens the peek on change `index` of `m` (from model()). */
   function open(view, editor, m, index, { moveCursor = false, focus = true } = {}) {
+    peekMoves++;
     const change = m.list[index];
     const info = {
       change, index, total: m.list.length, doc: m.doc, dirty: editor.isDirty?.() || false,
@@ -297,11 +302,14 @@ export function activate(mide) {
     }, { moveCursor: true });
   }
 
-  /** Re-opens the peek after the change it showed was staged or reverted: on the one now in its place. */
-  async function reopenAfter(view, editor, index) {
+  /**
+   * Re-opens the peek after the change it showed was staged or reverted: on the one now in its place.
+   * Not when another peek opened or closed since `moves` (say, staging again from the keyboard).
+   */
+  async function reopenAfter(view, editor, index, moves) {
     let m;
     try { m = await model(editor); } catch { m = null; }
-    if (!m || view.state.doc !== m.doc) return;
+    if (!m || view.state.doc !== m.doc || moves !== peekMoves) return;
     if (!m.list.length) { close(view); return; }
     open(view, editor, m, Math.min(index, m.list.length - 1), { moveCursor: true });
   }
@@ -319,6 +327,7 @@ export function activate(mide) {
   async function stageShown(view) {
     const editor = editorOf(view);
     if (!editor) return;
+    const moves = peekMoves;
     try {
       const changed = await serial(async () => {
         const found = await shownChange(view, editor);
@@ -329,7 +338,7 @@ export function activate(mide) {
       });
       if (changed == null) return;
       await afterIndexChange();
-      await reopenAfter(view, editor, changed);
+      await reopenAfter(view, editor, changed, moves);
     } catch (err) { fail('Couldn\'t stage the change', err); }
   }
 
@@ -337,11 +346,12 @@ export function activate(mide) {
   async function revertShown(view) {
     const editor = editorOf(view);
     if (!editor) return;
+    const moves = peekMoves;
     let found;
     try { found = await shownChange(view, editor); } catch (err) { return fail('Couldn\'t revert the change', err); }
     if (!found) return;
     revertChange(view, found.m, found.change);
-    await reopenAfter(view, editor, found.index);
+    await reopenAfter(view, editor, found.index, moves);
   }
 
   function revertChange(view, m, change) {
