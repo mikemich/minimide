@@ -654,6 +654,7 @@ const SUITES = [
       hintsAfterEdit: ['17:18:value:', '17:22:factor:', '18:10:: number', '19:11:: number'], askedAgain: true,
       hintsAfterRefresh: ['17:18:value:', '17:22:factor:', '18:10:: int', '19:11:: int'], refreshes: 1,
       hintsAfterRestart: ['17:18:value:', '17:22:factor:', '18:10:: number', '19:11:: number'],
+      restartRace: { running: 1, attached: true, opened: ['second.ts', 'shapes.ts'], failures: [], hints: 'drawn' },
       hintsOff: 'none',
       breadcrumbsOff: { active: false, bars: 0 }, breadcrumbsOn: { active: true, crumbs: 'shapes.ts › Circle › area' },
     }),

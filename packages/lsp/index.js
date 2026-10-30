@@ -77,12 +77,20 @@ export function activate(mide) {
   }
 
   let disposed = false;
+  // Every restart bumps the generation of the servers it restarts (`epoch` for all of them). A start
+  // that began before notices when it resumes: it stops its server and gives up, quietly.
+  let epoch = 0;
+  const generations = new Map(); // server name -> restarts of that server alone
+  const generation = (name) => `${epoch}:${generations.get(name) || 0}`;
 
   function ensureClient(server) {
     if (disposed) return Promise.resolve(null);
     if (clients.has(server.name)) return clients.get(server.name);
+    const started = generation(server.name);
+    const stale = () => disposed || generation(server.name) !== started;
     const promise = (async () => {
       const argv = await findCommand(server);
+      if (stale()) return null;
       if (!argv) { promptMissing(server); return null; }
       missing.delete(server.name);
       // Every trusted project folder is a workspace folder; the first one is the root.
@@ -97,10 +105,12 @@ export function activate(mide) {
       log(server.name, `starting: ${argv.join(' ')}`);
       try {
         await client.start();
+        if (stale()) { client.stop(); return null; }
         client.ready = true;
         log(server.name, `ready${client.serverInfo ? ` (${client.serverInfo.name} ${client.serverInfo.version || ''})` : ''}`);
         setTimeout(trackAll, 0); // attach files that lost their server (e.g. after a crash)
       } catch (err) {
+        if (stale()) { client.stop(); return null; } // stopped by a restart, not a failure
         log(server.name, `failed to start: ${err.message}`, 'stderr');
         // TypeScript 7 is a native rewrite without the tsserver that typescript-language-server drives.
         if (/Could not find a valid TypeScript installation/i.test(err.message)) {
@@ -149,32 +159,67 @@ export function activate(mide) {
   }
 
   async function stopAll() {
+    epoch++;
     const all = [...live.values()];
     live.clear();
     clients.clear();
     await Promise.all(all.map((c) => c.stop()));
   }
 
-  async function restartServer(name) {
-    const client = live.get(name);
-    live.delete(name);
-    clients.delete(name);
-    commandCache.delete(name);
-    if (client) await client.stop();
-    for (const [doc, entry] of [...tracked]) if (entry.server.name === name) { entry.sub?.dispose(); tracked.delete(doc); }
+  // Restarts run one at a time. One asked for while another runs waits for it, and the asks made
+  // meanwhile join it (null names: every server). While any is pending no document is attached, so
+  // the last one attaches each open document once, to the servers it started.
+  let restartChain = Promise.resolve();
+  let queued = null; // { names, promise } not started yet
+  let restarting = false;
+
+  function restart(names) {
+    if (queued) {
+      queued.names = queued.names && names ? new Set([...queued.names, ...names]) : null;
+      return queued.promise;
+    }
+    const next = { names: names ? new Set(names) : null };
+    next.promise = restartChain.then(() => {
+      if (queued === next) queued = null;
+      return runRestart(next.names);
+    });
+    queued = next;
+    restartChain = next.promise.catch((err) => console.error('[lsp] restart', err));
+    return next.promise;
+  }
+
+  async function runRestart(names) {
+    restarting = true;
+    const hit = (name) => !names || names.has(name);
+    try {
+      if (names) for (const name of names) generations.set(name, (generations.get(name) || 0) + 1);
+      else epoch++;
+      // Their documents are detached now; the servers they were open in are about to go.
+      for (const [doc, entry] of [...tracked]) {
+        if (!hit(entry.server.name)) continue;
+        entry.sub?.dispose();
+        tracked.delete(doc);
+        if (diagnostics.delete(entry.uri)) applyDiagnostics(doc);
+      }
+      if (!names) {
+        for (const uri of [...diagnostics.keys()]) { diagnostics.delete(uri); const doc = docByPath(fromUri(uri)); if (doc) applyDiagnostics(doc); }
+        commandCache.clear();
+        missing.clear();
+      } else for (const name of names) { commandCache.delete(name); missing.delete(name); }
+      const stopping = [];
+      for (const [name, client] of [...live]) if (hit(name)) { live.delete(name); stopping.push(client.stop()); }
+      for (const name of [...clients.keys()]) if (hit(name)) clients.delete(name);
+      renderProblems();
+      renderStatus();
+      await Promise.all(stopping);
+    } finally {
+      restarting = false;
+    }
     trackAll();
   }
 
-  async function restartAll() {
-    for (const entry of tracked.values()) entry.sub?.dispose();
-    tracked.clear();
-    commandCache.clear();
-    missing.clear();
-    await stopAll();
-    for (const uri of [...diagnostics.keys()]) { diagnostics.delete(uri); const doc = docByPath(fromUri(uri)); if (doc) applyDiagnostics(doc); }
-    renderProblems();
-    trackAll();
-  }
+  const restartServer = (name) => restart([name]);
+  const restartAll = () => restart(null);
 
   // ---------------------------------------------------------------------------
   // Document synchronisation
@@ -196,6 +241,7 @@ export function activate(mide) {
 
   async function track(doc) {
     if (disposed || !doc?.path || tracked.has(doc)) return;
+    if (restarting || queued) return; // the restart attaches it when it's done
     // Servers can run code from the project (e.g. its own TypeScript in node_modules), so they
     // only start for files in trusted folders.
     if (!mide.workspace.isTrusted(doc.path)) { renderStatus(); return; }
@@ -209,8 +255,9 @@ export function activate(mide) {
     const client = await ensureClient(server);
     if (tracked.get(doc) !== entry) { renderStatus(); return; }
     // No editor shows it yet (a running server answers before the view exists): forget it, so
-    // the item-added call below tracks it again and sends didOpen.
-    if (!client || !doc.primaryView()) { entry.sub.dispose(); tracked.delete(doc); renderStatus(); return; }
+    // the item-added call below tracks it again and sends didOpen. A server that already exited
+    // can't have it either; the next one that starts attaches it.
+    if (!client || client.state !== 'ready' || !doc.primaryView()) { entry.sub.dispose(); tracked.delete(doc); renderStatus(); return; }
     entry.client = client;
     entry.version = 1;
     client.notify('textDocument/didOpen', { textDocument: { uri: entry.uri, languageId: entry.languageId, version: 1, text: doc.getText() } });
@@ -301,6 +348,7 @@ export function activate(mide) {
   function onNotification(client, method, params) {
     switch (method) {
       case 'textDocument/publishDiagnostics': {
+        if (live.get(client.name) !== client) break; // from a server being stopped
         // Servers encode URIs differently (%28 vs "("): key everything by our own encoding.
         const path = fromUri(params.uri);
         diagnostics.set(toUri(path), params.diagnostics || []);

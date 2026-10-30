@@ -149,6 +149,33 @@
   await app.commands.run('lsp:restart-servers');
   out.hintsAfterRestart = await until(() => { const l = hints(); return l.some((x) => x.endsWith(': number')) && l; }, 15000) || hints();
 
+  // Restart seven times in quick succession, while the servers start and a second file opens: one
+  // server is left running, with each file open in it exactly once, and no start is reported as failed.
+  const events = async () => (await window.native.fs.read(`${app.userInfo.dir}/fake-lsp.json.events`)).split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  await window.native.fs.write(`${root}/second.ts`, 'export function twice(n: number) {\n  return n * 2;\n}\nconst four = twice(2);\n');
+  const errorsShown = () => [...document.querySelectorAll('#notifications .notification.error .notification-title')].map((el) => el.textContent);
+  const errorsBefore = errorsShown().length;
+  const restarts = [app.commands.run('lsp:restart-servers')];
+  const opening = ws.open(`${root}/second.ts`, { activate: false });
+  // Gaps that land while a stop is under way, a server is being looked for, and one is starting.
+  for (const ms of [0, 0, 1, 2, 4, 8]) { await wait(ms); restarts.push(app.commands.run('lsp:restart-servers')); }
+  const second = await opening;
+  await Promise.all(restarts);
+  const lsp = app.packages.services.get('lsp');
+  const attached = await until(() => { const a = lsp.documentFor(ts.view), b = lsp.documentFor(second.view); return a && b && a.client.state === 'ready' && b.client === a.client; }, 15000);
+  await wait(1500); // stopped servers have exited
+  const evs = await events();
+  const exited = new Set(evs.filter((e) => e.event === 'exit').map((e) => e.pid));
+  const running = [...new Set(evs.filter((e) => e.event === 'start').map((e) => e.pid))].filter((pid) => !exited.has(pid));
+  const openedIn = (pid) => evs.filter((e) => e.pid === pid && e.event === 'open').map((e) => e.file).sort();
+  out.restartRace = {
+    running: running.length, attached: !!attached,
+    opened: running.length === 1 ? openedIn(running[0]) : running.map(openedIn),
+    failures: errorsShown().slice(errorsBefore),
+    hints: await until(() => hints().length >= 3, 8000) ? 'drawn' : 'none',
+  };
+  await ws.closeItem(second);
+
   await app.commands.run('editor:toggle-inlay-hints');
   out.hintsOff = await until(() => hints().length === 0 && 'none') || hints();
 
