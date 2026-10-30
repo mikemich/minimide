@@ -125,6 +125,7 @@ const README_GOAL = [
   'Open the details page and press `Install`.', '',
   '![Screenshot](docs/shot.png)', '',
   '![Badge](https://img.shields.io/badge/tests-passing-green.svg)', '',
+  '![Pixel](http://tracker.invalid/pixel.gif)', '',
   'See [CONTRIBUTING](CONTRIBUTING.md), the [home page](https://example.com/goal) or jump to [Install](#install).', '',
   '```js', 'mide.commands.run("goal:set");', '```', '',
   '<script>window.__readmeXss = 1</script>',
