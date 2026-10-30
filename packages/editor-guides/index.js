@@ -19,7 +19,7 @@ export async function activate(mide) {
         light: 'var(--guide)', dark: 'var(--guide)',
         activeLight: 'var(--guide-active)', activeDark: 'var(--guide-active)',
       },
-    }));
+    }), { largeFiles: false });
   };
 
   for (const key of ['editor-guides.indentGuides', 'editor-guides.highlightActiveScope']) mide.config.onDidChange(key, applyGuides);

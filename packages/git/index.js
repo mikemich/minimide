@@ -216,7 +216,7 @@ export function activate(mide) {
     if (!root || path === root) return;
     const view = editor.view;
     let ranges = [];
-    const st = statusFor(path);
+    const st = mide.editor.isLargeFile(editor) ? null : statusFor(path); // no diff (or a marker per line) for a large file
     if (st === 'untracked' || st === 'added') {
       for (let i = 1; i <= view.state.doc.lines; i++) ranges.push(markers.added.range(view.state.doc.line(i).from));
     } else if (st) {
@@ -255,6 +255,7 @@ export function activate(mide) {
     }, 350));
   });
   mide.workspace.onDidOpenItem((item) => { if (item.type === 'editor') setTimeout(() => updateGutter(item), 30); });
+  mide.workspace.onDidChangeLargeFile((doc) => { for (const item of doc.views) updateGutter(item); });
 
   let refreshTimer = null;
   const scheduleRefresh = () => { clearTimeout(refreshTimer); refreshTimer = setTimeout(refresh, 400); };

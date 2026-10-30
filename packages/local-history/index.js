@@ -51,13 +51,14 @@ export function activate(mide) {
   const activePath = () => ws.getActiveEditor()?.getPath() || null;
 
   // --- saving versions ----------------------------------------------------------
+  // Not for large files: copying their text on every save would make saving slow.
   mide.workspace.onDidSave((item) => {
     const doc = item.document;
-    if (doc?.path) store.snapshot(doc.path, doc.getTextForSave()).catch((err) => console.warn('[local-history]', err));
+    if (doc?.path && !mide.editor.isLargeFile(doc)) store.snapshot(doc.path, doc.getTextForSave()).catch((err) => console.warn('[local-history]', err));
   });
   // The buffer is about to be replaced by the file on disk: keep what is in it (the text is read now, synchronously).
   mide.workspace.onWillReload((doc, reason) => {
-    if (!doc.path) return;
+    if (!doc.path || mide.editor.isLargeFile(doc)) return;
     store.snapshot(doc.path, doc.getTextForSave(), reason === 'revert' ? 'Before revert' : 'Before reload from disk').catch(() => {});
   });
   mide.workspace.onDidRenamePath((from, to) => { store.move(from, to).catch((err) => console.warn('[local-history]', err)); });

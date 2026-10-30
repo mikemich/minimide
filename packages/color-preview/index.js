@@ -90,7 +90,7 @@ export function activate(mide) {
     constructor(view) { this.view = view; this.decorations = build(view); instances.add(this); }
     update(u) { if (u.docChanged || u.viewportChanged) this.decorations = build(u.view); }
     destroy() { instances.delete(this); }
-  }, { decorations: (v) => v.decorations })]);
+  }, { decorations: (v) => v.decorations })], { largeFiles: false });
   // Apply the "Show In" setting immediately.
   mide.config.onDidChange('color-preview.languages', () => {
     for (const p of instances) { p.decorations = build(p.view); p.view.dispatch({}); }

@@ -199,6 +199,8 @@ export function activate(mide) {
     // Servers can run code from the project (e.g. its own TypeScript in node_modules), so they
     // only start for files in trusted folders.
     if (!mide.workspace.isTrusted(doc.path)) { renderStatus(); return; }
+    // A large file isn't sent to a server (didOpen would copy all of it) until its features are turned on.
+    if (mide.editor.isLargeFile(doc)) { renderStatus(); return; }
     const server = serverForPath(servers, doc.path);
     if (!server) return;
     const entry = { server, path: doc.path, uri: toUri(doc.path), languageId: languageIdFor(doc.path, server), version: 0, client: null, opened: false };
@@ -230,6 +232,7 @@ export function activate(mide) {
   }
 
   mide.workspace.onDidOpenDocument((doc) => track(doc));
+  mide.workspace.onDidChangeLargeFile((doc) => track(doc));
   mide.workspace.onDidCloseDocument((doc) => untrack(doc));
   mide.workspace.onDidOpenItem((item) => {
     if (item.type !== 'editor') return;
@@ -1105,6 +1108,7 @@ export function activate(mide) {
     const label = server.displayName || server.name;
     let text = label;
     if (!mide.workspace.isTrusted(path)) { state = 'off'; text = `${label} (restricted)`; }
+    else if (editor.isLarge()) { state = 'off'; text = `${label} (large file)`; }
     else if (missing.has(server.name)) { state = 'missing'; text = `${label} (no server)`; }
     else if (client?.state === 'starting') { state = 'starting'; text = `${label} starting…`; }
     else if (client?.state === 'ready') {
