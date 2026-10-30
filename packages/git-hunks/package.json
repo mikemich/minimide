@@ -1,0 +1,9 @@
+{
+  "name": "git-hunks",
+  "displayName": "Git Hunks",
+  "description": "Click a change marker in the gutter to see what changed, then stage or revert just that change. Also stages selected lines, and single changes from Source Control's diffs.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"],
+  "keymap": { "Mod-Alt-g": "git-hunks:show", "Alt-F3": "git-hunks:next", "Shift-Alt-F3": "git-hunks:previous" }
+}
