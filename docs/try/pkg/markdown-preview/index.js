@@ -133,7 +133,7 @@ export function activate(mide) {
       const decode = (t) => { try { return decodeURIComponent(t); } catch { return t; } }; // e.g. "#100%"
       if (href.startsWith('#')) {
         const target = this.body.querySelector(`[id="${CSS.escape(decode(href.slice(1)))}"]`);
-        return target?.scrollIntoView({ behavior: 'smooth' });
+        return target?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
       }
       if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return; // other schemes (javascript:, file:…) are ignored
       const base = mide.path.dirname(this.editor.getPath() || '');

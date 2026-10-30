@@ -5,12 +5,16 @@ const countWords = (text) => (text.match(/\S+/g) || []).length;
 const PROSE = ['Markdown', 'Plain Text'];
 const WORDS_PER_MINUTE = 230;
 
+const ENCODINGS = { utf8: 'UTF-8', utf16le: 'UTF-16 LE', utf16be: 'UTF-16 BE', 'windows-1252': 'Windows-1252' };
+const encodingLabel = (doc) => (ENCODINGS[doc.encoding] || doc.encoding) + (doc.bom && doc.encoding === 'utf8' ? ' with BOM' : '');
+
 export function activate(mide) {
   const { h } = mide.ui;
   const path = h('span.sb-path');
   const cursor = h('span');
   const indent = h('span');
   const eol = h('span');
+  const encoding = h('span');
   const lang = h('span');
   const words = h('span.sb-words');
   const pending = h('span.sb-pending');
@@ -20,7 +24,8 @@ export function activate(mide) {
   mide.statusBar.addItem({ id: 'pending-keys', element: pending, align: 'left', priority: 20 });
   mide.statusBar.addItem({ id: 'cursor', element: cursor, align: 'right', priority: 10, tooltip: 'Go to Line', command: 'editor:go-to-line', onClick: () => mide.commands.run('editor:go-to-line') });
   mide.statusBar.addItem({ id: 'indent', element: indent, align: 'right', priority: 20, tooltip: 'Change indentation', onClick: () => mide.commands.run('editor:set-indentation') });
-  mide.statusBar.addItem({ id: 'eol', element: eol, align: 'right', priority: 30 });
+  mide.statusBar.addItem({ id: 'eol', element: eol, align: 'right', priority: 30, tooltip: 'Line endings' });
+  mide.statusBar.addItem({ id: 'encoding', element: encoding, align: 'right', priority: 35, tooltip: 'File encoding' });
   mide.statusBar.addItem({ id: 'language', element: lang, align: 'right', priority: 40, tooltip: 'Select language mode', onClick: () => mide.commands.run('editor:set-language') });
 
   // The whole-document count is cached per document. While typing it waits for a 200 ms pause,
@@ -58,10 +63,11 @@ export function activate(mide) {
       const c = item.getCursor();
       cursor.textContent = `Ln ${c.line}, Col ${c.col}` + (c.selections > 1 ? ` (${c.selections} selections)` : c.selected ? ` (${c.selected} selected)` : '');
       lang.textContent = item.getLanguageName();
-      eol.textContent = item.document.lineEnding === '\r\n' ? 'CRLF' : 'LF';
+      eol.textContent = { '\r\n': 'CRLF', '\r': 'CR' }[item.document.lineEnding] || 'LF';
+      encoding.textContent = encodingLabel(item.document);
       indent.textContent = `${mide.config.get('editor.softTabs') ? 'Spaces' : 'Tab Size'}: ${mide.config.get('editor.tabSize')}`;
     } else {
-      cursor.textContent = lang.textContent = eol.textContent = indent.textContent = '';
+      cursor.textContent = lang.textContent = eol.textContent = encoding.textContent = indent.textContent = '';
     }
   }
 

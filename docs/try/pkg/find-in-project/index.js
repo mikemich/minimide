@@ -4,26 +4,26 @@ export function activate(mide) {
   const { h, icon, fileIcon } = mide.ui;
   const state = { regex: false, caseSensitive: false, results: [], collapsed: new Set(), seq: 0 };
 
-  const query = h('input.input.fip-query', { placeholder: 'Search', spellcheck: false });
-  const replace = h('input.input.fip-replace', { placeholder: 'Replace', spellcheck: false });
-  const folder = h('input.input.fip-folder', { placeholder: 'Folder to search (e.g. src/lib)', spellcheck: false });
+  const query = h('input.input.fip-query', { placeholder: 'Search', 'aria-label': 'Search in project', spellcheck: false });
+  const replace = h('input.input.fip-replace', { placeholder: 'Replace', 'aria-label': 'Replace with', spellcheck: false });
+  const folder = h('input.input.fip-folder', { placeholder: 'Folder to search (e.g. src/lib)', 'aria-label': 'Folder to search', spellcheck: false });
   const toggle = (key, label, title) => {
-    const btn = h('button.fip-toggle', { title, onclick: () => { state[key] = !state[key]; btn.classList.toggle('on', state[key]); run(); } }, label);
+    const btn = h('button.fip-toggle', { title, 'aria-label': title, 'aria-pressed': 'false', onclick: () => { state[key] = !state[key]; btn.classList.toggle('on', state[key]); btn.setAttribute('aria-pressed', String(state[key])); run(); } }, label);
     return btn;
   };
   const replaceRow = h('div.fip-row.fip-replace-row', { hidden: true }, replace,
     h('button.btn.small', { title: 'Replace all matches', onclick: () => replaceAll() }, 'Replace All'));
-  const summary = h('div.fip-summary');
+  const summary = h('div.fip-summary', { role: 'status' });
   const results = h('div.fip-results');
   const el = h('div.fip',
     h('div.fip-form',
-      h('div.fip-row', h('button.icon-btn.fip-expand', { title: 'Toggle Replace', onclick: () => { replaceRow.hidden = !replaceRow.hidden; expandBtnState(); } }, icon('chevron', 12)),
+      h('div.fip-row', h('button.icon-btn.fip-expand', { title: 'Toggle Replace', 'aria-label': 'Toggle Replace', 'aria-expanded': 'false', onclick: () => { replaceRow.hidden = !replaceRow.hidden; expandBtnState(); } }, icon('chevron', 12)),
         h('div.fip-query-wrap', query, h('div.fip-toggles', toggle('caseSensitive', 'Aa', 'Match Case'), toggle('regex', '.*', 'Use Regular Expression')))),
       replaceRow,
       h('div.fip-row', folder)),
     summary, results);
   const expandBtn = el.querySelector('.fip-expand');
-  const expandBtnState = () => expandBtn.classList.toggle('open', !replaceRow.hidden);
+  const expandBtnState = () => { expandBtn.classList.toggle('open', !replaceRow.hidden); expandBtn.setAttribute('aria-expanded', String(!replaceRow.hidden)); };
 
   let timer = null;
   query.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 280); });
@@ -62,6 +62,7 @@ export function activate(mide) {
       const collapsed = state.collapsed.has(r.file);
       const header = h('div.fip-file', {
         class: collapsed ? 'collapsed' : '',
+        'aria-expanded': String(!collapsed),
         title: rel,
         onclick: () => { if (collapsed) state.collapsed.delete(r.file); else state.collapsed.add(r.file); render(); },
       }, icon('chevron', 11), fileIcon(rel), h('span.fip-file-name', rel.slice(slash + 1)),

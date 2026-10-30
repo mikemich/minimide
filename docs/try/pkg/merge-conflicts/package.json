@@ -1,0 +1,9 @@
+{
+  "name": "merge-conflicts",
+  "displayName": "Merge Conflicts",
+  "description": "Resolve merge conflicts in the editor: tinted sections, Accept Current / Incoming / Both and Compare above each block, and F7 to jump between them.",
+  "version": "0.1.0",
+  "main": "index.js",
+  "styles": ["style.css"],
+  "keymap": { "F7": "merge-conflicts:next", "Shift-F7": "merge-conflicts:previous" }
+}
