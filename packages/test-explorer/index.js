@@ -415,6 +415,10 @@ export function activate(mide) {
         const dir = goDir(root, g.runRoot, r.pkg);
         const inDir = root.children.filter((f) => f.fw === 'go' && f.path.slice(0, f.path.lastIndexOf('/')) === dir);
         file = inDir.find((f) => find(f, [r.names[0]])) || inDir[0];
+      } else if (!r.path) {
+        // No file in the report (node:test before 24): the file of this run that has the test.
+        const ran = [...g.files];
+        file = ran.find((f) => find(f, r.names)) || (ran.length === 1 ? ran[0] : null);
       } else {
         file = files.get(r.path) || (r.path && await addFile(root, r.path, g));
       }
