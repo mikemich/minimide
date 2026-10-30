@@ -619,6 +619,8 @@ function multiRoot(root) {
   write(path.join(gamma, 'g.txt'), 'gamma changed\n');
   // Another folder named beta, to add next to the first one.
   write(path.join(d, 'other/beta/twin.txt'), 'shared-needle in the other beta\n');
+  // A link to alpha: the same folder under another name, so it can't be added a second time.
+  fs.symlinkSync(path.join(d, 'alpha'), path.join(d, 'alpha-link'), 'junction');
   const trusted = [path.join(d, 'alpha'), beta].map((p) => ({ path: p, real: p }));
   write(path.join(root, 'mrh/trusted-folders.json'), JSON.stringify({ folders: trusted }, null, 2) + '\n');
 }

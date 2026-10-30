@@ -575,11 +575,23 @@ export class Workspace extends Emitter {
     this.updateTitle();
   }
 
+  /**
+   * The open folder that is the same folder as `path` on disk (by real path: a link to it, or the
+   * same path spelled differently), or null. A folder inside another one is a different folder.
+   */
+  async sameFolder(path) {
+    path = path.replace(/(.)\/+$/, '$1');
+    if (this.folders.includes(path)) return path;
+    const real = async (p) => (await window.native.fs.realpath(p)) || p;
+    const [target, ...open] = await Promise.all([path, ...this.folders].map(real));
+    return this.folders[open.indexOf(target)] || null;
+  }
+
   /** Adds another folder (the first one becomes the project). Resolves false if it's already there. */
   async addFolder(path) {
     path = path.replace(/(.)\/+$/, '$1');
     if (!this.project) { await this.setProject(path); return true; }
-    if (this.folders.includes(path)) return false;
+    if (await this.sameFolder(path)) return false;
     this.folders = [...this.folders, path];
     this.watchFolders();
     this.emit('folders-changed', this.folders);

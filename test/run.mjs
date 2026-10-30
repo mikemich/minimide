@@ -303,6 +303,9 @@ const SUITES = [
       sourceControl: { folder: 'beta', rows: ['new.txt', 'readme.md'], pickerShown: true },
       'removed.folders': ['alpha'], 'removed.rel': 'src/app.js', 'removed.title': /— alpha — Minimide$/, treeAfterRemove: true, folderForRemoved: null, gitAfterRemove: true,
       restrictedBefore: false, gammaTrusted: false, alphaStillTrusted: true, restrictedAfter: true, restrictedTooltip: /off for gamma\./, noGitInGamma: true,
+      // The same folder, by its own path or through a link, isn't added twice (or watched twice).
+      'duplicate.added': [false, false], 'duplicate.folders': ['alpha', 'gamma'], 'duplicate.treeRoots': ['alpha', 'gamma'], 'duplicate.watched': ['alpha', 'gamma'],
+      'duplicate.notes': ['alpha is already open', 'alpha is already open | alpha-link is the same folder as alpha.', 'alpha is already open | alpha-link is the same folder as alpha.'],
       saved: ['alpha', 'gamma', 'beta'], sessionFolders: ['gamma', 'beta'], finalTitle: 'util.py — alpha +2 — Minimide',
     }),
   },

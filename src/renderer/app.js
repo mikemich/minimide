@@ -233,6 +233,11 @@ class App {
   async addFolder(path) {
     if (!path) return false;
     if (!this.workspace.project) { await this.openProject(path); return true; }
+    const same = await this.workspace.sameFolder(path);
+    if (same) {
+      this.ui.notify.info(`${this.workspace.folderLabel(same)} is already open`, same === path.replace(/(.)\/+$/, '$1') ? undefined : `${path} is the same folder as ${same}.`);
+      return false;
+    }
     if (!await this.workspace.addFolder(path)) return false;
     if (!this.trust.isTrusted(path)) await this.trust.prompt(path);
     return true;

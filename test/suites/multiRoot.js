@@ -95,6 +95,20 @@
   await sleep(1200);
   out.noGitInGamma = git.rootFor(`${gamma}/g.txt`) === null && git.statuses().get(`${gamma}/g.txt`) == null;
 
+  // --- the same folder again, under its own name or through a link: refused, and said so ------
+  const shown = new Set(document.querySelectorAll('#notifications .notification'));
+  const fresh = () => [...document.querySelectorAll('#notifications .notification')].filter((n) => !shown.has(n))
+    .map((n) => [n.querySelector('.notification-title'), n.querySelector('.notification-detail')].filter(Boolean).map((e) => e.textContent.split(`${base}/`).join('')).join(' | '));
+  const twice = await app.addFolder(`${alpha}/`);
+  const viaLink = await app.addFolder(`${base}/alpha-link`);
+  await T.answers('openFolder', `${base}/alpha-link`);
+  await app.commands.run('project:add-folder');
+  await until(() => fresh().length === 3);
+  out.duplicate = {
+    added: [twice, viaLink], folders: names(), treeRoots: treeRoots(), watched: [...ws.watched.keys()].map((f) => f.split('/').pop()),
+    notes: fresh(),
+  };
+
   // --- back in, and saved with the session -------------------------------------------------
   await app.addFolder(beta);
   await until(() => ws.folders.length === 3);
