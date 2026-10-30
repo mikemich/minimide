@@ -6,6 +6,15 @@ import { toPosition, fromPosition } from './util.js';
 const EDIT_DELAY = 400;
 const SCROLL_DELAY = 150;
 
+/** Which side of its position a hint sits on: a parameter name before its argument, the rest after. */
+export const hintSide = (hint) => (hint.kind === 2 ? -1 : 1);
+
+/**
+ * [{ pos, hint }] in the order CodeMirror needs them (by position, then side), so a type hint and a
+ * parameter name at the same spot don't make the decorations fail to build.
+ */
+export const orderHints = (ranges) => [...ranges].sort((a, b) => a.pos - b.pos || hintSide(a.hint) - hintSide(b.hint));
+
 /** `entryFor(view)` is the tracked document for an editor view (or null). Returns { extension, refresh(client?) }. */
 export function inlayHints(mide, entryFor) {
   const { ViewPlugin, Decoration, WidgetType } = mide.cm.view;
@@ -82,13 +91,12 @@ export function inlayHints(mide, entryFor) {
       } catch { return; }
       // Typed or scrolled meanwhile: a newer request is on its way.
       if (mine !== this.seq || view.state.doc !== doc || !instances.has(this)) return;
-      const ranges = (hints || [])
+      const ranges = orderHints((hints || [])
         .map((hint) => ({ pos: fromPosition(doc, hint.position), hint }))
-        .filter(({ pos, hint }) => pos >= from && pos <= to && labelText(hint.label))
-        .sort((a, b) => a.pos - b.pos);
+        .filter(({ pos, hint }) => pos >= from && pos <= to && labelText(hint.label)));
       const builder = new RangeSetBuilder();
       // A parameter name sits before its argument: keep the cursor next to the code it labels.
-      for (const { pos, hint } of ranges) builder.add(pos, pos, Decoration.widget({ widget: new HintWidget(hint), side: hint.kind === 2 ? -1 : 1 }));
+      for (const { pos, hint } of ranges) builder.add(pos, pos, Decoration.widget({ widget: new HintWidget(hint), side: hintSide(hint) }));
       this.decorations = builder.finish();
       view.dispatch({});
     }

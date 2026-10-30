@@ -71,6 +71,11 @@
   content_.scrollTop = 240;
   await wait(100);
   const scrolled = content_.scrollTop;
+  // Images the README may not show are never even requested (an <img> starts loading as soon as it is made).
+  const blocked = [];
+  const onViolation = (e) => blocked.push(e.blockedURI);
+  document.addEventListener('securitypolicyviolation', onViolation);
+  const resourcesBefore = performance.getEntriesByType('resource').length;
   press('Details', card('ada/goal-tracker'));
   await detailsReady();
   out.scrolledToTopOnOpen = content_.scrollTop === 0;
@@ -90,9 +95,13 @@
   const links = Object.fromEntries(all('.pkg-readme a').map((a) => [text(a), a.getAttribute('href')]));
   out.readmeLinks = links;
   out.readmeHasScript = !!one('.pkg-readme script');
+  out.readmeAppClasses = all('.pkg-readme [class]').map((e) => e.className).filter((c) => !/^(language-|pkg-readme-img$)/.test(c));
   out.readmeInlineHandlers = all('.pkg-readme *').some((e) => [...e.attributes].some((a) => /^on/i.test(a.name)));
   await wait(300);
   out.readmeXss = window.__readmeXss ?? 'none';
+  document.removeEventListener('securitypolicyviolation', onViolation);
+  out.readmeForeignRequests = [...blocked, ...performance.getEntriesByType('resource').slice(resourcesBefore).map((r) => r.name)]
+    .filter((u) => /shields\.io|tracker\.invalid/.test(u));
   // An anchor in the README scrolls inside the page; it never navigates the window.
   const before = location.href;
   one('.pkg-readme a[href="#install"]').click();

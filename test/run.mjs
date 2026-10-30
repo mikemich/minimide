@@ -175,9 +175,9 @@ const SUITES = [
       meta: /^ada ★ 42 Updated .*2026 Version 1\.0\.0 MIT$/, description: 'Set a daily word goal and watch it fill up.',
       permissions: ['project-files', 'network'], permissionLabels: ['Read files in the open project', 'Connect to the internet'], detailButtons: ['Install', 'View on GitHub'],
       readmeHeading: 'Goal Tracker', readmeBold: 'daily word goal', readmeCode: 'mide.commands.run("goal:set");',
-      readmeImages: ['/_raw/ada/goal-tracker/main/docs/shot.png', '/_raw/ada/goal-tracker/main/x.png'], readmeImagePlaceholders: ['[Badge]'],
+      readmeImages: ['/_raw/ada/goal-tracker/main/docs/shot.png', '/_raw/ada/goal-tracker/main/x.png'], readmeImagePlaceholders: ['[Badge]', '[Pixel]'], readmeForeignRequests: [],
       readmeLinks: { CONTRIBUTING: 'https://github.com/ada/goal-tracker/blob/main/CONTRIBUTING.md', 'home page': 'https://example.com/goal', Install: '#install' },
-      readmeHasScript: false, readmeInlineHandlers: false, readmeXss: 'none', anchorStaysInApp: true, readmeRequests: 1,
+      readmeHasScript: false, readmeInlineHandlers: false, readmeAppClasses: [], readmeXss: 'none', anchorStaysInApp: true, readmeRequests: 1,
       backKeepsSearch: 'tracker', backKeepsList: ['goal-tracker'], backKeepsScroll: true, detailFetches: 1,
       fullAccessTitleBadges: ['full access'], fullAccessWarning: 'Needs full access', fullAccessPermissionRows: 0,
       problem: "This repository has no package.json at its root, so it can't be installed.", installDisabled: true,
@@ -230,6 +230,8 @@ const SUITES = [
     expect: () => ({
       folders: ['alpha', 'gamma', 'beta'], treeRoots: ['alpha', 'gamma', 'beta'], tab: 'beta/lib/util.py', title: 'util.py — alpha +2 — Minimide',
       restricted: true, gammaTrusted: false,
+      newFilesShown: true, nestedNewFile: 1, nestedBoth: 2, nestedSecondBoth: 2, nestedActiveRows: 2,
+      twinRel: ['beta (mr)/readme.md', 'beta (other)/twin.txt', 'beta (other)'], twinResolved: true, twinSearch: ['beta (other)/twin.txt'],
     }),
   },
   {
@@ -365,6 +367,7 @@ const SUITES = [
       'view.opened': true, 'view.rows': 2, 'view.selectedLeft': 'beta\n', 'view.right': 'gamma\n', 'view.mergeShown': true,
       'view.title': 'notes.txt (history)', 'view.sameInfo': true,
       'compare.opened': true, 'compare.selectedLeft': 'beta\n',
+      'crlf.kept': ['one\r\ntwo\r\n', 'one\r\ntwo\r\nthree\r\n'], 'crlf.left': 'one\ntwo\n', 'crlf.right': 'one\ntwo\nthree\n',
       'restore.buffer': 'beta\n', 'restore.dirty': true, 'restore.afterUndo': 'gamma\n', 'restore.diskUntouched': 'gamma\n',
       'restore.unsavedKept': 'delta\n', 'restore.unsavedLabel': 'Before restore',
       'quickPick.buffer': 'delta\n',
@@ -376,7 +379,8 @@ const SUITES = [
       'rename.folderMoved': ['i1\n'], 'rename.folderOldGone': true,
       'reload.disk': { text: 'changed outside\n', label: 'Before reload from disk', saved: 'ext original\n' },
       'reload.revert': { label: 'Before revert', saved: 'scratch\n' },
-      'guard.refused': true,
+      'toggle.before': 2, 'toggle.after': 0, 'toggle.reopened': true,
+      'guard.refused': true, 'guard.linkRefused': true, 'guard.outsideKept': 'keep me\n',
     }),
   },
   {

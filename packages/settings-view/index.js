@@ -397,12 +397,21 @@ export function activate(mide) {
     if (d.readme == null) { box.append(h('p.pkg-readme-empty', 'This repository has no README.')); return box; }
     const md = await loadMarkdown();
     if (!md) { box.append(h('pre.pkg-readme-plain', d.readme)); return box; }
-    box.innerHTML = md.DOMPurify.sanitize(md.marked.parse(d.readme, { gfm: true, breaks: false, async: false }), {
+    const clean = md.DOMPurify.sanitize(md.marked.parse(d.readme, { gfm: true, breaks: false, async: false }), {
       USE_PROFILES: { html: true },
       FORBID_TAGS: ['style', 'form', 'input', 'button', 'picture', 'source', 'video', 'audio', 'track', 'link', 'meta'],
       FORBID_ATTR: ['style', 'srcset', 'poster', 'background', 'ping', 'formaction', 'action', 'xlink:href'],
     });
-    for (const img of box.querySelectorAll('img')) {
+    // Fix up images and links in an inert document first: an <img> made in this one starts loading
+    // straight away, so a README could make Minimide fetch from any server just by being viewed.
+    const inert = new DOMParser().parseFromString(`<body>${clean}</body>`, 'text/html').body;
+    // The app's own class names could dress README content up as Minimide's UI (a fixed overlay, a
+    // crash screen): keep only the code-language classes Markdown adds.
+    for (const el of inert.querySelectorAll('[class]')) {
+      const keep = [...el.classList].filter((c) => /^language-[\w+#-]+$/.test(c));
+      if (keep.length) el.className = keep.join(' '); else el.removeAttribute('class');
+    }
+    for (const img of inert.querySelectorAll('img')) {
       let url = null;
       try { url = resolveIn(d.rawBase, img.getAttribute('src') || ''); } catch {}
       const ok = url && (url.href.startsWith(d.rawBase) || (url.protocol === 'https:' && isGithubHost(url.hostname)));
@@ -410,13 +419,14 @@ export function activate(mide) {
         img.replaceWith(h('span.pkg-readme-img', { title: img.getAttribute('src') || '' }, img.alt ? `[${img.alt}]` : '[image]'));
       }
     }
-    for (const a of box.querySelectorAll('a[href]')) {
+    for (const a of inert.querySelectorAll('a[href], area[href]')) {
       const href = a.getAttribute('href');
       if (href.startsWith('#')) continue;
       let url = null;
       try { url = resolveIn(d.blobBase, href); } catch {}
       if (url && /^(https?:|mailto:)$/.test(url.protocol)) { a.setAttribute('href', url.href); a.title = url.href; } else a.removeAttribute('href');
     }
+    box.append(...inert.childNodes);
     const used = new Map();
     for (const el of box.querySelectorAll('h1, h2, h3, h4, h5, h6')) {
       const base = el.textContent.trim().toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, '').replace(/\s+/g, '-');
@@ -426,7 +436,7 @@ export function activate(mide) {
     }
     // Nothing in the README navigates this window: anchors scroll, everything else opens outside.
     box.addEventListener('click', (e) => {
-      const a = e.target.closest?.('a');
+      const a = e.target.closest?.('a, area');
       if (!a) return;
       e.preventDefault();
       const href = a.getAttribute('href') || '';

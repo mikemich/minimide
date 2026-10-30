@@ -570,13 +570,26 @@ export class Workspace extends Emitter {
   /** The folder of the active file, else the project. */
   getActiveFolder() { return this.folderFor(this.getActiveItem()?.getPath?.()) || this.project; }
 
+  /**
+   * The name a project folder goes by in relative paths: its own, or, when another folder has the
+   * same name, with its parent folder's ("app (client)"), so each one can be told apart and found again.
+   */
+  folderLabel(f) {
+    const name = basename(f);
+    const same = this.folders.filter((x) => basename(x) === name);
+    if (same.length < 2) return name;
+    const parent = (x) => basename(x.slice(0, x.lastIndexOf('/')) || '/') || '/';
+    return same.filter((x) => parent(x) === parent(f)).length < 2 ? `${name} (${parent(f)})` : `${name} (${same.indexOf(f) + 1})`;
+  }
+
   /** `p` relative to its folder; with several folders, prefixed with that folder's name. */
   relativePath(p) {
     const f = this.folderFor(p);
     if (!p || !f) return p || '';
     const rel = p === f ? '' : p.slice(f.length + (f.endsWith('/') ? 0 : 1));
     if (this.folders.length < 2) return rel;
-    return rel ? `${basename(f)}/${rel}` : basename(f);
+    const label = this.folderLabel(f);
+    return rel ? `${label}/${rel}` : label;
   }
 
   /** The absolute path of a relativePath() result (absolute paths are returned as they are). */
@@ -584,7 +597,7 @@ export class Workspace extends Emitter {
     if (!rel || rel.startsWith('/')) return rel || this.project;
     if (this.folders.length > 1) {
       const [head, ...rest] = rel.split('/');
-      const f = this.folders.find((x) => basename(x) === head);
+      const f = this.folders.find((x) => this.folderLabel(x) === head) || this.folders.find((x) => basename(x) === head);
       if (f) return rest.length ? `${f}/${rest.join('/')}` : f;
     }
     return this.project ? `${this.project}/${rel}` : rel;

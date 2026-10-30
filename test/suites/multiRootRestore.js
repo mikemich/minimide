@@ -1,5 +1,7 @@
 // Several project folders, part 2: a fresh launch on the same project brings back the folders that
-// multiRoot added, still with the untrusted one in Restricted Mode (and without asking again).
+// multiRoot added, still with the untrusted one in Restricted Mode (and without asking again); the
+// tree follows changes in each of them, and in a folder that is inside another one; two folders with
+// the same name get told apart in relative paths.
 // Evaluated in the renderer; returns a JSON-able results object.
 (async () => {
   const app = window.minimide, ws = app.workspace;
@@ -18,6 +20,35 @@
   out.title = document.title;
   out.restricted = !!(await until(() => [...document.querySelectorAll('.status-item')].some((e) => /Restricted Mode/.test(e.textContent))));
   out.gammaTrusted = app.trust.isTrusted(ws.folders[1]);
+
+  // The restored tree keeps up with the disk in every folder (the folders came back one by one).
+  const rows = (p) => [...document.querySelectorAll(`.tree-row[data-path="${CSS.escape(p)}"]`)];
+  const [alpha, , beta] = ws.folders;
+  await window.native.fs.write(`${alpha}/fresh.txt`, 'new\n');
+  await window.native.fs.write(`${beta}/lib/fresh.py`, 'new\n');
+  out.newFilesShown = !!(await until(() => rows(`${alpha}/fresh.txt`).length && rows(`${beta}/lib/fresh.py`).length));
+
+  // A folder inside another one: its files show (and update) under both.
+  await app.addFolder(`${alpha}/src`);
+  await until(() => ws.folders.length === 4 && rows(`${alpha}/src`).length === 2);
+  await window.native.fs.write(`${alpha}/src/nested.js`, 'new\n');
+  out.nestedNewFile = await until(() => rows(`${alpha}/src/nested.js`).length);
+  rows(`${alpha}/src`)[0].click(); // the one inside alpha
+  out.nestedBoth = await until(() => rows(`${alpha}/src/nested.js`).length === 2 && rows(`${alpha}/src/app.js`).length === 2 && 2);
+  await window.native.fs.write(`${alpha}/src/second.js`, 'new\n');
+  out.nestedSecondBoth = await until(() => rows(`${alpha}/src/second.js`).length === 2 && 2);
+  await ws.open(`${alpha}/src/app.js`);
+  out.nestedActiveRows = await until(() => rows(`${alpha}/src/app.js`).filter((r) => r.classList.contains('active')).length === 2 && 2);
+
+  // Two folders with the same name: relative paths tell them apart, and lead back to the right one.
+  const twin = `${alpha.replace(/\/[^/]+$/, '')}/other/beta`;
+  await window.mideTest.answers('confirm', 2); // not trusted: Restricted Mode
+  await app.addFolder(twin);
+  await until(() => ws.folders.length === 5);
+  out.twinRel = [ws.relativePath(`${beta}/readme.md`), ws.relativePath(`${twin}/twin.txt`), ws.relativePath(twin)];
+  out.twinResolved = ws.resolvePath(out.twinRel[1]) === `${twin}/twin.txt` && ws.resolvePath(out.twinRel[0]) === `${beta}/readme.md`;
+  out.twinSearch = (await app.packages.createApi({ meta: { name: 'probe', dir: twin, url: '', manifest: { name: 'probe' } }, subscriptions: [], styleEls: [] })
+    .project.search('shared-needle', { root: ws.resolvePath(ws.relativePath(twin)) })).results.map((r) => ws.relativePath(r.file));
   out.errors = errors;
   return out;
 })()

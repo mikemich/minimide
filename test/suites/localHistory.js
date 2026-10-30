@@ -307,13 +307,53 @@
   });
   out.reload = results.reload;
 
+  // --- a file with Windows line ends: the versions keep them, and the previous version is still found.
+  await step('crlf', async () => {
+    await closeAll();
+    const p = `${root}/crlf.txt`;
+    const ed = await ws.open(p);
+    await saveWith(ed, 'one\ntwo\n');
+    await until(async () => (await countOf(p)) === 1);
+    await saveWith(ed, 'one\ntwo\nthree\n');
+    await until(async () => (await countOf(p)) === 2);
+    await app.commands.run('local-history:compare');
+    await until(() => side('cm-merge-a') || document.querySelector('.lh-empty'));
+    return { kept: await textsOf(p), left: side('cm-merge-a'), right: side('cm-merge-b') };
+  });
+  out.crlf = results.crlf;
+
   // --- only history can be removed this way --------------------------------------------------------
   await step('guard', async () => {
     let refused = false;
     try { await native.fs.removeHistory(app.userInfo.dir + '/config.json'); } catch { refused = true; }
-    return { refused };
+    // Through a link in history/ that points outside it.
+    const outside = app.userInfo.dir.replace(/\/[^/]+$/, '') + '/lh-outside/victim.txt';
+    let linkRefused = false;
+    try { await native.fs.removeHistory(app.userInfo.dir + '/history/escape/victim.txt'); } catch { linkRefused = true; }
+    return { refused, linkRefused, outsideKept: await native.fs.read(outside).catch(() => null) };
   });
   out.guard = results.guard;
+
+  // --- turning the package off closes its tabs; back on, it works again ----------------------------
+  await step('toggle', async () => {
+    await closeAll();
+    await ws.open(notes);
+    await app.commands.run('local-history:show');
+    await until(() => side('cm-merge-a'));
+    document.querySelector('.lh-actions .btn:not(.primary)').click(); // Open
+    await until(() => ws.allItems().some((i) => i.type === 'local-history-snapshot'));
+    const ours = () => ws.allItems().filter((i) => i.type === 'local-history' || i.type === 'local-history-snapshot').length;
+    const before = ours();
+    await app.packages.setEnabled('local-history', false);
+    await wait(100);
+    const after = ours();
+    await app.packages.setEnabled('local-history', true);
+    await until(() => app.commands.has('local-history:show'));
+    await app.commands.run('local-history:show');
+    const reopened = !!(await until(() => side('cm-merge-a')));
+    return { before, after, reopened };
+  });
+  out.toggle = results.toggle;
 
   // --- leave the view open for the screenshot ---------------------------------------------------------
   await closeAll();

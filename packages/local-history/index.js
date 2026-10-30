@@ -42,6 +42,12 @@ export function activate(mide) {
     if (doc) return doc.getText();
     try { return lf(await mide.fs.read(path)); } catch { return null; }
   }
+  /** The same text as it would be saved (the file's own line ends): what a version's hash is of. */
+  async function currentRaw(path) {
+    const doc = documentFor(path);
+    if (doc) return doc.getTextForSave();
+    try { return await mide.fs.read(path); } catch { return null; }
+  }
   const activePath = () => ws.getActiveEditor()?.getPath() || null;
 
   // --- saving versions ----------------------------------------------------------
@@ -111,6 +117,9 @@ export function activate(mide) {
 
   // --- the history view --------------------------------------------------------------
   const views = new Map(); // path -> HistoryView
+  const snapshots = new Set(); // open SnapshotItems
+  // Turning the package off closes its tabs (their timers and listeners go with them).
+  mide.subscriptions.add({ dispose: () => { for (const item of [...views.values(), ...snapshots]) ws.closeItem(item); } });
 
   class HistoryView {
     constructor(path) {
@@ -164,7 +173,7 @@ export function activate(mide) {
       const keep = this.selected && this.versions.find((v) => v.id === this.selected.id);
       if (keep && !pick) this.selected = keep;
       else {
-        const now = await currentText(this.path);
+        const now = await currentRaw(this.path);
         const nowHash = now == null ? null : await store.hash(now);
         this.selected = this.versions.find((v) => v.hash !== nowHash) || this.versions[0] || null;
       }
@@ -258,6 +267,7 @@ export function activate(mide) {
       this.path = path;
       this.version = version;
       this.body = h('div.lh-snapshot-body');
+      snapshots.add(this);
       this.element = h('div.lh-snapshot', { tabIndex: -1 },
         h('div.lh-snapshot-note', `Read-only version of ${path} from ${when(version.time)} (${ago(version.time)})${version.label ? ` · ${version.label}` : ''}`),
         this.body);
@@ -284,7 +294,7 @@ export function activate(mide) {
     isDirty() { return false; }
     focus() { this.view?.focus(); }
     serialize() { return null; }
-    destroy() { this.gone = true; this.view?.destroy(); }
+    destroy() { this.gone = true; this.view?.destroy(); snapshots.delete(this); }
   }
 
   async function openSnapshot(path, version) {
