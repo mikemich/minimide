@@ -16,7 +16,6 @@ export function activate(mide) {
   const { h, icon } = mide.ui;
   const { EditorView, hoverTooltip, showTooltip, keymap, Decoration, WidgetType } = mide.cm.view;
   const { StateField, StateEffect, Prec } = mide.cm.state;
-  const { setDiagnostics, lintGutter } = mide.cm.lint;
   const { autocompletion, snippet, insertCompletionText, pickedCompletion, completeFromList } = mide.cm.autocomplete;
 
   let servers = resolveServers(mide.config.get('lsp.servers'));
@@ -24,6 +23,10 @@ export function activate(mide) {
   const live = new Map(); // server name -> LspClient
   const tracked = new Map(); // Document -> entry
   const diagnostics = new Map(); // uri -> LSP Diagnostic[]
+  // What editors and the Problems view show: the core merges these with other packages' problems.
+  const problemsService = mide.services.get('diagnostics');
+  const problems = problemsService.create('lsp');
+  mide.subscriptions.add(problems);
   const commandCache = new Map(); // server name -> argv | null
   const missing = new Set();
   const warnedMissing = new Set();
@@ -136,9 +139,8 @@ export function activate(mide) {
       if (entry.client !== client) continue;
       entry.sub?.dispose();
       tracked.delete(doc);
-      if (diagnostics.delete(entry.uri)) applyDiagnostics(doc);
+      if (diagnostics.delete(entry.uri)) problems.delete(fromUri(entry.uri));
     }
-    scheduleProblems();
     log(client.name, `exited (${signal || `code ${code}`})`, wasStopping ? 'info' : 'stderr');
     renderStatus();
     if (!wasStopping && client.ready) {
@@ -171,8 +173,8 @@ export function activate(mide) {
     commandCache.clear();
     missing.clear();
     await stopAll();
-    for (const uri of [...diagnostics.keys()]) { diagnostics.delete(uri); const doc = docByPath(fromUri(uri)); if (doc) applyDiagnostics(doc); }
-    renderProblems();
+    diagnostics.clear();
+    problems.clear();
     trackAll();
   }
 
@@ -234,7 +236,7 @@ export function activate(mide) {
   mide.workspace.onDidOpenItem((item) => {
     if (item.type !== 'editor') return;
     // After the view is attached, so track() can send didOpen.
-    setTimeout(() => { track(item.document); applyDiagnostics(item.document); }, 0);
+    setTimeout(() => track(item.document), 0);
   });
   mide.workspace.onDidSave((editor) => {
     const doc = editor.document;
@@ -275,35 +277,14 @@ export function activate(mide) {
   // ---------------------------------------------------------------------------
   // Diagnostics
 
-  function applyDiagnostics(doc) {
-    if (!doc?.path) return;
-    const list = diagnostics.get(toUri(doc.path)) || [];
-    for (const item of doc.views) {
-      const view = item.view;
-      if (!view) continue;
-      const converted = list.map((d) => {
-        const from = fromPosition(view.state.doc, d.range.start);
-        const to = Math.max(from, fromPosition(view.state.doc, d.range.end));
-        return {
-          from, to,
-          severity: SEVERITY[d.severity || 1],
-          message: d.message,
-          source: [d.source, d.code?.value ?? d.code].filter((x) => x != null && x !== '').join(' ') || undefined,
-        };
-      });
-      view.dispatch(setDiagnostics(view.state, converted));
-    }
-  }
-
   function onNotification(client, method, params) {
     switch (method) {
       case 'textDocument/publishDiagnostics': {
         // Servers encode URIs differently (%28 vs "("): key everything by our own encoding.
         const path = fromUri(params.uri);
         diagnostics.set(toUri(path), params.diagnostics || []);
+        problems.set(path, params.diagnostics || []);
         const doc = docByPath(path);
-        if (doc) applyDiagnostics(doc);
-        scheduleProblems();
         if (doc && doc === mide.workspace.getActiveEditor()?.document) scheduleLightbulb();
         break;
       }
@@ -467,7 +448,7 @@ export function activate(mide) {
     return fallbackCompletions(ctx);
   };
 
-  mide.editor.addExtension([lintGutter(), autocompletion({ override: [completionSource, mide.editor.extraCompletionSource] })]);
+  mide.editor.addExtension([autocompletion({ override: [completionSource, mide.editor.extraCompletionSource] })]);
   // Lets other parts of the editor (word completion) stand aside where a server already completes,
   // gives the symbols service the server's symbols, and lets packages (inlay hints) ask a server
   // about the document an editor shows.
@@ -1065,11 +1046,12 @@ export function activate(mide) {
 
   let problemsTimer = null;
   function scheduleProblems() { clearTimeout(problemsTimer); problemsTimer = setTimeout(renderProblems, 150); }
+  mide.subscriptions.add(problemsService.onDidChange(scheduleProblems));
 
+  // Every package's problems (task output too), each labelled with its source.
   function renderProblems() {
-    const files = [...diagnostics].filter(([, list]) => list.length)
-      .map(([uri, list]) => ({ path: fromUri(uri), list: [...list].sort((a, b) => (a.severity || 1) - (b.severity || 1) || a.range.start.line - b.range.start.line) }))
-      .sort((a, b) => a.path.localeCompare(b.path));
+    const files = problemsService.all()
+      .map(({ path, list }) => ({ path, list: list.sort((a, b) => (a.severity || 1) - (b.severity || 1) || a.range.start.line - b.range.start.line) }));
     if (!files.length) problemsList.replaceChildren(h('div.lsp-problems-empty', 'No problems detected.'));
     else {
       problemsList.replaceChildren(...files.map(({ path, list }) => h('div.lsp-problem-file',
@@ -1083,9 +1065,7 @@ export function activate(mide) {
           d.source ? h('span.lsp-problem-src', d.source) : null,
           h('span.lsp-problem-pos', `${d.range.start.line + 1}:${d.range.start.character + 1}`))))));
     }
-    let errors = 0;
-    let warnings = 0;
-    for (const list of diagnostics.values()) for (const d of list) { if ((d.severity || 1) === 1) errors++; else if (d.severity === 2) warnings++; }
+    const { errors, warnings } = problemsService.counts();
     countsEl.replaceChildren(h('span.lsp-count.error', h('span.lsp-sev.error'), String(errors)), h('span.lsp-count.warning', h('span.lsp-sev.warning'), String(warnings)));
   }
 
@@ -1171,9 +1151,6 @@ export function activate(mide) {
       for (const entry of tracked.values()) entry.sub?.dispose();
       tracked.clear();
       stopAll();
-      for (const doc of mide.workspace.getDocuments()) {
-        for (const item of doc.views) if (item.view) item.view.dispatch(setDiagnostics(item.view.state, []));
-      }
     },
   });
 

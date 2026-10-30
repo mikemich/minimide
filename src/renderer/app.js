@@ -13,6 +13,7 @@ import { bindThemedAppIcon, renderAppIcon } from './core/app-icon.js';
 import { Trust } from './core/trust.js';
 import { wordCompletion } from './core/word-completion.js';
 import { symbolTracker } from './core/symbols.js';
+import { diagnosticsTracker } from './core/diagnostics.js';
 import { Navigation } from './core/navigation.js';
 import { editorContextMenu } from './core/editor-menu.js';
 import { pasteImage } from './core/paste-image.js';
@@ -98,6 +99,10 @@ class App {
     const symbols = symbolTracker(this);
     this.workspace.addEditorExtension(symbols.extension);
     this.packages.services.provide('symbols', symbols.service);
+    // Problems from language servers, task output and any other package, merged for editors and the Problems view.
+    const diagnostics = diagnosticsTracker(this);
+    this.packages.services.provide('diagnostics', diagnostics.service);
+    this.commands.add(diagnostics.commands);
     await this.packages.discover();
     await this.packages.migrateSettings();
     await this.packages.activateAll();

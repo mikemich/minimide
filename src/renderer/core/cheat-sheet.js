@@ -23,6 +23,7 @@ const SECTIONS = [
     ['Docs and types', null, 'hover the mouse'],
     ['Parameter hints', 'lsp:signature-help'],
     ['Problems', 'lsp:toggle-problems'],
+    ['Next / previous problem', ['editor:next-problem', 'editor:previous-problem']],
   ]],
   ['Change code', [
     ['Suggestions and snippets', null, 'Ctrl+Space, Tab'],
