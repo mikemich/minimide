@@ -10,6 +10,6 @@
     "Mod-Alt-k": "bookmarks:toggle",
     "Mod-k Mod-n": "bookmarks:next",
     "Mod-k Mod-Shift-n": "bookmarks:previous",
-    "Mod-k Mod-g": "bookmarks:go-to"
+    "Mod-k Mod-b": "bookmarks:go-to"
   }
 }
