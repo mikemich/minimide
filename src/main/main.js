@@ -14,6 +14,7 @@ import { createVscodeReader } from './vscode.js';
 import { createSecrets, createGist } from './sync.js';
 import { registerAi } from './ai.js';
 import { createRemoteSsh } from './remote-ssh.js';
+import { decodeText, encodeText } from './text-encoding.js';
 import dns from 'node:dns/promises';
 import net_ from 'node:net';
 
@@ -518,7 +519,17 @@ function registerIpc() {
   registerAi({ handle, userDir: USER_DIR, testBaseUrl: DEV_BUILD ? process.env.MINIMIDE_AI_BASE_URL : null });
   // filesystem
   handle('fs:read', (_e, p) => fs.readFile(p, 'utf8'));
-  handle('fs:write', async (_e, p, data) => { await fs.mkdir(path.dirname(p), { recursive: true }); await fs.writeFile(p, data); });
+  // A text file for the editor: { text, encoding, bom } (see text-encoding.js), so saving can write it back as it was.
+  handle('fs:readText', async (_e, p) => decodeText(await fs.readFile(p)));
+  // `options` ({ encoding, bom }) writes in the file's own encoding. Returns the encoding that was used,
+  // which is UTF-8 when the text has characters the requested one can't hold.
+  handle('fs:write', async (_e, p, data, options) => {
+    await fs.mkdir(path.dirname(p), { recursive: true });
+    if (!options || typeof data !== 'string') return void await fs.writeFile(p, data);
+    const out = encodeText(data, options);
+    await fs.writeFile(p, out.data);
+    return out.encoding;
+  });
   handle('fs:readdir', async (_e, p) => {
     const entries = await fs.readdir(p, { withFileTypes: true });
     return entries.map((d) => ({ name: d.name, path: path.join(p, d.name), isDir: d.isDirectory() || (d.isSymbolicLink() && safeIsDir(path.join(p, d.name))) }));

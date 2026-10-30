@@ -75,20 +75,28 @@ export function detectLanguage(path, firstLine = '') {
 
 let nextId = 1;
 
-/** The file's dominant line ending, so one stray CRLF doesn't convert the whole file. */
+/** The file's dominant line ending ("\n", "\r\n" or an old Mac "\r"), so one stray CRLF doesn't convert the whole file. */
 function detectLineEnding(text) {
   const crlf = (text.match(/\r\n/g) || []).length;
+  const cr = (text.match(/\r(?!\n)/g) || []).length;
   const lf = (text.match(/\n/g) || []).length - crlf;
-  return crlf > lf ? '\r\n' : '\n';
+  if (crlf > lf && crlf >= cr) return '\r\n';
+  return cr > lf && cr > crlf ? '\r' : '\n';
 }
 
+/** Lines the way the editor splits them: CRLF, CR and LF all end a line. */
+const splitLines = (text) => text.split(/\r\n?|\n/);
+
 export class Document extends Emitter {
-  constructor(path, text = '') {
+  /** `meta` ({ encoding, bom }) says how the file is stored on disk, so saving writes it back the same way. */
+  constructor(path, text = '', meta = {}) {
     super();
     this.id = nextId++;
     this.path = path;
     this.initialText = text;
-    this.savedDoc = Text.of(text.split(/\r?\n/));
+    this.encoding = meta.encoding || 'utf8';
+    this.bom = !!meta.bom;
+    this.savedDoc = Text.of(splitLines(text));
     this.lineEnding = detectLineEnding(text);
     this.dirty = false;
     this.views = new Set();
@@ -114,7 +122,7 @@ export class Document extends Emitter {
   }
 
   markSaved(text) {
-    this.savedDoc = Text.of(text.split(/\r?\n/));
+    this.savedDoc = Text.of(splitLines(text));
     this.conflict = false;
     this.deleted = false;
     const doc = this.primaryView()?.state.doc;
@@ -136,9 +144,10 @@ export class Document extends Emitter {
   }
 
   /** Replace content from disk without losing scroll/selection when possible. */
-  reloadFrom(text) {
+  reloadFrom(text, meta) {
     const view = this.primaryView();
     if (!view) return;
+    if (meta) { this.encoding = meta.encoding || 'utf8'; this.bom = !!meta.bom; }
     const next = text.replace(/\r\n?/g, '\n'); // the editor buffer always uses \n
     const current = view.state.doc.toString();
     if (current !== next) {

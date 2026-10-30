@@ -177,6 +177,7 @@ export function repoAddress(text) {
 
 const fs = {
   async read(p) { return (await ensure(p)).text; },
+  async readText(p) { return { text: (await ensure(p)).text, encoding: 'utf8', bom: false }; },
   async writeDataUrl() { throw new Error(DESKTOP_ONLY); },
   async readDataUrl(p) {
     const f = files.get(p);

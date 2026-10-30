@@ -149,6 +149,43 @@ const SUITES = [
     }),
   },
   {
+    name: 'everyday', home: 'evh', project: 'ev', timeout: 180,
+    expect: () => ({
+      // Encodings: a BOM is kept but not shown, UTF-16 opens as text, a non-UTF-8 file is written back byte for byte.
+      'bom.text': JSON.stringify('bom line\nsecond\n'), 'bom.status': { encoding: 'UTF-8 with BOM', eol: 'CRLF' }, 'bom.disk': 'efbbbf626f6d206c696e650d0a7365636f6e640d0a6d6f7265',
+      'bomJson.lang': 'JSON', 'bomJson.disk': 'efbbbf207b202261223a2031207d0a',
+      'latin1.text': JSON.stringify('café “q”\n'), 'latin1.status': { encoding: 'Windows-1252', eol: 'LF' }, 'latin1.kept': '636166e9209371940a61646465640a',
+      'latin1.convertedTo': 'utf8', 'latin1.warned': true, 'latin1.utf8': 'e29c93636166c3a920e2809c71e2809d0a61646465640a',
+      'utf16.type': 'editor', 'utf16.text': JSON.stringify('hi utf16\n'), 'utf16.disk': 'fffe680069002000750074006600310036000a007800',
+      // Old Mac line endings are kept, and an edit that is undone doesn't leave the file looking modified.
+      'oldMac.text': JSON.stringify('one\ntwo\nthree\n'), 'oldMac.dirtyAfterRoundTrip': false, 'oldMac.status': { encoding: 'UTF-8', eol: 'CR' },
+      'oldMac.disk': JSON.stringify('Yone\rtwo\rthree\r'), 'oldMac.cleanAfterSave': true,
+      'mixedEol.disk': JSON.stringify('Xa\r\nb\r\nc\r\nd\r\n'),
+      unterminated: JSON.stringify('Xno newline at end'),
+      'longLine.lines': 3, 'longLine.typeMs': (ms) => ms < 1000,
+      'fiveMb.type': 'editor', 'fiveMb.lines': 83222, 'fiveMb.openMs': (ms) => ms < 5000, 'fiveMb.saveMs': (ms) => ms < 5000,
+      'undoAcrossSaves.dirtyAfterSave': false, 'undoAcrossSaves.afterUndo1': 'Astart\n', 'undoAcrossSaves.dirty1': true, 'undoAcrossSaves.afterUndo2': 'start\n',
+      'undoAcrossSaves.afterRedo': 'ABstart\n', 'undoAcrossSaves.dirtyBackAtSaved': false,
+      'findReplace.insensitive': 3, 'findReplace.caseSensitive': 2, 'findReplace.wholeWord': 1,
+      'findReplace.replaced': 'alPHA beta\nBeta beta gamma\nalPHAbet\n', 'findReplace.undoneInOneStep': true,
+      'multiCursor.afterNextOccurrence': [[6, 10], [16, 20]], 'multiCursor.typed': 'alpha Z\nBeta Z gamma\nalphabet\n', 'multiCursor.undone': true, 'multiCursor.cursorBelow': [[0, 0], [11, 11]],
+      'commentToggle.code_js': ['// function f() {', 'function f() {'], 'commentToggle.style_css': ['/* a { */', 'a {'], 'commentToggle.page_html': ['<!-- <div> -->', '<div>'],
+      'commentToggle.script_py': ['# def f():', 'def f():'], 'commentToggle.conf_yml': ['# a: 1', 'a: 1'], 'commentToggle.run_sh': ['# echo hi', 'echo hi'],
+      'autoIndentAndBrackets.keepsIndent': true, 'autoIndentAndBrackets.paren': 'f()', 'autoIndentAndBrackets.skipsClosing': 'f()', 'autoIndentAndBrackets.brace': 'f() {}',
+      'autoIndentAndBrackets.blockOnEnter': JSON.stringify('f() {\n  \n}'), 'autoIndentAndBrackets.quote': JSON.stringify('  ""'),
+      'externalChange.reloaded': true, 'externalChange.warned': true, 'externalChange.keptMine': true, 'externalChange.revertedTo': JSON.stringify('theirs\n'), 'externalChange.dirtyAfterRevert': false,
+      // Deleting or moving a folder that has files open in tabs.
+      'folderDeleteWithOpenFile.markedUnsaved': true,
+      'folderRenameWithOpenFiles.x': '/dirB/moved/x.txt', 'folderRenameWithOpenFiles.y': '/dirB/moved/deep/y.txt', 'folderRenameWithOpenFiles.pic': '/dirB/moved/pic.png',
+      'folderRenameWithOpenFiles.picTab': '/dirB/moved/pic.png', 'folderRenameWithOpenFiles.saved': JSON.stringify('edited x\n'), 'folderRenameWithOpenFiles.oldDirRecreated': false, 'folderRenameWithOpenFiles.session': 'ok',
+      'splitAndMoveTab.panes': [['plain.txt'], ['code.js']], 'splitAndMoveTab.editorsLive': true,
+      'goToLine.line': 3, 'goToLine.clamped': 4,
+      'settingsLiveAndZoom': { grew: true, reset: true, wrapOn: true, gutterOff: true, gutterBack: true, tab8: 8 },
+      statusBar: ['file-path=code.js', 'cursor=Ln 1, Col 1', 'indent=Spaces: 2', 'eol=LF', 'encoding=UTF-8', 'language=JavaScript'],
+      totalErrors: 0,
+    }),
+  },
+  {
     name: 'sandbox', home: 'sbxh', project: 'sbx/proj', timeout: 90,
     expect: () => ({
       installWordCount: 'word-count', sandboxed: true, recordedAccess: 'sandboxed', statusShowsCount: true, commandEdited: true, foreignKeybindingDropped: true,

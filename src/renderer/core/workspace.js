@@ -670,12 +670,13 @@ export class Workspace extends Emitter {
     const stat = await window.native.fs.stat(path);
     if (stat && !stat.isFile) return null;
     let text = '';
+    let meta = {};
     if (stat) {
       if (stat.size > MAX_TEXT_SIZE) return new BinaryItem(path);
-      try { text = await window.native.fs.read(path); } catch (err) { this.ui.notify.error(`Could not open ${basename(path)}`, err.message); return null; }
+      try { ({ text, ...meta } = await window.native.fs.readText(path)); } catch (err) { this.ui.notify.error(`Could not open ${basename(path)}`, err.message); return null; }
       if (text.slice(0, 8000).includes('\u0000')) return new BinaryItem(path);
     }
-    const doc = new Document(path, text);
+    const doc = new Document(path, text, meta);
     this.documents.set(path, doc);
     this.emit('document-opened', doc);
     return doc;
@@ -748,7 +749,12 @@ export class Workspace extends Emitter {
     const text = doc.getTextForSave();
     try {
       this.selfWrites.set(doc.path, Date.now());
-      await window.native.fs.write(doc.path, text);
+      // Files that aren't plain UTF-8 are written back the way they were read.
+      const used = await window.native.fs.write(doc.path, text, doc.encoding !== 'utf8' || doc.bom ? { encoding: doc.encoding, bom: doc.bom } : undefined);
+      if (used && used !== doc.encoding) {
+        doc.encoding = used;
+        this.ui.notify.warn(`${doc.title} is now saved as UTF-8`, "It had characters its old encoding can't hold.");
+      }
       doc.markSaved(text);
       this.activePane.pin(item);
       this.emit('did-save', item);
@@ -772,6 +778,14 @@ export class Workspace extends Emitter {
       doc.setPath(next);
       this.documents.set(next, doc);
     }
+    // Images and other path-backed tabs follow the rename too, so their titles and the saved session stay right.
+    for (const item of this.allItems()) {
+      if (item.type === 'editor' || typeof item.path !== 'string') continue;
+      if (item.path !== from && !item.path.startsWith(from + '/')) continue;
+      item.path = to + item.path.slice(from.length);
+      this.panes.find((pane) => pane.items.includes(item))?.updateTab(item);
+    }
+    this.updateTitle();
     this.emit('path-renamed', from, to);
   }
 
@@ -821,6 +835,9 @@ export class Workspace extends Emitter {
       if (wrote && Date.now() - wrote < 1500) continue;
       const doc = this.documents.get(p);
       if (doc) this.syncFromDisk(doc);
+      // A folder that was deleted or replaced takes its files with it, without an event for each.
+      const prefix = p.endsWith('/') ? p : p + '/';
+      for (const [path, inner] of this.documents) if (path.startsWith(prefix)) this.syncFromDisk(inner);
     }
   }
 
@@ -830,16 +847,16 @@ export class Workspace extends Emitter {
 
   async syncFromDisk(doc) {
     if (!doc.path) return;
-    let text;
-    try { text = await window.native.fs.read(doc.path); } catch (err) {
+    let text, meta;
+    try { ({ text, ...meta } = await window.native.fs.readText(doc.path)); } catch (err) {
       // Deleted on disk (git checkout, rm…): keep the buffer, mark it unsaved so closing asks.
       if (/ENOENT/.test(err.message) && !doc.deleted) { doc.deleted = true; doc.updateDirty(); doc.emit('dirty', doc.dirty); }
       return;
     }
     if (doc.deleted) { doc.deleted = false; doc.updateDirty(); doc.emit('dirty', doc.dirty); }
     const saved = doc.savedDoc.toString();
-    if (text.replace(/\r\n/g, '\n') === saved) return;
-    if (!doc.dirty) { this.emit('will-reload', doc, 'disk'); doc.reloadFrom(text); }
+    if (text.replace(/\r\n?/g, '\n') === saved) return;
+    if (!doc.dirty) { this.emit('will-reload', doc, 'disk'); doc.reloadFrom(text, meta); }
     else if (!doc.conflict) {
       doc.conflict = true;
       this.ui.notify.warn(`${doc.title} changed on disk`, 'You have unsaved changes. Save to overwrite, or use "File: Revert" to reload.');
@@ -849,9 +866,9 @@ export class Workspace extends Emitter {
   async revert(item = this.getActiveEditor()) {
     if (!item?.document.path) return;
     try {
-      const text = await window.native.fs.read(item.document.path);
+      const { text, ...meta } = await window.native.fs.readText(item.document.path);
       this.emit('will-reload', item.document, 'revert');
-      item.document.reloadFrom(text);
+      item.document.reloadFrom(text, meta);
     } catch (err) { this.ui.notify.error('Revert failed', err.message); }
   }
 
