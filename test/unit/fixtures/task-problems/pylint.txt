@@ -1,0 +1,7 @@
+************* Module app
+app.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+app.py:3:4: W0612: Unused variable 'x' (unused-variable)
+app.py:5:0: E0602: Undefined variable 'y' (undefined-variable)
+
+-----------------------------------
+Your code has been rated at 2.50/10

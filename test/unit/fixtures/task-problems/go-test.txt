@@ -1,0 +1,5 @@
+--- FAIL: TestAdd (0.00s)
+    main_test.go:7: expected 3, got 2
+FAIL
+FAIL	example.com/demo	0.334s
+FAIL

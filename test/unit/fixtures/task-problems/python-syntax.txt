@@ -1,0 +1,4 @@
+  File "/home/dev/demo/broken.py", line 1
+    def f(:
+          ^
+SyntaxError: invalid syntax

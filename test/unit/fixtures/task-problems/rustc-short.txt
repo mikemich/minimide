@@ -1,0 +1,2 @@
+main.rs:3:20: error[E0425]: cannot find value `x` in this scope
+error: aborting due to 1 previous error

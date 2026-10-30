@@ -339,6 +339,32 @@ symbols.refresh(editor);                   // compute now if the text changed an
 symbols.onDidChange((editor) => …);        // computed again (after an edit pauses, or a server attached)
 symbols.reveal(editor, symbol);            // select its name, scroll there, focus the editor
 
+// The core: problems from every source (language servers, task output, your package). Each package
+// keeps its own collection of LSP-shaped diagnostics per file: { range: { start, end } with 0-based
+// { line, character }, severity (1 error, 2 warning, 3 info, 4 hint), message, source, code }. The
+// core underlines them, merged, in every editor showing the file, marks the gutter, lists them in the
+// Problems view and walks through them with F8 / Shift-F8. `source` is the label the view shows.
+const diagnostics = mide.services.get('diagnostics');
+const mine = diagnostics.create('my-linter');            // { inEditor: false } lists them only; { expandPoints: true }
+mide.subscriptions.add(mine);                            //   underlines the word at a problem with an empty range
+mine.set('/abs/path/app.js', [{ range, severity: 2, message: 'Too long', source: 'my-linter' }]);
+mine.delete(path); mine.clear(); mine.get(path); mine.paths(); mine.setInEditor(false);
+diagnostics.all();                         // [{ path, list }] from every collection, by path, each list by position
+diagnostics.get(path);                     // one file's, from every collection
+diagnostics.counts();                      // { errors, warnings }
+diagnostics.onDidChange((paths) => …);     // batched
+
+// packages/terminal: run a command in a terminal tab of its own, and follow what it does.
+const terminal = mide.services.get('terminal');   // undefined while the Terminal package is off
+terminal?.run('make', { cwd, title: 'Task: make', key: 'task:make', onExit: (code, signal, secs) => … }); // reuses the "task:make" tab
+terminal?.isRunning('task:make'); terminal?.stop('task:make'); terminal?.show('task:make');
+// For terminals started with a key (the runner's task tabs are "task:<name>"), including a run again with
+// Enter: each listener gets { key, title, cwd, command }, plus `data` (raw output, escape codes and all)
+// or `code` and `signal`. The task-problems package reads task output this way.
+mide.subscriptions.add(terminal.onDidStart(({ key, command }) => …));
+mide.subscriptions.add(terminal.onDidOutput(({ key, data }) => …));
+mide.subscriptions.add(terminal.onDidExit(({ key, code, signal }) => …));
+
 // packages/lsp: the language server for an editor's document.
 const lsp = mide.services.get('lsp');      // undefined while the Language Servers package is off
 const res = await lsp?.documentSymbols(editor);   // its symbols, or null without one: { doc, symbols } (offsets in `doc`)

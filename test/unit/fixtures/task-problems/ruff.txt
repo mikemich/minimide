@@ -1,0 +1,4 @@
+app.py:1:8: F401 [*] `os` imported but unused
+app.py:4:5: E741 Ambiguous variable name: `l`
+Found 2 errors.
+[*] 1 fixable with the `--fix` option.

@@ -1,0 +1,20 @@
+[1m[92m   Compiling[0m cargoapp v0.1.0 (/home/dev/cargoapp)
+[1m[33mwarning[0m[1m: unused import: `std::collections::HashMap`[0m
+ [1m[94m--> [0msrc/main.rs:1:5
+  [1m[94m|[0m
+[1m[94m1[0m [1m[94m|[0m use std::collections::HashMap;
+  [1m[94m|[0m     [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+[1m[91merror[E0308][0m[1m: mismatched types[0m
+ [1m[94m--> [0msrc/main.rs:3:18
+  [1m[94m|[0m
+[1m[94m3[0m [1m[94m|[0m     let a: i32 = "s";
+  [1m[94m|[0m            [1m[94m---[0m   [1m[91m^^^[0m [1m[91mexpected `i32`, found `&str`[0m
+  [1m[94m|[0m            [1m[94m|[0m
+  [1m[94m|[0m            [1m[94mexpected due to this[0m
+
+[1mFor more information about this error, try `rustc --explain E0308`.[0m
+[1m[33mwarning[0m: `cargoapp` (bin "cargoapp") generated 1 warning
+[1m[91merror[0m: could not compile `cargoapp` (bin "cargoapp") due to 1 previous error; 1 warning emitted

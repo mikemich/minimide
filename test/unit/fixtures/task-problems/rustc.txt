@@ -1,0 +1,15 @@
+error[E0425]: cannot find value `x` in this scope
+ --> main.rs:3:20
+  |
+3 |     println!("{}", x);
+  |                    ^
+  |
+help: a local variable with a similar name exists
+  |
+3 -     println!("{}", x);
+3 +     println!("{}", y);
+  |
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0425`.

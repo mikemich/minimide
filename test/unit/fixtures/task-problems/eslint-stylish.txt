@@ -1,0 +1,11 @@
+
+[4m/home/dev/demo/src/app.js[24m
+  [2m1:7[22m   [31merror[39m    'unused' is assigned a value but never used  [2mno-unused-vars[22m
+  [2m3:1[22m   [33mwarning[39m  Unexpected console statement                [2mno-console[22m
+  [2m5:12[22m  [31merror[39m    Parsing error: Unexpected token )
+
+[4m/home/dev/demo/src/util.js[24m
+  [2m2:3[22m  [31merror[39m  'x' is not defined  [2mno-undef[22m
+
+[31m[1m✖ 4 problems (3 errors, 1 warning)[22m[39m
+[31m[1m  1 error and 0 warnings potentially fixable with the `--fix` option.[22m[39m

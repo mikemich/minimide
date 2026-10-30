@@ -1,0 +1,3 @@
+# example.com/demo
+./main.go:5:2: "os" imported and not used
+./main.go:9:14: undefined: undefinedThing

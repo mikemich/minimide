@@ -155,8 +155,8 @@ Forgot one? Hold `⌘` for a moment and every shortcut on screen gets a label: t
 | `⌘/` | Toggle comment |
 | `⌘I` / `⌘K ⌘I` / `⌥\` | AI: chat about your code / edit the selection (with a preview) / suggest code at the cursor |
 | `⇧⌥F` | Format document (LSP) |
-| `F8` / `⇧F8` | Next / previous problem |
-| `⌘K ⌘P` | Problems panel |
+| `F8` / `⇧F8` | Next / previous problem, across files (from language servers and task output) |
+| `⌘K ⌘P` | Problems panel, with what language servers and tasks found |
 | `⌃⇧G` | Source control panel (`⌘K ⌘D` diffs the current file) |
 | `log` + `Tab` | Expand a snippet (`Snippets: Insert Snippet…` lists them all) |
 | `ul>li*3` + `Tab` | Expand an Emmet abbreviation in HTML, JSX, Vue and CSS files |
@@ -183,6 +183,7 @@ Everything works without a mouse and is labelled for VoiceOver, NVDA and Orca: t
 | `terminal` | A real terminal (xterm.js + node-pty) in tabs, with side-by-side splits; click `file:line` in output to jump there |
 | `remote-ssh` | **Remote: Open Folder over SSH…** edits a folder on another machine through a local copy, kept in sync with your own `ssh` and `rsync` (uploads on save, asks when both copies changed). macOS and Linux |
 | `runner` | Run the current file with `F5` (Python, JS/TS, Go, Rust, C/C++, Java, Ruby, shell and more) or a project task with `⌘⇧B`; each task gets its own terminal tab and long ones notify you when they finish out of sight (`runner.notifyAfter`) |
+| `task-problems` | Errors and warnings a task or run prints land in the Problems panel next to the language servers', labelled with the task's name, and are underlined in open files. Knows gcc, clang, rustc and cargo, tsc, eslint, javac, go build / vet / test, Python tracebacks and warnings, pytest, mypy, ruff, flake8 and pylint, and any `file:line:col: error: message`; add your own formats as regular expressions in `task-problems.matchers`. A task's problems stay until it runs again (or **Clear Task Problems**); `task-problems.showInEditor` keeps them to the list, and **Go to Task Problem…** lists them even with the Language Servers package off |
 | `debugger` | Breakpoints (click the gutter or `F9`, optionally with a condition), stepping, call stack, variables, watch expressions and a Debug Console, for Python (needs `debugpy`) and JavaScript (Node.js 22+) |
 | `markdown-preview` | Live, sanitized preview in a split pane that scrolls with the editor (and the other way round). In the editor itself, pasting an image into a Markdown file saves it to `images/` and inserts the link, and Markdown and plain text get spell check with suggestions in the right-click menu (turn it off with `editor.spellcheck`) |
 | `settings-view` | Settings, themes, packages and keybindings, generated from schemas |

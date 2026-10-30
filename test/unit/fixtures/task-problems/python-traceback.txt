@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/home/dev/demo/app.py", line 9, in <module>
+    main()
+    ~~~~^^
+  File "/home/dev/demo/app.py", line 6, in main
+    print(divide(1, 0))
+          ~~~~~~^^^^^^
+  File "/home/dev/demo/app.py", line 2, in divide
+    return a / b
+           ~~^~~
+ZeroDivisionError: division by zero
