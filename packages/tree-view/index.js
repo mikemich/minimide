@@ -13,7 +13,9 @@ export function activate(mide) {
     this.mide = mide;
     this.root = null;
     this.multi = false;
+    // Nodes by folder and path: a folder inside another one shows its files twice, once in each.
     this.nodes = new Map();
+    this.rootsSeq = 0;
     this.selected = null;
     this.git = null;
     this.list = h('div.tree-list', { tabIndex: 0, role: 'tree' });
@@ -32,6 +34,25 @@ export function activate(mide) {
 
     storageKey(folder) { return `tree-view:expanded:${folder.path}`; },
 
+    keyOf(folder, path) { return `${folder.path}\n${path}`; },
+
+    /** The node for `path` in the innermost folder that has it. */
+    nodeAt(path) {
+      const folder = path && this.folderNodeFor(path);
+      return folder ? this.nodes.get(this.keyOf(folder, path)) || null : null;
+    },
+
+    /** Every node for `path`: one per folder it is in. */
+    nodesAt(path) {
+      return this.folders().filter((f) => path === f.path || path.startsWith(f.path + '/')).map((f) => this.nodes.get(this.keyOf(f, path))).filter(Boolean);
+    },
+
+    /** Is this node still part of what is shown (and not left over from an earlier set of folders)? */
+    attached(node) {
+      while (node.parent) node = node.parent;
+      return node === this.root;
+    },
+
     readStored(key) { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } },
 
     saveExpanded() {
@@ -48,6 +69,8 @@ export function activate(mide) {
     },
 
     async setRoots(paths) {
+      // Folders are often added one after another (a restored session): only the newest call goes on.
+      const seq = ++this.rootsSeq;
       this.nodes.clear();
       this.selected = null;
       this.multi = paths.length > 1;
@@ -55,7 +78,7 @@ export function activate(mide) {
       const folderNode = (path, parent) => {
         const n = new Node(path, mide.path.basename(path), true, parent ? 0 : -1, parent);
         n.folder = true;
-        this.nodes.set(path, n);
+        this.nodes.set(this.keyOf(n, path), n);
         return n;
       };
       const collapsed = new Set(this.multi ? this.readStored('tree-view:collapsed-folders') : []);
@@ -67,10 +90,12 @@ export function activate(mide) {
       for (const f of this.folders()) {
         f.expanded = !collapsed.has(f.path);
         await this.load(f);
+        if (seq !== this.rootsSeq) return;
         const saved = this.readStored(this.storageKey(f)).sort((a, b) => a.length - b.length);
         for (const p of saved) {
-          const node = this.nodes.get(p);
+          const node = this.nodes.get(this.keyOf(f, p));
           if (node?.isDir) { node.expanded = true; await this.load(node); }
+          if (seq !== this.rootsSeq) return;
         }
       }
       this.render();
@@ -98,6 +123,8 @@ export function activate(mide) {
       if (node.path == null) return; // the hidden root of several folders: its children are fixed
       let entries = [];
       try { entries = await mide.fs.readdir(node.path); } catch { entries = []; }
+      if (!this.attached(node)) return; // the folders changed meanwhile
+      const folder = this.folderOf(node);
       const prev = new Map((node.children || []).map((c) => [c.path, c]));
       node.children = entries
         .filter((e) => !this.isHidden(e.name))
@@ -106,14 +133,15 @@ export function activate(mide) {
           const existing = prev.get(e.path);
           if (existing && existing.isDir === e.isDir) { prev.delete(e.path); return existing; }
           const n = new Node(e.path, e.name, e.isDir, node.depth + 1, node);
-          this.nodes.set(e.path, n);
+          this.nodes.set(this.keyOf(folder, e.path), n);
           return n;
         });
       for (const gone of prev.values()) this.forget(gone);
     },
 
     forget(node) {
-      this.nodes.delete(node.path);
+      const key = this.keyOf(this.folderOf(node), node.path);
+      if (this.nodes.get(key) === node) this.nodes.delete(key);
       if (this.selected === node) this.selected = null;
       for (const c of node.children || []) this.forget(c);
     },
@@ -122,7 +150,7 @@ export function activate(mide) {
       if (!this.root) return;
       const reload = async (node) => {
         await this.load(node);
-        for (const c of node.children) if (c.isDir && c.expanded) await reload(c);
+        for (const c of node.children || []) if (c.isDir && c.expanded) await reload(c);
       };
       await reload(this.root);
       this.render();
@@ -130,16 +158,17 @@ export function activate(mide) {
 
     onFilesChanged(paths) {
       if (!this.root) return;
-      const dirs = new Set();
+      // Batches that arrive close together (each folder has its own watcher) are refreshed together.
+      const dirs = (this.pendingDirs ||= new Set());
       for (const p of paths) {
         const parent = p.slice(0, p.lastIndexOf('/'));
-        const node = this.nodes.get(parent);
-        if (node?.isDir && node.expanded) dirs.add(node);
+        for (const node of this.nodesAt(parent)) if (node.isDir && node.expanded) dirs.add(node);
       }
       if (!dirs.size) return;
       clearTimeout(this.refreshTimer);
       this.refreshTimer = setTimeout(async () => {
-        for (const d of dirs) if (this.nodes.has(d.path)) await this.load(d);
+        this.pendingDirs = null;
+        for (const d of dirs) if (this.attached(d)) await this.load(d);
         this.render();
       }, 60);
     },
@@ -252,8 +281,8 @@ export function activate(mide) {
 
     markActive() {
       const path = mide.workspace.getActiveItem()?.getPath?.();
-      this.list.querySelector('.tree-row.active')?.classList.remove('active');
-      if (path) this.nodes.get(path)?.row?.classList.add('active');
+      this.list.querySelectorAll('.tree-row.active').forEach((r) => r.classList.remove('active'));
+      for (const node of path ? this.nodesAt(path) : []) node.row?.classList.add('active');
     },
 
     async revealActive(focus) {
@@ -272,7 +301,7 @@ export function activate(mide) {
         cur = next;
       }
       if (changed) { this.saveExpanded(); this.render(); }
-      const node = this.nodes.get(path);
+      const node = this.nodeAt(path);
       if (node) { this.select(node); this.markActive(); }
       if (focus) this.list.focus();
     },
@@ -372,7 +401,7 @@ export function activate(mide) {
       }
       this.saveExpanded();
       this.render();
-      const node = this.nodes.get(full);
+      const node = this.nodeAt(full);
       if (node) this.select(node);
     },
 
@@ -448,7 +477,7 @@ export function activate(mide) {
         const next = rows[rows.indexOf(node) + 1] || rows[rows.indexOf(node) - 1];
         await this.load(node.parent);
         this.render();
-        if (next && this.nodes.has(next.path)) this.select(next);
+        if (next && this.attached(next) && this.nodes.get(this.keyOf(this.folderOf(next), next.path)) === next) this.select(next);
       } catch (err) { mide.notify.error('Delete failed', err.message); }
     },
 

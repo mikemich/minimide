@@ -230,6 +230,7 @@ const SUITES = [
     expect: () => ({
       folders: ['alpha', 'gamma', 'beta'], treeRoots: ['alpha', 'gamma', 'beta'], tab: 'beta/lib/util.py', title: 'util.py — alpha +2 — Minimide',
       restricted: true, gammaTrusted: false,
+      newFilesShown: true, nestedNewFile: 1, nestedBoth: 2, nestedSecondBoth: 2, nestedActiveRows: 2,
     }),
   },
   {
