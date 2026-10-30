@@ -176,7 +176,7 @@ Everything works without a mouse and is labelled for VoiceOver, NVDA and Orca: t
 | `fuzzy-finder` | Open files and tabs by fuzzy name |
 | `find-in-project` | Regex / case-sensitive search and replace across the project |
 | `ai` | Chat about your code, edit a selection with a side-by-side preview, fix the problem on a line, explain code and get suggestions at the cursor, with Claude (your own API key, stored encrypted and only ever used by the main process) or a local Ollama model. Nothing is sent until you ask, and it asks first. **AI: Open Claude Code** runs Anthropic's Claude Code in a terminal in your project, signed in with your Claude plan (Pro or Max) or a key |
-| `lsp` | Language servers: completions (with auto-import), diagnostics, hover with go-to links, signature help, go to / peek definition, references, rename, quick fixes with a 💡, formatting, file and project symbols, inlay hints for parameter names and types (**LSP: Toggle Inlay Hints**, `lsp.inlayHints`), Problems panel |
+| `lsp` | Language servers: completions (with auto-import), diagnostics, hover with go-to links, signature help, go to / peek definition, references, rename, quick fixes with a 💡, formatting, file and project symbols, Problems panel |
 | `git` | Branch switcher, tree status, change markers in the editor gutter |
 | `source-control` | Git panel (`⌃⇧G`): stage, unstage, discard, commit, amend, push, pull, and side-by-side or inline diffs |
 | `git-history` | **Git: Show History** (`⌘K ⌘G`): the repository's commits with a branch graph, branch and tag labels, a filter (message, author or hash) and current / all / one branch, loaded 200 at a time. Pick a commit for its message, author, parents and changed files with line counts, open any file's diff, Copy Hash, Checkout (refused with uncommitted changes), Create Branch Here, Cherry-Pick and Revert. **Git: File History** (editor, tab and tree menus) follows renames and opens a version read-only. Stashes: stash (with untracked files), apply, pop, drop and see what's in one. Clicking the blame annotation shows its commit. Trusted folders only |
@@ -189,7 +189,8 @@ Everything works without a mouse and is labelled for VoiceOver, NVDA and Orca: t
 | `status-bar` | Cursor, selection, language, indentation, line endings, and word count with reading time for Markdown and text files |
 | `editor-guides` | Scope-aware indent guides |
 | `image-viewer` | Opens PNG, JPG, GIF, WebP, SVG and more in a tab with zoom (`⌘+` / `⌘-` / pinch) |
-| `outline` | Breadcrumbs above each editor (`src › app.js › Cart › total`: click a symbol to jump to the ones next to it, a folder to show the file in the tree) and an **Outline** view in the sidebar with the file's symbols as a tree that follows the cursor, with a filter. Symbols come from the language server, or without one from the syntax for JavaScript, TypeScript, Python, Markdown headings, CSS and JSON. **Outline: Toggle Breadcrumbs** turns the bar off |
+| `outline` | An **Outline** view in the sidebar with the file's symbols as a tree that follows the cursor, with a filter. Symbols come from the language server, or without one from the syntax for JavaScript, TypeScript, Python, Markdown headings, CSS and JSON |
+| `breadcrumbs` | A bar above each editor with where you are (`src › app.js › Cart › total`): click a symbol to jump to the ones next to it, a folder to show the file in the tree. **Editor: Toggle Breadcrumbs** turns it off and on |
 | `sticky-scroll` | Pins the headers of the function, class or block you're in to the top of the editor |
 | `snippets` | 170+ built-in snippets in 25 languages, offered as you type or expanded with Tab, plus your own in VS Code format. Autocomplete also suggests words already in the file |
 | `emmet` | `div#app`, `ul>li.item*3` or `m10` plus Tab in HTML, JSX, Vue and CSS, plus Wrap with Abbreviation and Balance Tag commands |
@@ -205,6 +206,7 @@ Everything works without a mouse and is labelled for VoiceOver, NVDA and Orca: t
 | `vim-mode` | Full Vim emulation with `:w`, `:q`, `:wq`, `gt`, `jj` escape and relative numbers. *Off by default* |
 | `minimap` | A zoomed-out map of the file (`⌘K ⌘M`). *Off by default* |
 | `focus-mode` | Typewriter scrolling and paragraph dimming for writing. *Off by default* |
+| `inlay-hints` | Parameter names and inferred types drawn inline, from the language server (TypeScript, Rust, Go…). **Editor: Toggle Inlay Hints** turns them on. *Off by default* |
 | `fonts` | 27 bundled open-source fonts for code and UI (JetBrains Mono, Fira Code, Cascadia Code, Geist, Iosevka, Monaspace, Inter…) with live previews in **Settings → Fonts**. Each font keeps its own license (SIL OFL or Ubuntu Font License) in `packages/fonts/licenses` |
 | `nightfall`, `midnight`, `fjord`, `daylight`, `dune`, `ember`, `grove`, `rosewood`, `nocturne`, `cocoa`, `harvest`, `metro`, `volcano`, `abyss`, `contrast`, `paper`, `glacier`, `blossom`, `solstice` | 19 themes, from true-black and high-contrast to paper and blossom (`Theme: Select Theme…` previews them live). Pick any accent color on top in **Settings → Themes** |
 

@@ -1,7 +1,7 @@
 {
   "name": "lsp",
   "displayName": "Language Servers",
-  "description": "Completions, diagnostics, hover, go to and peek definition, project symbols, rename, quick fixes, formatting, inlay hints and more via the Language Server Protocol.",
+  "description": "Completions, diagnostics, hover, go to and peek definition, project symbols, rename, quick fixes, formatting and more via the Language Server Protocol.",
   "version": "0.1.0",
   "main": "index.js",
   "styles": ["style.css"],
@@ -24,7 +24,6 @@
     "hover": { "type": "boolean", "default": true, "title": "Hover Info" },
     "lightbulb": { "type": "boolean", "default": true, "title": "Quick Fix Lightbulb", "description": "Show a 💡 at the end of a line when the server can fix a problem on it." },
     "signatureHelp": { "type": "boolean", "default": true, "title": "Signature Help", "description": "Show parameter hints while typing a call." },
-    "inlayHints": { "type": "boolean", "default": false, "title": "Inlay Hints", "description": "Show parameter names and inferred types inline, where the server provides them (TypeScript, Rust, Go…)." },
     "promptToInstall": { "type": "boolean", "default": true, "title": "Suggest Installing Servers", "description": "Show install instructions when a file has a known server that isn't installed." },
     "trace": { "type": "boolean", "default": false, "title": "Trace Protocol", "description": "Log every JSON-RPC message to the Language Servers panel." }
   }

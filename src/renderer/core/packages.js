@@ -20,6 +20,7 @@ import { convertTheme } from './vscode-theme.js';
 import { aiClient } from './ai-client.js';
 import { convertSnippet } from './snippet.js';
 import { SandboxedPackage, loadSandboxedStyles } from './sandbox.js';
+import { symbolIcon } from './symbols.js';
 
 // Popular CodeMirror add-ons, bundled against the editor's own CodeMirror (two copies
 // don't mix) and loaded only when a package asks for them.
@@ -297,6 +298,11 @@ export class PackageManager extends Emitter {
   }
 
   async setEnabled(name, enabled) {
+    await this.saveEnabled(name, enabled);
+    if (enabled) await this.activate(name); else await this.deactivate(name);
+  }
+
+  async saveEnabled(name, enabled) {
     const disabled = new Set(this.app.config.get('core.disabledPackages') || []);
     const optIn = new Set(this.app.config.get('core.enabledPackages') || []);
     const offByDefault = this.packages.get(name)?.meta.manifest.enabledByDefault === false;
@@ -304,7 +310,17 @@ export class PackageManager extends Emitter {
     else { disabled.add(name); optIn.delete(name); }
     await this.app.config.set('core.disabledPackages', [...disabled]);
     await this.app.config.set('core.enabledPackages', [...optIn]);
-    if (enabled) await this.activate(name); else await this.deactivate(name);
+  }
+
+  /** A setting that switched a feature which is now a package of its own switches that package instead, once. */
+  async migrateSettings() {
+    for (const [key, name, on] of MOVED_SETTINGS) {
+      const [section, prop] = key.split('.');
+      const value = this.app.config.user[section]?.[prop];
+      if (value === undefined || this.app.config.parseFailed) continue;
+      await this.app.config.set(key, undefined);
+      if (this.packages.has(name) && (value === on) !== !this.isDisabled(name)) await this.saveEnabled(name, value === on);
+    }
   }
 
   async reload(name) {
@@ -429,6 +445,8 @@ export class PackageManager extends Emitter {
       cm,
       ui: {
         h, icon, fileIcon, registerIcon,
+        /** A colored icon for a symbol kind ('class', 'method', 'heading'…), as breadcrumbs and the outline show it. */
+        symbolIcon,
         selectList: (o) => app.ui.selectList(o),
         /** Open the one search box, optionally on a mode's prefix ('>' commands, '@' symbols…). */
         quickOpen: (prefix) => app.quickOpen.open(prefix),
@@ -553,6 +571,12 @@ export class PackageManager extends Emitter {
     };
   }
 }
+
+// [old setting, package, the value that meant on]
+const MOVED_SETTINGS = [
+  ['outline.breadcrumbs', 'breadcrumbs', true],
+  ['lsp.inlayHints', 'inlay-hints', true],
+];
 
 const cleanIpcError = (err) => String(err?.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
 

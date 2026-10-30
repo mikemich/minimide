@@ -8,7 +8,6 @@ import {
   toUri, fromUri, toPosition, fromPosition, offsetInText, COMPLETION_KINDS, SYMBOL_KINDS,
   renderMarkdown, markupToMarkdown,
 } from './util.js';
-import { inlayHints } from './inlay-hints.js';
 
 const SEVERITY = { 1: 'error', 2: 'warning', 3: 'info', 4: 'hint' };
 const isMac = navigator.platform.toLowerCase().includes('mac');
@@ -215,7 +214,6 @@ export function activate(mide) {
     client.notify('textDocument/didOpen', { textDocument: { uri: entry.uri, languageId: entry.languageId, version: 1, text: doc.getText() } });
     entry.opened = true;
     renderStatus();
-    inlay.refresh(client);
     for (const fn of [...attachListeners]) fn(doc);
   }
 
@@ -338,13 +336,16 @@ export function activate(mide) {
           if (!actions.length) resolve(null);
           else setTimeout(() => resolve(null), 120000);
         });
-      case 'workspace/inlayHint/refresh':
-        inlay.refresh(client);
-        return null;
       case 'window/showDocument':
         if (params.external) mide.shell.openExternal(params.uri);
         else await openLocation({ uri: params.uri, range: params.selection || { start: { line: 0, character: 0 } } });
         return { success: true };
+    }
+    // workspace/inlayHint/refresh, workspace/codeLens/refresh…: whoever shows those asks again.
+    if (/^workspace\/\w+\/refresh$/.test(method)) {
+      const what = method.split('/')[1];
+      for (const fn of [...refreshListeners]) { try { fn(what, client); } catch (err) { console.error('[lsp]', err); } }
+      return null;
     }
     if (method.endsWith('/refresh')) return null;
     return NOT_FOUND;
@@ -468,13 +469,24 @@ export function activate(mide) {
 
   mide.editor.addExtension([lintGutter(), autocompletion({ override: [completionSource, mide.editor.extraCompletionSource] })]);
   // Lets other parts of the editor (word completion) stand aside where a server already completes,
-  // and gives the outline and breadcrumbs the server's symbols.
+  // gives the symbols service the server's symbols, and lets packages (inlay hints) ask a server
+  // about the document an editor shows.
   const attachListeners = new Set();
+  const refreshListeners = new Set();
   mide.services.provide('lsp', {
     handles: (view) => !!entryForView(view)?.client?.capabilities?.completionProvider,
     documentSymbols,
     /** `fn(document)` once a server has opened a document, so its symbols, hints… can be asked for. */
     onDidAttach: (fn) => { attachListeners.add(fn); return { dispose: () => attachListeners.delete(fn) }; },
+    /**
+     * { client, uri } for the document an editor view shows, once its server has opened it; else null.
+     * `client.capabilities` is what the server can do; `client.request(method, params, { timeout })` asks it.
+     */
+    documentFor: (view) => { const entry = entryForView(view); return entry ? { client: entry.client, uri: entry.uri } : null; },
+    /** `fn(what, client)` when a server asks for its `what` ('inlayHint', 'codeLens'…) to be fetched again. */
+    onDidRequestRefresh: (fn) => { refreshListeners.add(fn); return { dispose: () => refreshListeners.delete(fn) }; },
+    /** CodeMirror offset <-> LSP position ({ line, character }, UTF-16 like CodeMirror). */
+    toPosition, fromPosition,
   });
 
   // ---------------------------------------------------------------------------
@@ -840,12 +852,6 @@ export function activate(mide) {
   });
 
   // ---------------------------------------------------------------------------
-  // Inlay hints
-
-  const inlay = inlayHints(mide, entryForView);
-  mide.editor.addExtension(inlay.extension);
-
-  // ---------------------------------------------------------------------------
   // Edits
 
   function applyTextEditsToView(view, edits) {
@@ -1146,7 +1152,6 @@ export function activate(mide) {
     'lsp:code-actions': { title: 'Code Actions / Quick Fix', when: has('codeActionProvider'), run: codeActions },
     'lsp:signature-help': { title: 'Show Signature Help', when: has('signatureHelpProvider'), run: () => { const { editor, entry } = activeEntry(); requestSignature(editor, entry); } },
     'lsp:toggle-problems': { title: 'Toggle Problems Panel', run: () => mide.panel.toggle('problems') },
-    'lsp:toggle-inlay-hints': { title: 'Toggle Inlay Hints', run: () => mide.config.set('lsp.inlayHints', !mide.config.get('lsp.inlayHints')) },
     'lsp:show-log': { title: 'Show Server Log', run: showLog },
     'lsp:restart-servers': { title: 'Restart Language Servers', run: restartAll },
     'lsp:server-menu': { title: 'Language Server Status…', run: serverMenu },

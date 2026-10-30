@@ -619,7 +619,7 @@ const SUITES = [
       tsTree: 'Circle:class[radius:field,constructor:constructor,area:method],scale:function,big:constant,size:constant',
       tsOutline: ['Circle|fake', 'radius|fake', 'constructor|fake', 'area|fake', 'scale|fake', 'big|fake', 'size|fake'],
       hintsOffByDefault: { drawn: 0, asked: 0 }, capability: { inlayHint: true, refreshSupport: true },
-      hintsConfig: true,
+      hintsOn: true,
       hints: ['16:18:value:', '16:22:factor:', '17:10:: number'],
       hintClasses: ['cm-inlay-hint-parameter cm-inlay-pad-right', 'cm-inlay-hint-parameter cm-inlay-pad-right', 'cm-inlay-hint-type'],
       hintTooltip: 'inferred type number', hintRange: { line: 0, character: 0 }, textUnchanged: true,
@@ -628,7 +628,7 @@ const SUITES = [
       hintsAfterRefresh: ['17:18:value:', '17:22:factor:', '18:10:: int', '19:11:: int'], refreshes: 1,
       hintsAfterRestart: ['17:18:value:', '17:22:factor:', '18:10:: number', '19:11:: number'],
       hintsOff: 'none',
-      breadcrumbsOff: { config: false, bars: 0 }, breadcrumbsOn: { config: true, crumbs: 'shapes.ts › Circle › area' },
+      breadcrumbsOff: { active: false, bars: 0 }, breadcrumbsOn: { active: true, crumbs: 'shapes.ts › Circle › area' },
     }),
   },
   {

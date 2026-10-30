@@ -241,6 +241,7 @@ tooltip state fields.
 const { h, icon, fileIcon } = mide.ui;
 h('div.card#main', { onclick: () => {}, style: { color: 'red' } }, 'text', h('span', 'child'));
 icon('search', 16);   // built-in icons: folder, file, search, branch, terminal, gear, play, …
+mide.ui.symbolIcon('method');   // a symbol kind's colored icon, as the outline and breadcrumbs draw it
 
 mide.ui.selectList({
   placeholder: 'Pick a fruit',
@@ -323,18 +324,31 @@ mide.services.consume('git-status', (git) => { … });
 Built-in services you can use:
 
 ```js
-// packages/outline: the symbols behind the breadcrumbs and the Outline view. They come from the
-// language server when one is attached, otherwise from the syntax tree (JS/TS, Python, Markdown
-// headings, CSS, JSON). A symbol is { name, detail, kind, from, to, selFrom, selTo, children }, in
-// editor offsets; kind is a word like 'class', 'method', 'function', 'heading'.
+// The core: the symbols behind the breadcrumbs and the Outline view. They come from the language
+// server when one is attached, otherwise from the syntax tree (JS/TS, Python, Markdown headings,
+// CSS, JSON). A symbol is { name, detail, kind, from, to, selFrom, selTo, children }, in editor
+// offsets; kind is a word like 'class', 'method', 'function', 'heading'. The objects are shared
+// (don't change them) and keep their positions current until the symbols are computed again.
+// Nothing is computed until a package asks or watches.
 const symbols = mide.services.get('symbols');
 const { symbols: list, source } = await symbols.getSymbols(editor);   // source: 'lsp' | 'syntax'
+symbols.peek(editor);                      // the last computed ones, without computing: { symbols, source } or null
 symbols.symbolPathAt(editor);              // around the cursor (or pass a position), outermost first
-symbols.onDidChange((editor) => …);        // recomputed after an edit
+mide.subscriptions.add(symbols.watch((editor) => shown(editor)));   // keep them current where you show them
+symbols.refresh(editor);                   // compute now if the text changed and a watcher shows them
+symbols.onDidChange((editor) => …);        // computed again (after an edit pauses, or a server attached)
+symbols.reveal(editor, symbol);            // select its name, scroll there, focus the editor
 
-// packages/lsp: the language server's own symbols for an editor, or null without one.
-const res = await mide.services.get('lsp')?.documentSymbols(editor);   // { doc, symbols } (offsets in `doc`)
-mide.services.get('lsp')?.onDidAttach((document) => …);              // a server opened this document
+// packages/lsp: the language server for an editor's document.
+const lsp = mide.services.get('lsp');      // undefined while the Language Servers package is off
+const res = await lsp?.documentSymbols(editor);   // its symbols, or null without one: { doc, symbols } (offsets in `doc`)
+lsp?.onDidAttach((document) => …);         // a server opened this document
+const doc = lsp?.documentFor(editor.view); // { client, uri } once a server has the document open, else null
+if (doc?.client.capabilities.inlayHintProvider) {
+  const hints = await doc.client.request('textDocument/inlayHint', { textDocument: { uri: doc.uri }, range }, { timeout: 5000 });
+}
+lsp?.onDidRequestRefresh((what, client) => …);    // workspace/<what>/refresh: 'inlayHint', 'codeLens'…
+lsp?.toPosition(state.doc, offset);       // offset -> { line, character }; fromPosition(doc, position) goes back
 ```
 
 ### AI requests

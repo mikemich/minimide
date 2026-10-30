@@ -1,7 +1,7 @@
 // Inlay hints (textDocument/inlayHint): parameter names and inferred types drawn inline as small
-// muted widgets. Each editor asks only for what it shows, again after edits (once typing pauses)
-// and scrolling, and whenever the server sends workspace/inlayHint/refresh.
-import { toPosition, fromPosition } from './util.js';
+// muted widgets. Each editor asks its language server (through the lsp service) only for what it
+// shows, again after edits (once typing pauses) and scrolling, and whenever the server sends
+// workspace/inlayHint/refresh.
 
 const EDIT_DELAY = 400;
 const SCROLL_DELAY = 150;
@@ -15,12 +15,12 @@ export const hintSide = (hint) => (hint.kind === 2 ? -1 : 1);
  */
 export const orderHints = (ranges) => [...ranges].sort((a, b) => a.pos - b.pos || hintSide(a.hint) - hintSide(b.hint));
 
-/** `entryFor(view)` is the tracked document for an editor view (or null). Returns { extension, refresh(client?) }. */
-export function inlayHints(mide, entryFor) {
+export function activate(mide) {
   const { ViewPlugin, Decoration, WidgetType } = mide.cm.view;
   const { RangeSetBuilder } = mide.cm.state;
   const instances = new Set();
-  const enabled = () => !!mide.config.get('lsp.inlayHints');
+  const lsp = () => mide.services.get('lsp');
+  const editorFor = (view) => mide.workspace.getItems().find((i) => i.view === view) || null;
 
   const labelText = (label) => (typeof label === 'string' ? label : (label || []).map((p) => p.value).join(''));
   const tooltipText = (t) => (t == null ? '' : typeof t === 'string' ? t : t.value || '');
@@ -75,7 +75,8 @@ export function inlayHints(mide, entryFor) {
 
     async fetch() {
       const { view } = this;
-      const entry = enabled() ? entryFor(view) : null;
+      const server = lsp();
+      const entry = server?.documentFor?.(view);
       if (!entry?.client.capabilities.inlayHintProvider) return this.clear();
       const mine = ++this.seq;
       const doc = view.state.doc;
@@ -86,13 +87,13 @@ export function inlayHints(mide, entryFor) {
       try {
         hints = await entry.client.request('textDocument/inlayHint', {
           textDocument: { uri: entry.uri },
-          range: { start: toPosition(doc, from), end: toPosition(doc, to) },
+          range: { start: server.toPosition(doc, from), end: server.toPosition(doc, to) },
         }, { timeout: 5000 });
       } catch { return; }
       // Typed or scrolled meanwhile: a newer request is on its way.
       if (mine !== this.seq || view.state.doc !== doc || !instances.has(this)) return;
       const ranges = orderHints((hints || [])
-        .map((hint) => ({ pos: fromPosition(doc, hint.position), hint }))
+        .map((hint) => ({ pos: server.fromPosition(doc, hint.position), hint }))
         .filter(({ pos, hint }) => pos >= from && pos <= to && labelText(hint.label)));
       const builder = new RangeSetBuilder();
       // A parameter name sits before its argument: keep the cursor next to the code it labels.
@@ -104,24 +105,19 @@ export function inlayHints(mide, entryFor) {
     destroy() { instances.delete(this); clearTimeout(this.timer); }
   }
 
-  const extension = ViewPlugin.fromClass(Hints, { decorations: (p) => p.decorations });
+  mide.editor.addExtension(ViewPlugin.fromClass(Hints, { decorations: (p) => p.decorations }));
 
   /** Ask again in every editor (or only those served by `client`). */
   function refresh(client) {
-    for (const p of instances) if (!client || entryFor(p.view)?.client === client) p.schedule(0);
+    for (const p of instances) if (!client || lsp()?.documentFor?.(p.view)?.client === client) p.schedule(0);
   }
 
-  mide.config.onDidChange('lsp.inlayHints', () => refresh());
-  mide.styles.add(`
-    .cm-inlay-hint {
-      display: inline-block; padding: 0 4px; margin: 0 1px; border-radius: 4px; vertical-align: baseline;
-      font-family: var(--editor-font); font-size: 0.86em; line-height: 1.35; font-style: normal; font-weight: normal;
-      color: var(--fg-muted); background: color-mix(in srgb, var(--fg-subtle) 16%, transparent);
-      user-select: none; cursor: default;
-    }
-    .cm-inlay-hint-parameter { color: var(--fg-subtle); }
-    .cm-inlay-pad-left { margin-left: 0.45em; }
-    .cm-inlay-pad-right { margin-right: 0.45em; }
-  `);
-  return { extension, refresh };
+  // A server that just opened a document, or asks for its hints to be fetched again.
+  mide.services.consume('lsp', (server) => {
+    refresh();
+    mide.subscriptions.add(
+      server.onDidAttach((doc) => { for (const p of instances) if (editorFor(p.view)?.document === doc) p.schedule(0); }),
+      server.onDidRequestRefresh((what, client) => { if (what === 'inlayHint') refresh(client); }),
+    );
+  });
 }

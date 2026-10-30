@@ -64,6 +64,8 @@ export function registerCoreCommands(app) {
   // The text itself has focus: not a peek preview, which lives in the editor's tooltip layer.
   const editorFocused = () => !!view() && view().contentDOM.contains(document.activeElement);
   const userFile = (name) => `${app.userInfo.dir}/${name}`;
+  // Features that are packages of their own keep a toggle here, which still exists while they're off.
+  const togglePackage = (name) => ({ when: () => !!app.packages?.packages.has(name), run: () => app.packages.setEnabled(name, app.packages.isDisabled(name)) });
 
   const transformSelection = (fn) => () => {
     const v = view();
@@ -234,6 +236,8 @@ export function registerCoreCommands(app) {
     'editor:toggle-line-numbers': { title: 'Toggle Line Numbers', run: () => config.set('editor.showLineNumbers', !config.get('editor.showLineNumbers')) },
     'editor:toggle-invisibles': { title: 'Toggle Invisibles', run: () => config.set('editor.showInvisibles', !config.get('editor.showInvisibles')) },
     'editor:toggle-bracket-pair-colors': { title: 'Toggle Bracket Pair Colors', run: () => config.set('editor.bracketPairColors', !config.get('editor.bracketPairColors')) },
+    'editor:toggle-breadcrumbs': { title: 'Toggle Breadcrumbs', ...togglePackage('breadcrumbs') },
+    'editor:toggle-inlay-hints': { title: 'Toggle Inlay Hints', ...togglePackage('inlay-hints') },
     'editor:go-to-line': { title: 'Go to Line…', when: hasEditor, run: () => app.quickOpen.open(':') },
     'editor:duplicate-lines': { title: 'Duplicate Lines', when: hasEditor, run: () => copyLineDown(view()) },
     'editor:select-line': { title: 'Select Line', when: hasEditor, run: () => selectLine(view()) },

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { orderHints, hintSide } from '../../packages/lsp/inlay-hints.js';
+import { orderHints, hintSide } from '../../packages/inlay-hints/index.js';
 
 test('orderHints: by position, then a parameter name before a type hint at the same spot', () => {
   const type = { kind: 1, label: ': number' };
