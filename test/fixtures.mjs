@@ -345,6 +345,18 @@ function dbgproj(root) {
   write(path.join(d, 'app.py'), 'def add(a, b):\n    total = a + b\n    return total\n\nresult = 0\nfor i in range(1, 4):\n    result = add(result, i)\nprint("result is", result)\n');
 }
 
+/** `bmproj`: a few small files to bookmark lines in, move around and rename (bookmarks, bookmarksRestore). */
+function bmproj(root) {
+  const d = path.join(root, 'bmproj');
+  const lines = (name, n) => Array.from({ length: n }, (_, i) => `${name} line ${i + 1}`).join('\n') + '\n';
+  write(path.join(d, 'a.txt'), lines('alpha', 12));
+  write(path.join(d, 'b.txt'), lines('bravo', 8));
+  write(path.join(d, 'c.txt'), lines('charlie', 6));
+  write(path.join(d, 'moved.txt'), lines('moved', 6));
+  write(path.join(d, 'sub/inner.txt'), lines('inner', 5));
+  write(path.join(d, 'ext.txt'), lines('ext', 8));
+}
+
 /** `vsc`: a fake VS Code folder (User/ and extensions/) for "Import from VS Code" (vscodeImport). */
 function vsc(root) {
   const d = path.join(root, 'vsc');
@@ -498,11 +510,12 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   dbgproj(root);
   lhproj(root);
   outlineproj(root);
+  bmproj(root);
   vsc(root);
   aiproj(root);
   remote(root);
   multiRoot(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih', 'dbgh', 'vsih', 'sync1', 'sync2', 'aih', 'remoteh', 'lhh', 'pkgbh', 'outlineh']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih', 'dbgh', 'vsih', 'sync1', 'sync2', 'aih', 'remoteh', 'lhh', 'pkgbh', 'outlineh', 'bmh']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 
