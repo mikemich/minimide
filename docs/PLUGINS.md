@@ -65,6 +65,25 @@ export function deactivate() {
 - **Colors** come from CSS variables (`--bg`, `--fg`, `--accent`, `--c-green`, …) so your
   UI follows every theme. See `src/renderer/styles/base.css` for the full list.
 
+## Accessibility
+
+Minimide is meant to work with a screen reader and without a mouse, and your package's UI should too.
+The core does most of it for you:
+
+- **Name every control.** Give an icon-only button an `aria-label` (or at least a `title`: a button or
+  field built without a label gets its tooltip or placeholder as its name). Give fields a label too.
+- **Clickable elements are keyboard elements.** `h('div', { onclick })` becomes `role="button"`, joins the
+  Tab order and answers Enter and Space. A real `<button>` is better still. Set the state a user needs to
+  hear: `aria-pressed` for toggles, `aria-expanded` for things that open, `aria-current` for the current page.
+- **Dialogs.** `selectList` and `prompt` are announced as dialogs (the list is a combobox over a listbox),
+  keep Tab inside them and give focus back when they close. Pass `label` to `selectList` to name it when the
+  placeholder isn't a good name. Notifications are announced: errors and warnings immediately.
+- **Focus rings.** Anything focusable gets a 2px ring in `--focus-ring` (the accent unless a theme sets one).
+  Don't remove outlines; if you draw your own focus style, make it as visible. `npm run test:themes` checks
+  that rings have 3:1 contrast on every panel.
+- **Motion.** Animations and transitions are shortened for people who ask the system for reduced motion; use
+  `matchMedia('(prefers-reduced-motion: reduce)')` before starting motion from script, e.g. smooth scrolling.
+
 ## The `mide` API
 
 ### commands
@@ -230,6 +249,7 @@ mide.ui.selectList({
   onHighlight: (item) => …,     // live preview, like the theme picker
   onQuery: (q) => itemsOrNull,  // dynamic results
   transformQuery: (q) => q,     // rewrite before fuzzy filtering
+  label: 'Fruit',               // name for screen readers (defaults to the placeholder)
 });
 // The ⌘P box: open it on a prefix, or add your own kind of search to it.
 mide.ui.quickOpen('>');

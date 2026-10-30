@@ -1,18 +1,23 @@
 // UI building blocks shared by core and packages: select lists, prompts,
 // notifications, docks (sidebar / bottom panel) and the status bar.
 import { Emitter, Disposable } from './events.js';
-import { h, icon } from './dom.js';
+import { h, icon, makeActivatable } from './dom.js';
 import { fuzzyFilter, highlightMatches } from './fuzzy.js';
+import { trapTab, focusables, uniqueId } from './a11y.js';
 
 // ---------------------------------------------------------------------------
 // Modal overlay management (only one at a time)
 
 let activeModal = null;
 
-export function openModal(el, { onClose, id } = {}) {
+export function openModal(el, { onClose, id, label } = {}) {
   activeModal?.close();
   const root = document.getElementById('overlay-root');
-  const backdrop = h('div.modal-backdrop', { onmousedown: (e) => { if (e.target === backdrop) modal.close(); } }, el);
+  // A dialog: named, modal, with Tab kept inside it and focus handed back to where it was when it closes.
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  if (label) el.setAttribute('aria-label', label);
+  const backdrop = h('div.modal-backdrop', { onmousedown: (e) => { if (e.target === backdrop) modal.close(); }, onkeydown: (e) => trapTab(el, e) }, el);
   const previousFocus = document.activeElement;
   const modal = {
     id,
@@ -21,6 +26,7 @@ export function openModal(el, { onClose, id } = {}) {
       if (activeModal !== modal) return;
       activeModal = null;
       backdrop.classList.add('closing');
+      backdrop.setAttribute('aria-hidden', 'true');
       setTimeout(() => backdrop.remove(), 90);
       onClose?.();
       if (restoreFocus && previousFocus?.isConnected) previousFocus.focus();
@@ -28,6 +34,11 @@ export function openModal(el, { onClose, id } = {}) {
   };
   root.append(backdrop);
   activeModal = modal;
+  requestAnimationFrame(() => {
+    if (activeModal !== modal || el.contains(document.activeElement)) return;
+    const first = focusables(el)[0] || Object.assign(el, { tabIndex: -1 });
+    first.focus({ preventScroll: true });
+  });
   return modal;
 }
 
@@ -62,18 +73,24 @@ export function selectList(opts) {
   const modeFor = (q) => modes.filter((m) => q.startsWith(m.prefix || '')).sort((a, b) => (b.prefix || '').length - (a.prefix || '').length)[0] || modes[0];
   const keyOf = (m) => m.filterKey || ((it) => it.label ?? String(it));
   // Passthrough: Ctrl-N/Ctrl-P move the selection here instead of running New File / Find File.
-  const input = h('input.select-input', { type: 'text', placeholder: opts.placeholder || 'Type to search…', spellcheck: false, dataset: { keymapPassthrough: '' } });
+  const label = opts.label || opts.placeholder || 'Search';
+  const listId = uniqueId('select-items');
+  const input = h('input.select-input', {
+    type: 'text', placeholder: opts.placeholder || 'Type to search…', spellcheck: false, dataset: { keymapPassthrough: '' },
+    role: 'combobox', 'aria-label': label, 'aria-expanded': 'true', 'aria-controls': listId, 'aria-autocomplete': 'list', 'aria-haspopup': 'listbox',
+  });
   const badge = h('span.select-mode');
-  const list = h('ol.select-items');
+  const list = h('ol.select-items', { id: listId, role: 'listbox', 'aria-label': label });
   const footer = h('div.select-footer');
-  const panel = h('div.select-list', h('div.select-input-row', input, opts.modes ? badge : null), list, footer);
+  const status = h('div.sr-only', { role: 'status' }); // "5 results", read as the list changes
+  const panel = h('div.select-list', h('div.select-input-row', input, opts.modes ? badge : null), list, footer, status);
   const loaded = new Map(); // mode -> { items, loading }
   let current = null;
   let filtered = [];
   let selected = 0;
 
   let chosen = false;
-  const modal = openModal(panel, { id: opts.id, onClose: () => { if (!chosen) opts.onCancel?.(); } });
+  const modal = openModal(panel, { id: opts.id, label, onClose: () => { if (!chosen) opts.onCancel?.(); } });
 
   // A mode's items load the first time the query switches to it.
   const stateOf = (m) => {
@@ -130,21 +147,25 @@ export function selectList(opts) {
     selected = 0;
     list.replaceChildren(...filtered.map(({ item, indices }, i) => {
       const li = h('li.select-item', {
+        id: `${listId}-${i}`, role: 'option', 'aria-selected': 'false',
         onmousemove: () => { if (selected !== i) { selected = i; highlight(); } },
         onmousedown: (e) => { e.preventDefault(); choose(i); },
       }, renderItem(m, item, indices));
       return li;
     }));
     if (!filtered.length) {
-      list.append(h('li.select-empty', st.loading && !dyn ? 'Loading…' : (typeof m.emptyMessage === 'function' ? m.emptyMessage() : m.emptyMessage) || 'No matches'));
+      list.append(h('li.select-empty', { role: 'option', 'aria-disabled': 'true' }, st.loading && !dyn ? 'Loading…' : (typeof m.emptyMessage === 'function' ? m.emptyMessage() : m.emptyMessage) || 'No matches'));
     }
+    status.textContent = filtered.length ? `${filtered.length} ${filtered.length === 1 ? 'result' : 'results'}` : list.querySelector('.select-empty')?.textContent || '';
     footer.textContent = filtered.length && m.footer ? m.footer(filtered.length, st.items.length) : '';
     footer.hidden = !footer.textContent;
     highlight();
   };
 
   const highlight = () => {
-    [...list.children].forEach((li, i) => li.classList.toggle('selected', i === selected));
+    [...list.children].forEach((li, i) => { li.classList.toggle('selected', i === selected); if (li.getAttribute('role') === 'option' && !li.classList.contains('select-empty')) li.setAttribute('aria-selected', String(i === selected)); });
+    const active = filtered.length ? list.children[selected] : null;
+    if (active) input.setAttribute('aria-activedescendant', active.id); else input.removeAttribute('aria-activedescendant');
     list.children[selected]?.scrollIntoView({ block: 'nearest' });
     if (filtered[selected]) current?.onHighlight?.(filtered[selected].item);
   };
@@ -197,21 +218,22 @@ export function selectList(opts) {
 export function prompt({ title, placeholder, value = '', selection, validate, secret = false } = {}) {
   return new Promise((resolve) => {
     let done = false;
-    const input = h('input.select-input', { type: secret ? 'password' : 'text', placeholder: placeholder || '', value, spellcheck: false, autocomplete: 'off' });
-    const message = h('div.prompt-message', title || '');
+    const messageId = uniqueId('prompt-message');
+    const input = h('input.select-input', { type: secret ? 'password' : 'text', placeholder: placeholder || '', value, spellcheck: false, autocomplete: 'off', 'aria-label': title || placeholder || 'Input', 'aria-describedby': messageId });
+    const message = h('div.prompt-message', { id: messageId, 'aria-live': 'polite' }, title || '');
     const panel = h('div.select-list.prompt', message, input);
-    const modal = openModal(panel, { onClose: () => { if (!done) resolve(null); } });
+    const modal = openModal(panel, { label: title || placeholder || 'Input', onClose: () => { if (!done) resolve(null); } });
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
         const err = validate?.(input.value);
-        if (err) { message.textContent = err; message.classList.add('error'); return; }
+        if (err) { message.textContent = err; message.classList.add('error'); input.setAttribute('aria-invalid', 'true'); return; }
         done = true;
         modal.close();
         resolve(input.value);
       } else if (e.key === 'Escape') { e.preventDefault(); modal.close(); }
     });
-    input.addEventListener('input', () => { message.textContent = title || ''; message.classList.remove('error'); });
+    input.addEventListener('input', () => { message.textContent = title || ''; message.classList.remove('error'); input.removeAttribute('aria-invalid'); });
     requestAnimationFrame(() => {
       input.focus();
       if (selection) input.setSelectionRange(...selection);
@@ -226,21 +248,27 @@ export function prompt({ title, placeholder, value = '', selection, validate, se
 export const notify = {
   show(type, title, detail, { timeout, actions = [] } = {}) {
     const root = document.getElementById('notifications');
-    const close = () => { el.classList.add('closing'); setTimeout(() => el.remove(), 160); };
-    const el = h(`div.notification.${type}`,
+    let timer = 0;
+    const close = () => { clearTimeout(timer); el.classList.add('closing'); setTimeout(() => el.remove(), 160); };
+    // Errors and warnings interrupt a screen reader; the rest wait for it to finish speaking.
+    const el = h(`div.notification.${type}`, { role: type === 'error' || type === 'warn' ? 'alert' : 'status' },
       h('div.notification-bar'),
       h('div.notification-body',
         h('div.notification-title', title),
         detail ? h('div.notification-detail', detail) : null,
         actions.length ? h('div.notification-actions', actions.map((a) => h('button.btn.small', { onclick: () => { close(); a.run(); } }, a.label))) : null),
-      h('button.icon-btn.notification-close', { onclick: close }, icon('close', 13)));
+      h('button.icon-btn.notification-close', { 'aria-label': 'Dismiss notification', title: 'Dismiss', onclick: close }, icon('close', 13)));
     root.append(el);
     const ms = timeout ?? (type === 'error' ? 9000 : type === 'warn' ? 7000 : 3500);
     if (ms > 0) {
-      let timer = setTimeout(close, ms);
+      timer = setTimeout(close, ms);
       el.addEventListener('mouseenter', () => clearTimeout(timer));
       el.addEventListener('mouseleave', () => { timer = setTimeout(close, 2000); });
+      // Someone reaching its buttons with the keyboard shouldn't have it vanish underneath them.
+      el.addEventListener('focusin', () => clearTimeout(timer));
+      el.addEventListener('focusout', (e) => { if (!el.contains(e.relatedTarget)) timer = setTimeout(close, 2000); });
     }
+    el.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
     return { close };
   },
   info(t, d, o) { return notify.show('info', t, d, o); },
@@ -262,6 +290,10 @@ export class Dock extends Emitter {
     this.views = new Map();
     this.header = el.querySelector('.dock-header');
     this.body = el.querySelector('.dock-body');
+    // The views are tabs: one tab stop, arrow keys to move between them.
+    this.header.setAttribute('role', 'tablist');
+    this.header.setAttribute('aria-label', name === 'sidebar' ? 'Sidebar views' : 'Panel views');
+    this.header.addEventListener('keydown', (e) => this.onTabKey(e));
     this.preferred = state.active || null;
     this.activeId = null;
     this.size = state.size || defaultSize;
@@ -294,13 +326,22 @@ export class Dock extends Emitter {
     const views = this.sortedViews();
     this.el.classList.toggle('hidden', !this.visible || !views.length);
     this.el.classList.toggle('multi', views.length > 1);
+    const hadFocus = this.header.contains(document.activeElement);
     this.header.replaceChildren(...views.map((v) => h('button.dock-tab', {
       class: v.id === this.activeId ? 'active' : '',
       title: v.title,
+      id: this.tabId(v),
+      role: 'tab',
+      'aria-selected': String(v.id === this.activeId),
+      'aria-label': v.title, // the sidebar shows only the icon
+      tabindex: v.id === this.activeId ? '0' : '-1',
       dataset: v.command ? { command: v.command } : {}, // its shortcut shows while ⌘ is held
       onclick: () => this.show(v.id, { focus: true }),
     }, v.icon ? icon(v.icon, 15) : null, h('span', v.title))));
+    if (hadFocus) this.header.querySelector('[aria-selected="true"]')?.focus();
     for (const v of views) {
+      v.element.setAttribute('role', 'tabpanel');
+      v.element.setAttribute('aria-labelledby', this.tabId(v));
       const show = v.id === this.activeId && this.visible;
       if (v.element.hidden === show) {
         v.element.hidden = !show;
@@ -310,6 +351,17 @@ export class Dock extends Emitter {
     const resizer = this.el.previousElementSibling?.classList.contains('resizer') ? this.el.previousElementSibling : this.el.nextElementSibling;
     if (resizer?.classList.contains('resizer')) resizer.hidden = !this.visible || !views.length;
     this.emit('changed');
+  }
+
+  tabId(view) { return `${this.name}-tab-${view.id}`; }
+
+  onTabKey(e) {
+    const views = this.sortedViews();
+    const at = views.findIndex((v) => v.id === this.activeId);
+    const to = { ArrowRight: at + 1, ArrowDown: at + 1, ArrowLeft: at - 1, ArrowUp: at - 1, Home: 0, End: views.length - 1 }[e.key];
+    if (to == null || !views.length || e.altKey || e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
+    this.show(views[(to + views.length) % views.length].id);
   }
 
   show(id = this.activeId, { focus = false } = {}) {
@@ -333,6 +385,21 @@ export class Dock extends Emitter {
   }
 
   attachResizer(resizer, invert = false) {
+    // The divider is a separator that arrow keys move, so resizing isn't mouse-only.
+    resizer.setAttribute('role', 'separator');
+    resizer.tabIndex = 0;
+    resizer.setAttribute('aria-orientation', this.axis === 'x' ? 'vertical' : 'horizontal');
+    resizer.setAttribute('aria-label', this.name === 'sidebar' ? 'Resize sidebar' : 'Resize bottom panel');
+    resizer.addEventListener('keydown', (e) => {
+      const grow = this.axis === 'x' ? { ArrowRight: 1, ArrowLeft: -1 } : { ArrowDown: 1, ArrowUp: -1 };
+      const d = grow[e.key];
+      if (!d) return;
+      e.preventDefault();
+      const max = this.axis === 'x' ? window.innerWidth * 0.6 : window.innerHeight * 0.75;
+      this.size = Math.round(Math.max(this.minSize, Math.min(max, this.size + (invert ? -d : d) * 24)));
+      this.applySize();
+      this.emit('changed');
+    });
     resizer.addEventListener('mousedown', (e) => {
       e.preventDefault();
       const start = this.axis === 'x' ? e.clientX : e.clientY;
@@ -372,7 +439,7 @@ export class StatusBar {
   /** addItem({ id, element, align: 'left'|'right', priority, onClick, tooltip, command }) */
   addItem({ id, element, align = 'left', priority = 100, onClick, tooltip, command }) {
     const el = h('div.status-item', { dataset: { id: id || '', ...(command ? { command } : {}) }, title: tooltip || '' }, element);
-    if (onClick) { el.classList.add('clickable'); el.addEventListener('click', onClick); }
+    if (onClick) { el.classList.add('clickable'); el.addEventListener('click', onClick); makeActivatable(el); }
     const entry = { el, align, priority };
     this.items.push(entry);
     this.layout();

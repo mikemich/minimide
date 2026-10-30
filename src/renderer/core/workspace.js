@@ -28,12 +28,12 @@ export class Pane extends Emitter {
     this.flex = 1;
     this.parent = null;
     this.tabBar = h('div.tab-bar', { ondragover: (e) => this.onDragOver(e), ondrop: (e) => this.onDrop(e), ondblclick: (e) => { if (e.target === this.tabBar || e.target === this.tabsEl) ws.commands.run('file:new'); } });
-    this.tabsEl = h('div.tabs');
+    this.tabsEl = h('div.tabs', { role: 'tablist', 'aria-label': 'Open files', onkeydown: (e) => this.onTabKey(e) });
     this.customActions = h('div.tab-actions-custom');
     this.tabBar.append(this.tabsEl, h('div.tab-actions', this.customActions,
-      h('button.icon-btn.split-action', { title: 'Split Right', onclick: () => ws.splitRight(this) }, icon('split', 15))));
+      h('button.icon-btn.split-action', { title: 'Split Right', 'aria-label': 'Split Right', onclick: () => ws.splitRight(this) }, icon('split', 15))));
     this.content = h('div.pane-content');
-    this.element = h('div.pane', { onmousedown: () => ws.setActivePane(this, false) }, this.tabBar, this.content);
+    this.element = h('div.pane', { role: 'group', 'aria-label': 'Editor pane', onmousedown: () => ws.setActivePane(this, false) }, this.tabBar, this.content);
     this.tabEls = new Map();
   }
 
@@ -77,6 +77,8 @@ export class Pane extends Emitter {
   renderTab(item, index) {
     const tab = h('div.tab', {
       draggable: true,
+      role: 'tab',
+      tabindex: '-1',
       title: item.getPath?.() || item.getTitle(),
       onmousedown: (e) => {
         if (e.button === 1) { e.preventDefault(); this.ws.closeItem(item); return; }
@@ -92,8 +94,10 @@ export class Pane extends Emitter {
       },
       ondragend: () => { tab.classList.remove('dragging'); this.ws.dragging = null; this.clearDropMarkers(); },
     });
+    // Reached from the keyboard with Delete on the tab or the Close Tab command, so it isn't a tab stop of its own.
     const close = h('button.tab-close', {
       title: 'Close',
+      tabindex: '-1',
       onmousedown: (e) => e.stopPropagation(),
       onclick: (e) => { e.stopPropagation(); this.ws.closeItem(item); },
     }, icon('close', 13));
@@ -113,6 +117,12 @@ export class Pane extends Emitter {
     tab.classList.toggle('dirty', !!item.isDirty?.());
     tab.classList.toggle('pending', !!item.pending);
     tab.classList.toggle('active', item === this.active);
+    const state = [item.isDirty?.() ? 'unsaved changes' : '', item.pending ? 'preview' : ''].filter(Boolean).join(', ');
+    tab.setAttribute('aria-label', item.getTitle() + (state ? `, ${state}` : ''));
+    tab.setAttribute('aria-selected', String(item === this.active));
+    // One tab stop per tab bar: the active tab (or the first when none is).
+    tab.tabIndex = item === this.active || (!this.active && item === this.items[0]) ? 0 : -1;
+    tab.querySelector('.tab-close').setAttribute('aria-label', `Close ${item.getTitle()}`);
     // Disambiguate identical names by showing the parent folder.
     const dupes = this.items.filter((i) => i !== item && i.getTitle() === item.getTitle() && i.getPath?.());
     let hint = tab.querySelector('.tab-hint');
@@ -130,6 +140,7 @@ export class Pane extends Emitter {
       .filter((a) => { try { return !a.when || a.when(item, this); } catch { return false; } })
       .map((a) => h('button.icon-btn.pane-action', {
         title: typeof a.title === 'function' ? a.title(item) : a.title,
+        'aria-label': typeof a.title === 'function' ? a.title(item) : a.title,
         class: a.className || '',
         dataset: a.command ? { command: typeof a.command === 'function' ? a.command(item) : a.command } : {},
         onclick: (e) => { e.stopPropagation(); a.run(item, this); },
@@ -174,6 +185,35 @@ export class Pane extends Emitter {
     }
     if (!this.items.length && this.ws.panes.length > 1 && !keepPane) this.ws.removePane(this);
     else { this.ws.notifyActiveItem(); this.ws.updateEmptyState(); }
+  }
+
+  /** Tab bar keyboard: arrows, Home and End move between tabs; Enter and Space open one; Delete closes it; the menu key opens its menu. */
+  onTabKey(e) {
+    const entry = [...this.tabEls].find(([, el]) => el === e.target.closest('.tab'));
+    if (!entry || e.altKey || e.ctrlKey || e.metaKey) return;
+    const [item] = entry;
+    const at = this.items.indexOf(item);
+    const go = (i) => { const next = this.items[(i + this.items.length) % this.items.length]; this.activate(next); this.tabEls.get(next)?.focus(); };
+    switch (e.key) {
+      case 'ArrowRight': e.preventDefault(); go(at + 1); break;
+      case 'ArrowLeft': e.preventDefault(); go(at - 1); break;
+      case 'Home': e.preventDefault(); go(0); break;
+      case 'End': e.preventDefault(); go(this.items.length - 1); break;
+      case 'Enter': case ' ': e.preventDefault(); this.activate(item); item.focus?.(); break;
+      case 'Delete': e.preventDefault(); this.ws.closeItem(item); break;
+      case 'ContextMenu': e.preventDefault(); this.tabContextMenu(item); break;
+      case 'F10': if (e.shiftKey) { e.preventDefault(); this.tabContextMenu(item); } break;
+    }
+  }
+
+  /** Moves a tab one place left or right in this pane (the keyboard way to reorder tabs). */
+  moveTab(item, delta) {
+    const from = this.items.indexOf(item);
+    const to = from + delta;
+    if (from < 0 || to < 0 || to >= this.items.length) return;
+    this.items.splice(from, 1);
+    this.items.splice(to, 0, item);
+    for (const i of this.items) this.tabsEl.append(this.tabEls.get(i));
   }
 
   async tabContextMenu(item) {
@@ -390,14 +430,27 @@ export class Workspace extends Emitter {
     draw(this.root);
     this.panesEl.replaceChildren(this.root.element);
     this.panesEl.classList.toggle('split', this.panes.length > 1);
+    this.panes.forEach((p, i, all) => p.element.setAttribute('aria-label', all.length > 1 ? `Editor pane ${i + 1} of ${all.length}` : 'Editor pane'));
     this.updateEmptyState();
   }
 
   /** The draggable divider between two neighbours: vertical in a row, horizontal in a column. */
   paneResizer(a, b, dir) {
     const row = dir === 'row';
-    const el = h(`div.resizer.pane-resizer.${row ? 'resizer-v' : 'resizer-h'}`);
+    const el = h(`div.resizer.pane-resizer.${row ? 'resizer-v' : 'resizer-h'}`, { role: 'separator', tabindex: '0', 'aria-orientation': row ? 'vertical' : 'horizontal', 'aria-label': row ? 'Resize panes side by side' : 'Resize stacked panes' });
     const min = row ? 160 : 80;
+    // Arrow keys nudge the divider by a tenth of the two panes' space.
+    el.addEventListener('keydown', (e) => {
+      const d = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
+      if (!d || (row ? e.key === 'ArrowUp' || e.key === 'ArrowDown' : e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
+      e.preventDefault();
+      const total = a.flex + b.flex;
+      const na = Math.min(total * 0.9, Math.max(total * 0.1, a.flex + d * total * 0.1));
+      a.flex = na; b.flex = total - na;
+      a.element.style.flex = `${a.flex} 1 0`;
+      b.element.style.flex = `${b.flex} 1 0`;
+      this.emit('layout-changed');
+    });
     el.addEventListener('mousedown', (e) => {
       e.preventDefault();
       const at = (ev) => (row ? ev.clientX : ev.clientY);
@@ -686,12 +739,13 @@ export class Workspace extends Emitter {
     const stat = await window.native.fs.stat(path);
     if (stat && !stat.isFile) return null;
     let text = '';
+    let meta = {};
     if (stat) {
       if (stat.size > MAX_TEXT_SIZE) return new BinaryItem(path);
-      try { text = await window.native.fs.read(path); } catch (err) { this.ui.notify.error(`Could not open ${basename(path)}`, err.message); return null; }
+      try { ({ text, ...meta } = await window.native.fs.readText(path)); } catch (err) { this.ui.notify.error(`Could not open ${basename(path)}`, err.message); return null; }
       if (text.slice(0, 8000).includes('\u0000')) return new BinaryItem(path);
     }
-    const doc = new Document(path, text);
+    const doc = new Document(path, text, meta);
     this.documents.set(path, doc);
     this.emit('document-opened', doc);
     return doc;
@@ -764,7 +818,12 @@ export class Workspace extends Emitter {
     const text = doc.getTextForSave();
     try {
       this.selfWrites.set(doc.path, Date.now());
-      await window.native.fs.write(doc.path, text);
+      // Files that aren't plain UTF-8 are written back the way they were read.
+      const used = await window.native.fs.write(doc.path, text, doc.encoding !== 'utf8' || doc.bom ? { encoding: doc.encoding, bom: doc.bom } : undefined);
+      if (used && used !== doc.encoding) {
+        doc.encoding = used;
+        this.ui.notify.warn(`${doc.title} is now saved as UTF-8`, "It had characters its old encoding can't hold.");
+      }
       doc.markSaved(text);
       this.activePane.pin(item);
       this.emit('did-save', item);
@@ -788,6 +847,14 @@ export class Workspace extends Emitter {
       doc.setPath(next);
       this.documents.set(next, doc);
     }
+    // Images and other path-backed tabs follow the rename too, so their titles and the saved session stay right.
+    for (const item of this.allItems()) {
+      if (item.type === 'editor' || typeof item.path !== 'string') continue;
+      if (item.path !== from && !item.path.startsWith(from + '/')) continue;
+      item.path = to + item.path.slice(from.length);
+      this.panes.find((pane) => pane.items.includes(item))?.updateTab(item);
+    }
+    this.updateTitle();
     this.emit('path-renamed', from, to);
   }
 
@@ -837,6 +904,9 @@ export class Workspace extends Emitter {
       if (wrote && Date.now() - wrote < 1500) continue;
       const doc = this.documents.get(p);
       if (doc) this.syncFromDisk(doc);
+      // A folder that was deleted or replaced takes its files with it, without an event for each.
+      const prefix = p.endsWith('/') ? p : p + '/';
+      for (const [path, inner] of this.documents) if (path.startsWith(prefix)) this.syncFromDisk(inner);
     }
   }
 
@@ -846,16 +916,16 @@ export class Workspace extends Emitter {
 
   async syncFromDisk(doc) {
     if (!doc.path) return;
-    let text;
-    try { text = await window.native.fs.read(doc.path); } catch (err) {
+    let text, meta;
+    try { ({ text, ...meta } = await window.native.fs.readText(doc.path)); } catch (err) {
       // Deleted on disk (git checkout, rm…): keep the buffer, mark it unsaved so closing asks.
       if (/ENOENT/.test(err.message) && !doc.deleted) { doc.deleted = true; doc.updateDirty(); doc.emit('dirty', doc.dirty); }
       return;
     }
     if (doc.deleted) { doc.deleted = false; doc.updateDirty(); doc.emit('dirty', doc.dirty); }
     const saved = doc.savedDoc.toString();
-    if (text.replace(/\r\n/g, '\n') === saved) return;
-    if (!doc.dirty) { this.emit('will-reload', doc, 'disk'); doc.reloadFrom(text); }
+    if (text.replace(/\r\n?/g, '\n') === saved) return;
+    if (!doc.dirty) { this.emit('will-reload', doc, 'disk'); doc.reloadFrom(text, meta); }
     else if (!doc.conflict) {
       doc.conflict = true;
       this.ui.notify.warn(`${doc.title} changed on disk`, 'You have unsaved changes. Save to overwrite, or use "File: Revert" to reload.');
@@ -865,9 +935,9 @@ export class Workspace extends Emitter {
   async revert(item = this.getActiveEditor()) {
     if (!item?.document.path) return;
     try {
-      const text = await window.native.fs.read(item.document.path);
+      const { text, ...meta } = await window.native.fs.readText(item.document.path);
       this.emit('will-reload', item.document, 'revert');
-      item.document.reloadFrom(text);
+      item.document.reloadFrom(text, meta);
     } catch (err) { this.ui.notify.error('Revert failed', err.message); }
   }
 

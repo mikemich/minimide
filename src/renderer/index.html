@@ -11,23 +11,23 @@
   <div id="app">
     <header id="titlebar"><div class="title">Minimide</div></header>
     <div id="main">
-      <aside id="sidebar" class="dock hidden">
+      <aside id="sidebar" class="dock hidden" aria-label="Sidebar">
         <nav class="dock-header"></nav>
         <div class="dock-body"></div>
       </aside>
       <div id="sidebar-resizer" class="resizer resizer-v" hidden></div>
-      <section id="center">
+      <main id="center" aria-label="Editor area">
         <div id="panes"></div>
         <div id="panel-resizer" class="resizer resizer-h" hidden></div>
-        <section id="panel" class="dock hidden">
+        <section id="panel" class="dock hidden" aria-label="Bottom panel">
           <nav class="dock-header"></nav>
           <div class="dock-body"></div>
         </section>
-      </section>
+      </main>
     </div>
-    <footer id="statusbar"><div class="status-left"></div><div class="status-right"></div></footer>
+    <footer id="statusbar" aria-label="Status bar"><div class="status-left"></div><div class="status-right"></div></footer>
   </div>
   <div id="overlay-root"></div>
-  <div id="notifications"></div>
+  <div id="notifications" role="region" aria-label="Notifications"></div>
 </body>
 </html>

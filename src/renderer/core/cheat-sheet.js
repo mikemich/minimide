@@ -57,10 +57,10 @@ export function showCheatSheet(app) {
   };
   const link = (text, id) => h('a', { href: '#', onclick: (e) => { e.preventDefault(); closeModal(); app.commands.run(id); } }, text);
   const panel = h('div.cheat-sheet', { tabIndex: -1 },
-    h('div.cheat-title', 'Keyboard cheat sheet'),
+    h('h2.cheat-title', 'Keyboard cheat sheet'),
     h('div.cheat-grid', ...SECTIONS.map(([title, rows]) => h('section.cheat-section', h('h3', title), ...rows.map(row)))),
     h('div.cheat-footer', `Tip: hold ${isMac ? '⌘' : 'Ctrl'} anywhere to see the keys for what's on screen. Everything else is in the command palette. `, link('All keybindings', 'help:keybindings'), ' · ', link('Change a key', 'settings:open-keymap')));
   panel.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } });
-  openModal(panel, { id: 'cheat-sheet' });
+  openModal(panel, { id: 'cheat-sheet', label: 'Keyboard cheat sheet' });
   requestAnimationFrame(() => panel.focus());
 }

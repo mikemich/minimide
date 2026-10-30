@@ -70,7 +70,7 @@ function render(app) {
     const b = app.keymap.bindingsFor(id)[0];
     return b ? prettyBinding(b) : null;
   };
-  const layer = h('div.key-hints');
+  const layer = h('div.key-hints', { 'aria-hidden': 'true' }); // a visual aid; the shortcuts are in the cheat sheet and menus
   document.body.append(layer); // badges are measured as they go in
   const placed = [];
   const badge = (el, text) => {

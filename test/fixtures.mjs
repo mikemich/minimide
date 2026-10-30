@@ -621,6 +621,28 @@ function multiRoot(root) {
   write(path.join(root, 'mrh/trusted-folders.json'), JSON.stringify({ folders: trusted }, null, 2) + '\n');
 }
 
+/** `ev`: files for the everyday-editing checks: encodings, line endings, long lines, code in several languages (everyday). */
+function everyday(root) {
+  const d = path.join(root, 'ev');
+  gitInit(d, 'QA', 'qa@example.com');
+  write(path.join(d, 'bom.txt'), Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('bom line\r\nsecond\r\n')]));
+  write(path.join(d, 'bom.json'), Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('{ "a": 1 }\n')]));
+  write(path.join(d, 'latin1.txt'), Buffer.from([0x63, 0x61, 0x66, 0xe9, 0x20, 0x93, 0x71, 0x94, 0x0a])); // "café “q”" in windows-1252
+  write(path.join(d, 'utf16.txt'), Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('hi utf16\n', 'utf16le')]));
+  write(path.join(d, 'oldmac.txt'), 'one\rtwo\rthree\r');
+  write(path.join(d, 'mixed.txt'), 'a\r\nb\r\nc\nd\r\n');
+  write(path.join(d, 'plain.txt'), 'alpha beta\nBeta beta gamma\nalphabet\n');
+  write(path.join(d, 'code.js'), 'function f() {\n  return 1;\n}\n');
+  write(path.join(d, 'style.css'), 'a {\n  color: red;\n}\n');
+  write(path.join(d, 'page.html'), '<div>\n  <p>x</p>\n</div>\n');
+  write(path.join(d, 'script.py'), 'def f():\n    return 1\n');
+  write(path.join(d, 'conf.yml'), 'a: 1\nb: 2\n');
+  write(path.join(d, 'run.sh'), 'echo hi\n');
+  write(path.join(d, 'unterminated.txt'), 'no newline at end');
+  write(path.join(d, 'sub/inner.txt'), 'inner\n');
+  commitAll(d, 'init');
+}
+
 /**
  * Create all fixtures under `root` (default: a new dir in os.tmpdir()). Homes that need no
  * pre-seeded files are created empty: the app fills in its defaults on first launch.
@@ -653,7 +675,8 @@ export function createFixtures(root = fs.mkdtempSync(path.join(os.tmpdir(), 'min
   aiproj(root);
   remote(root);
   multiRoot(root);
-  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih', 'dbgh', 'vsih', 'sync1', 'sync2', 'aih', 'remoteh', 'lhh', 'pkgbh', 'outlineh', 'mch', 'bmh']) fs.mkdirSync(path.join(root, home), { recursive: true });
+  everyday(root);
+  for (const home of ['qah', 'home3', 'qah2', 'sessh', 'qbh', 'termh', 'dialogh', 'sbxh', 'largeh', 'trusth', 'fth', 'chh', 'extrah', 'emh', 'cih', 'dbgh', 'vsih', 'sync1', 'sync2', 'aih', 'remoteh', 'lhh', 'pkgbh', 'outlineh', 'mch', 'bmh', 'evh', 'a11yh']) fs.mkdirSync(path.join(root, home), { recursive: true });
   return root;
 }
 
