@@ -599,6 +599,11 @@ function bmproj(root) {
   write(path.join(d, 'ext.txt'), lines('ext', 8));
 }
 
+/** The go on this process's PATH, or ''. */
+function goPath() {
+  try { return execFileSync('/bin/sh', ['-c', 'command -v go'], { encoding: 'utf8' }).trim(); } catch { return ''; }
+}
+
 /**
  * `txproj`: tests for testExplorer in every framework: Jest (test/fake-jest.cjs stands in for it),
  * node:test, pytest (test/fake-pytest.mjs, set as the pytest command in `txh`) and Go (when it is
@@ -610,7 +615,7 @@ function txproj(root) {
   const log = path.join(root, 'txcalls.log');
   const jest = (dir) => {
     write(path.join(dir, 'package.json'), JSON.stringify({ name: path.basename(dir), private: true, devDependencies: { jest: '0.0.0-fake' } }, null, 2) + '\n');
-    write(path.join(dir, 'node_modules/.bin/jest'), `#!/bin/sh\necho "$(pwd -P) $*" >> '${log}'\nexec node '${path.join(REPO, 'test/fake-jest.cjs')}' "$@"\n`);
+    write(path.join(dir, 'node_modules/.bin/jest'), `#!/bin/sh\necho "$(pwd -P) $*" >> '${log}'\nexec '${process.execPath}' '${path.join(REPO, 'test/fake-jest.cjs')}' "$@"\n`);
     fs.chmodSync(path.join(dir, 'node_modules/.bin/jest'), 0o755);
   };
   jest(d);
@@ -686,7 +691,12 @@ function txproj(root) {
   const home = path.join(root, 'txh');
   write(path.join(home, 'trusted-folders.json'), JSON.stringify({ folders: [{ path: d, real: d }] }, null, 2) + '\n');
   write(path.join(home, 'config.json'), JSON.stringify({
-    'test-explorer': { pytestCommand: `node '${path.join(REPO, 'test/fake-pytest.mjs')}'` },
+    // The node and go running these tests: a login shell may find others (or none) first.
+    'test-explorer': {
+      pytestCommand: `'${process.execPath}' '${path.join(REPO, 'test/fake-pytest.mjs')}'`,
+      nodeCommand: `'${process.execPath}'`,
+      ...(goPath() ? { goCommand: `'${goPath()}'` } : {}),
+    },
   }, null, 2) + '\n');
 }
 

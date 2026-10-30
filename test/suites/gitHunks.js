@@ -135,7 +135,7 @@
     peekButton(ed, 'stage').click();
     const want = lines('row', 12).replace(/\n/g, '\r\n').replace('row 10\r\n', 'ROW 10\r\n');
     const staged = await until(async () => (await index('crlf.txt')) === want);
-    return { shown, removed, staged: !!staged, index: JSON.stringify(await index('crlf.txt')).includes('\\r\\nROW 10\\r\\n'), left: await until(() => peekTitle(ed)) };
+    return { shown, removed, staged: !!staged, index: JSON.stringify(await index('crlf.txt')).includes('\\r\\nROW 10\\r\\n'), left: (await until(() => peekTitle(ed) === 'Change 1 of 1' && peekTitle(ed))) || peekTitle(ed) };
   });
   out.crlf = results.crlf;
   await closeAll();

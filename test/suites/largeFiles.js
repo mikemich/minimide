@@ -34,6 +34,12 @@
     const walk = async (dir) => { let n = 0; for (const e of await window.native.fs.readdir(dir).catch(() => [])) n += e.isDir ? await walk(e.path) : 1; return n; };
     return walk(`${home}/history`);
   };
+  // The count once earlier saves have finished writing (on a slow machine they still are).
+  const settledHistory = async () => {
+    let last = await historyCount();
+    for (let i = 0; i < 20; i++) { await wait(250); const n = await historyCount(); if (n === last) return n; last = n; }
+    return last;
+  };
   const open = async (f) => {
     const t0 = performance.now();
     const ed = await ws.open(`${root}/${f}`);
@@ -118,7 +124,7 @@
     const v = ed.view;
     const original = await window.native.fs.read(`${root}/big.js`);
     const mid = v.state.doc.line(Math.floor(v.state.doc.lines / 2)).from;
-    const historyBefore = await historyCount();
+    const historyBefore = await settledHistory();
     // Type ten characters in the middle, a frame each, then save.
     v.focus();
     v.dispatch({ selection: { anchor: mid } });
@@ -137,7 +143,7 @@
     await ws.save(ed);
     const back = await window.native.fs.read(`${root}/big.js`);
     await wait(300);
-    return { edited, restored: back === original, dirtyAfterSave, dirtyAfterDelete, dirtyAtEnd: ed.isDirty(), history: (await historyCount()) === historyBefore ? 'none' : 'kept', typeFrameMs, saveMs };
+    return { edited, restored: back === original, dirtyAfterSave, dirtyAfterDelete, dirtyAtEnd: ed.isDirty(), history: (await settledHistory()) === historyBefore ? 'none' : 'kept', typeFrameMs, saveMs };
   });
 
   await step('min', async () => {

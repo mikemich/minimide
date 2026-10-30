@@ -27,7 +27,7 @@
   const fixtures = root.replace(/\/[^/]+$/, '');
   const file = (n) => `${root}/${n}`;
   const run = (cmd) => app.commands.run(cmd);
-  const hasGo = (await native.proc.exec('/bin/sh', ['-lc', 'command -v go'])).code === 0;
+  const hasGo = !!app.config.get('test-explorer.goCommand'); // the fixture sets it when go is installed
   const view = () => document.querySelector('.tx-view');
   const rowsEl = () => [...view().querySelectorAll('.tx-row')];
   const rowText = (r) => `${'  '.repeat(Number(r.getAttribute('aria-level')) - 1)}${r.querySelector('.tx-name').textContent}`;
@@ -98,7 +98,7 @@
       gutter: gutter(math), inline: inline(math),
       summary: view().querySelector('.tx-summary').textContent,
       statusBar: statusItem()?.getAttribute('aria-label'), statusShown: !statusItem()?.hidden,
-      output: ['node_modules/.bin/jest', 'fake-pytest.mjs', 'node --test', ...(hasGo ? ['go test -json'] : [])].filter((s) => !outputText().includes(s)),
+      output: ['node_modules/.bin/jest', 'fake-pytest.mjs', ' --test --test-reporter=spec', ...(hasGo ? ["go' test -json"] : [])].filter((s) => !outputText().includes(s)),
       notes: notes(),
     };
   });
@@ -172,7 +172,7 @@
     await run('test-explorer:rerun');
     const again = await finished();
     return {
-      done, again, command: /node --test .*tools\/check\.test\.mjs/.test(out), gutter: gutter(ed),
+      done, again, command: /node'? --test .*tools\/check\.test\.mjs/.test(out), gutter: gutter(ed),
       inline: inline(ed).map((i) => [i.line, /words failed|cat|dog/.test(i.text)]), statuses: statuses(['numbers', 'words']),
     };
   });
