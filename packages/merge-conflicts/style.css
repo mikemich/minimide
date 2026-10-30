@@ -1,0 +1,40 @@
+/* Sections of a conflict block. Colors follow the theme through its CSS variables. */
+.cm-line.cm-mc-ours { background: color-mix(in srgb, var(--c-green) 13%, transparent); }
+.cm-line.cm-mc-base { background: color-mix(in srgb, var(--c-yellow) 10%, transparent); }
+.cm-line.cm-mc-theirs { background: color-mix(in srgb, var(--c-blue) 14%, transparent); }
+.cm-line.cm-mc-marker { color: var(--fg-muted); font-style: italic; }
+.cm-line.cm-mc-marker-ours { background: color-mix(in srgb, var(--c-green) 26%, transparent); }
+.cm-line.cm-mc-marker-base { background: color-mix(in srgb, var(--c-yellow) 22%, transparent); }
+.cm-line.cm-mc-marker-mid { background: color-mix(in srgb, var(--fg-muted) 16%, transparent); }
+.cm-line.cm-mc-marker-theirs { background: color-mix(in srgb, var(--c-blue) 28%, transparent); }
+
+/* The row of actions above a block. */
+.cm-mc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; padding: 2px 6px; font-family: var(--ui-font); font-size: 0.82em; line-height: 20px; color: var(--fg-muted); background: color-mix(in srgb, var(--bg-sidebar) 80%, transparent); border-top: 1px solid var(--border); user-select: none; }
+.cm-mc-actions .cm-mc-sep { color: var(--fg-subtle); }
+.cm-mc-actions .cm-mc-labels { margin-left: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; color: var(--fg-subtle); }
+.cm-mc-actions button { padding: 0 6px; height: 20px; border: 0; border-radius: 4px; background: none; color: var(--accent); font: inherit; cursor: pointer; }
+.cm-mc-actions button:hover { background: var(--bg-hover); color: var(--fg-strong); }
+.cm-mc-actions button:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+
+/* Status bar item. */
+.mc-status { color: var(--c-yellow); }
+.status-item:has(> .mc-status:empty) { display: none; }
+
+/* The Compare view. */
+.mc-compare { display: flex; flex-direction: column; outline: none; background: var(--bg); }
+.mc-compare-toolbar { flex: none; display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 8px 0 14px; border-bottom: 1px solid var(--border); background: var(--bg-sidebar); white-space: nowrap; }
+.mc-compare-path { color: var(--fg-strong); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.mc-compare-side { color: var(--fg-muted); font-size: 0.88em; overflow: hidden; text-overflow: ellipsis; }
+.mc-compare-arrow { color: var(--fg-subtle); }
+.mc-compare-actions { margin-left: auto; display: flex; gap: 6px; }
+.mc-compare-host { flex: 1; min-height: 0; overflow: auto; }
+.mc-compare-host > .cm-mergeView, .mc-compare-host > .cm-editor { height: 100%; }
+.mc-compare-host .cm-mergeView { overflow: auto; }
+.mc-compare-host .cm-editor { font-size: var(--editor-font-size); background: var(--bg); }
+.mc-compare-host .cm-scroller { font-family: var(--editor-font); line-height: var(--editor-line-height); }
+.mc-compare-host .cm-merge-b .cm-changedLine { background: color-mix(in srgb, var(--c-blue) 12%, transparent) !important; }
+.mc-compare-host .cm-merge-a .cm-changedLine, .mc-compare-host .cm-deletedChunk { background: color-mix(in srgb, var(--c-green) 12%, transparent) !important; }
+.mc-compare-host .cm-merge-b .cm-changedText { background: color-mix(in srgb, var(--c-blue) 30%, transparent) !important; }
+.mc-compare-host .cm-merge-a .cm-changedText { background: color-mix(in srgb, var(--c-green) 30%, transparent) !important; }
+.mc-compare-host .cm-collapsedLines { background: var(--bg-sidebar); color: var(--fg-muted); padding: 4px 12px; font-family: var(--ui-font); font-size: 0.9em; }
+.mc-compare-host .cm-merge-spacer { background: var(--bg-hover); }
