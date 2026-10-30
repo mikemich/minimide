@@ -117,7 +117,7 @@ mide.workspace.getItems();
 mide.workspace.save(item);
 mide.workspace.splitRight({ empty: true });   // returns the new pane
 mide.workspace.splitDown({ empty: true });    // same, below instead of to the right
-mide.workspace.relativePath(absPath);         // with several folders: "folder-name/src/app.js"
+mide.workspace.relativePath(absPath);         // with several folders: "folder-name/src/app.js" ("app (client)/…" if two share a name)
 mide.workspace.resolvePath(relPath);          // and back
 
 mide.workspace.observeActiveItem((item) => …);
