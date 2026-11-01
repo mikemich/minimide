@@ -471,6 +471,8 @@ window.native = {
     reload: async () => location.reload(),
     onCommand: noop,
     setAppIcon: async () => {},
+    setChrome: async () => {},
+    showMenu: async () => {},
     onRequestClose: noop,
     onOpenPath: noop,
   },

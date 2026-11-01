@@ -10,6 +10,7 @@ import { h, basename } from './core/dom.js';
 import { registerCoreCommands, CORE_KEYMAP } from './core/core-commands.js';
 import { CORE_SCHEMA } from './core/schema.js';
 import { bindThemedAppIcon, renderAppIcon } from './core/app-icon.js';
+import { bindWindowChrome } from './core/window-chrome.js';
 import { Trust } from './core/trust.js';
 import { wordCompletion } from './core/word-completion.js';
 import { symbolTracker } from './core/symbols.js';
@@ -138,6 +139,7 @@ class App {
     this.bindRestrictedModeItem();
     if (!window.mideTest) this.welcomeCard.maybeShow(); // test runs would find a card in the way
     bindThemedAppIcon(this);
+    bindWindowChrome(this);
     this.renderAppIcon = renderAppIcon;
     // Daily update check (skipped in automated test runs).
     if (this.config.get('core.checkForUpdates') !== false && !window.mideTest && Date.now() - (this.state.lastUpdateCheck || 0) > 24 * 3600 * 1000) {

@@ -336,6 +336,12 @@ const ptys = new Map(); // `${wcId}:${id}` -> IPty
 // shutting down, so quitting waits for these first (see will-quit).
 const pendingPtyExits = new Set();
 
+// Off macOS the window has no native title bar: the renderer draws one this tall, and the system's
+// window buttons sit over its right end in the theme's colors (window:setChrome).
+const TITLEBAR_HEIGHT = 34;
+// The theme's colors, from the last window that reported them, so a new window starts in them.
+let chrome = null;
+
 function createWindow(projectPath, { restore = false } = {}) {
   // Test mode: MINIMIDE_WINDOW=1440x810 sets the window size (used for demo recordings).
   const [testW, testH] = (SCREENSHOT && process.env.MINIMIDE_WINDOW || '').split('x').map(Number);
@@ -346,8 +352,9 @@ function createWindow(projectPath, { restore = false } = {}) {
     minHeight: 360,
     show: false,
     title: 'Minimide',
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1e2128' : '#fafafa',
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    backgroundColor: chrome?.background || (nativeTheme.shouldUseDarkColors ? '#1e2128' : '#fafafa'),
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
+    ...(process.platform === 'darwin' ? {} : { titleBarOverlay: { color: chrome?.bar || '#1e2128', symbolColor: chrome?.symbols || '#9aa0aa', height: TITLEBAR_HEIGHT } }),
     trafficLightPosition: { x: 14, y: 12 },
     webPreferences: {
       preload: path.join(ROOT, 'src/preload/preload.cjs'),
@@ -931,6 +938,21 @@ function registerIpc() {
     }
     if (process.platform === 'darwin') app.dock?.setIcon(img);
     else BrowserWindow.fromWebContents(event.sender)?.setIcon(img);
+  });
+  handle('window:setChrome', (event, colors = {}) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const hex = (c) => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c);
+    if (!win || ![colors.background, colors.bar, colors.symbols].every(hex)) return;
+    chrome = { background: colors.background, bar: colors.bar, symbols: colors.symbols };
+    // Native menus, dialogs and the window frame follow the theme, not the system setting.
+    nativeTheme.themeSource = colors.dark ? 'dark' : 'light';
+    win.setBackgroundColor(chrome.background);
+    if (process.platform !== 'darwin') win.setTitleBarOverlay({ color: chrome.bar, symbolColor: chrome.symbols, height: TITLEBAR_HEIGHT });
+  });
+  // Off macOS the menu has no bar of its own: the title bar's menu button opens it here.
+  handle('window:showMenu', (event, x, y) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && Number.isFinite(x) && Number.isFinite(y)) Menu.getApplicationMenu()?.popup({ window: win, x: Math.round(x), y: Math.round(y) });
   });
   handle('window:reload', (event) => event.sender.reload());
 }

@@ -137,6 +137,8 @@ contextBridge.exposeInMainWorld('native', {
     reload: call('window:reload'),
     onCommand: (fn) => on('app:command', fn),
     setAppIcon: call('window:setAppIcon'),
+    setChrome: call('window:setChrome'),
+    showMenu: call('window:showMenu'),
     onRequestClose: (fn) => on('app:request-close', fn),
     onOpenPath: (fn) => on('app:open-path', fn),
   },
